@@ -7,6 +7,7 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { AdBanner } from "@/components/AdBanner";
 
 function NotFoundComponent() {
@@ -72,11 +73,15 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SiteHeader />
-        <AdBanner placement="top" dismissable className="mx-auto max-w-7xl px-4 pt-3" />
-        <main className="mx-auto max-w-7xl px-4 py-8">
-          <Outlet />
-        </main>
+        <div className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <AdBanner placement="top" dismissable className="mx-auto w-full max-w-7xl px-4 pt-3" />
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
+            <Outlet />
+          </main>
+          <AdBanner placement="bottom" className="mx-auto w-full max-w-7xl px-4 pb-4" />
+          <SiteFooter />
+        </div>
         <Toaster theme="dark" />
       </AuthProvider>
     </QueryClientProvider>

@@ -3,10 +3,15 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-export type AdPlacement = "top" | "marketplace_grid" | "order_book_sidebar" | "trades_escrow";
+export type AdPlacement =
+  | "top" | "center" | "bottom" | "footer"
+  | "marketplace_grid" | "order_book_sidebar" | "trades_escrow";
 export type AdMediaType = "image" | "video" | "html";
 
-const PlacementSchema = z.enum(["top", "marketplace_grid", "order_book_sidebar", "trades_escrow"]);
+const PlacementSchema = z.enum([
+  "top", "center", "bottom", "footer",
+  "marketplace_grid", "order_book_sidebar", "trades_escrow",
+]);
 
 async function assertAdmin(userId: string) {
   const { data } = await supabaseAdmin

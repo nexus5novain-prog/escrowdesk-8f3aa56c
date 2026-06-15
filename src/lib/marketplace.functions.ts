@@ -29,6 +29,18 @@ export type ListingRow = {
 
 export type Tier = "premium" | "trusted" | "regular";
 
+// Rank score used to order threads from highest to lowest within each tier.
+// Composition: tier-boost + avg rating + completed-trade depth + freshness bonus.
+export function computeThreadRank(p: ListingRow["profile"], createdAt: string): number {
+  const tierBoost = p?.is_premium ? 10_000 : p?.is_trusted ? 5_000 : 0;
+  const avgRating = p && p.rating_count > 0 ? p.rating_sum / p.rating_count : 0;
+  const ratingScore = avgRating * 200; // 0..1000
+  const tradesScore = Math.min(p?.trades_completed ?? 0, 500); // capped depth
+  const ageHrs = (Date.now() - new Date(createdAt).getTime()) / 36e5;
+  const freshness = Math.max(0, 200 - ageHrs); // decays over ~8 days
+  return tierBoost + ratingScore + tradesScore + freshness;
+}
+
 export const listMarketplace = createServerFn({ method: "GET" })
   .inputValidator(
     z.object({ q: z.string().max(120).optional(), category: z.string().max(60).optional() })
@@ -68,7 +80,57 @@ export const listMarketplace = createServerFn({ method: "GET" })
       regular: { selling: [], seeking: [] },
     };
     for (const l of enriched) groups[tierOf(l)][l.kind].push(l);
+    // Sort each bucket by rank (highest first) so top threads surface first.
+    const byRank = (a: ListingRow, b: ListingRow) =>
+      computeThreadRank(b.profile, b.created_at) - computeThreadRank(a.profile, a.created_at);
+    for (const tier of Object.keys(groups) as Tier[]) {
+      groups[tier].selling.sort(byRank);
+      groups[tier].seeking.sort(byRank);
+    }
     return { groups, total: enriched.length };
+  });
+
+// Admin: list every thread (any status) for moderation.
+export const adminListThreads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: role } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", context.userId)
+      .in("role", ["admin", "moderator"]).maybeSingle();
+    if (!role) throw new Error("Staff only");
+    const { data, error } = await supabaseAdmin
+      .from("listings")
+      .select("id,user_id,kind,name,category,amount,currency,status,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    return { threads: data ?? [] };
+  });
+
+export const adminSetThreadStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), status: z.enum(["active", "inactive", "sold"]) }))
+  .handler(async ({ data, context }) => {
+    const { data: role } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", context.userId)
+      .in("role", ["admin", "moderator"]).maybeSingle();
+    if (!role) throw new Error("Staff only");
+    const { error } = await supabaseAdmin.from("listings").update({ status: data.status }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDeleteThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { data: role } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", context.userId)
+      .in("role", ["admin", "moderator"]).maybeSingle();
+    if (!role) throw new Error("Staff only");
+    const { error } = await supabaseAdmin.from("listings").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const createListing = createServerFn({ method: "POST" })

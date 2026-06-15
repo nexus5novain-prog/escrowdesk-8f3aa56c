@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Activity, CheckCircle2, XCircle, Clock, Handshake } from "lucide-react";
 import { motion } from "framer-motion";
 import { AdBanner } from "@/components/AdBanner";
+import { PortfolioHero } from "@/components/PortfolioHero";
 
 export const Route = createFileRoute("/trades")({
   head: () => ({ meta: [{ title: "Trades — EscrowDesk" }] }),
@@ -62,31 +63,44 @@ function Trades() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Trades</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <PortfolioHero
+        eyebrow="Escrow trades"
+        title="Your escrow activity"
+        subtitle="Every escrow group you've created or joined — live status, counterparties, and outcomes."
+        icon={Handshake}
+        gradient="from-emerald-500/25 via-primary/15 to-sky-500/20"
+        stats={[
+          { label: "Open", value: stats.open, icon: Activity, accent: "primary" },
+          { label: "Pending", value: stats.pending, icon: Clock, accent: "amber" },
+          { label: "Successful", value: stats.successful, icon: CheckCircle2, accent: "emerald" },
+          { label: "Failed", value: stats.failed, icon: XCircle, accent: "rose" },
+        ]}
+      />
+      <div className="flex items-center justify-end">
         <Link to="/escrow/new"><Badge className="cursor-pointer gap-1"><Handshake className="h-3 w-3" /> New escrow</Badge></Link>
       </div>
+
 
       <AdBanner placement="trades_escrow" variant="banner" />
 
       {/* Live stat cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <motion.div
             key={c.key}
             layout
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className="surface p-4"
+            className="surface p-3 sm:p-4"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">{c.label}</span>
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">{c.label}</span>
               <span className={c.tone}>{c.icon}</span>
             </div>
             <motion.div
               key={c.value}
               initial={{ scale: 0.9, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }}
-              className="mt-2 font-mono text-3xl font-semibold"
+              className="mt-2 font-mono text-2xl sm:text-3xl font-semibold"
             >{c.value}</motion.div>
             <div className="mt-1 h-1 w-full rounded-full bg-secondary/40 overflow-hidden">
               <div className={`h-full ${c.tone.replace("text-", "bg-")} opacity-60`} style={{ width: `${Math.min(100, c.value * 8)}%` }} />
@@ -96,12 +110,12 @@ function Trades() {
       </div>
 
       {/* Active escrow groups */}
-      <section className="surface">
-        <header className="flex items-center justify-between border-b border-border/40 px-5 py-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider">Active escrow groups</h2>
-          <span className="font-mono text-xs text-muted-foreground">{active.length} active</span>
+      <section className="surface overflow-hidden">
+        <header className="flex items-center justify-between border-b border-border/40 px-3 sm:px-5 py-3">
+          <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider">Active escrow groups</h2>
+          <span className="font-mono text-[10px] sm:text-xs text-muted-foreground">{active.length} active</span>
         </header>
-        <div className="divide-y divide-border/40">
+        <div className="divide-y divide-border/40 overflow-x-auto">
           {active.map((g) => {
             const b = bucketOf(String(g.status));
             const tone = b === "successful" ? "text-emerald-500" : b === "failed" ? "text-destructive" : b === "pending" ? "text-amber-500" : "text-primary";
@@ -110,29 +124,29 @@ function Trades() {
                 key={g.id}
                 to="/escrow/$id"
                 params={{ id: g.id }}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-secondary/30"
+                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 px-3 sm:px-5 py-3 transition-colors hover:bg-secondary/30 min-h-[60px]"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">{shortId(g.id)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                    <span className="font-mono text-xs sm:text-sm">{shortId(g.id)}</span>
                     <Badge variant="outline" className={`uppercase text-[10px] ${tone}`}>{String(g.status).replace(/_/g, " ")}</Badge>
-                    <span className="text-[10px] text-muted-foreground">· {g.my_role}</span>
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground">· {g.my_role}</span>
                   </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
+                  <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
                     with {g.counterparty?.display_name ?? "—"} · {new Date(g.created_at).toLocaleString()}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="font-mono text-sm">{fmtCrypto(Number(g.amount), g.asset)}</div>
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <div className="font-mono text-xs sm:text-sm">{fmtCrypto(Number(g.amount), g.asset)}</div>
                   {g.fiat_amount != null && (
-                    <div className="font-mono text-xs text-muted-foreground">{fmtFiat(Number(g.fiat_amount), g.fiat_currency || "USD")}</div>
+                    <div className="font-mono text-[11px] sm:text-xs text-muted-foreground">{fmtFiat(Number(g.fiat_amount), g.fiat_currency || "USD")}</div>
                   )}
                 </div>
               </Link>
             );
           })}
           {active.length === 0 && (
-            <div className="p-10 text-center text-sm text-muted-foreground">
+            <div className="p-6 sm:p-10 text-center text-sm text-muted-foreground">
               No active trades. <Link to="/marketplace" className="text-primary underline">Browse the marketplace</Link> or <Link to="/escrow/new" className="text-primary underline">start a manual escrow</Link>.
             </div>
           )}
