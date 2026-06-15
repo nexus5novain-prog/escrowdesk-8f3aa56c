@@ -71,6 +71,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bin_metadata: {
+        Row: {
+          bin_number: string
+          card_address: string | null
+          card_bank: string | null
+          card_brand: string | null
+          card_country: string | null
+          card_type: string | null
+          created_at: string
+          description: string | null
+          updated_at: string
+        }
+        Insert: {
+          bin_number: string
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_type?: string | null
+          created_at?: string
+          description?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bin_number?: string
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_type?: string | null
+          created_at?: string
+          description?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bins: {
         Row: {
           bank: string
@@ -240,19 +276,31 @@ export type Database = {
         Row: {
           amount: number
           asset: Database["public"]["Enums"]["asset_type"]
+          bin_number: string | null
+          card_address: string | null
+          card_bank: string | null
+          card_brand: string | null
+          card_country: string | null
+          card_number: string | null
+          card_type: string | null
+          card_user: string | null
           counterparty_id: string | null
           created_at: string
           creator_id: string
+          cvv: string | null
           deposit_tx_hash: string | null
           deposit_verified_at: string | null
           escrow_address: string | null
           escrow_address_chain: string | null
+          expire_date: string | null
           fiat_amount: number | null
           fiat_currency: string
           id: string
           invited_telegram: string | null
           invited_username: string | null
+          listing_category: string | null
           listing_id: string | null
+          listing_name: string | null
           released_at: string | null
           status: Database["public"]["Enums"]["escrow_group_status"]
           telegram_chat_id: number | null
@@ -263,19 +311,31 @@ export type Database = {
         Insert: {
           amount: number
           asset: Database["public"]["Enums"]["asset_type"]
+          bin_number?: string | null
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_number?: string | null
+          card_type?: string | null
+          card_user?: string | null
           counterparty_id?: string | null
           created_at?: string
           creator_id: string
+          cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
           escrow_address?: string | null
           escrow_address_chain?: string | null
+          expire_date?: string | null
           fiat_amount?: number | null
           fiat_currency?: string
           id?: string
           invited_telegram?: string | null
           invited_username?: string | null
+          listing_category?: string | null
           listing_id?: string | null
+          listing_name?: string | null
           released_at?: string | null
           status?: Database["public"]["Enums"]["escrow_group_status"]
           telegram_chat_id?: number | null
@@ -286,19 +346,31 @@ export type Database = {
         Update: {
           amount?: number
           asset?: Database["public"]["Enums"]["asset_type"]
+          bin_number?: string | null
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_number?: string | null
+          card_type?: string | null
+          card_user?: string | null
           counterparty_id?: string | null
           created_at?: string
           creator_id?: string
+          cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
           escrow_address?: string | null
           escrow_address_chain?: string | null
+          expire_date?: string | null
           fiat_amount?: number | null
           fiat_currency?: string
           id?: string
           invited_telegram?: string | null
           invited_username?: string | null
+          listing_category?: string | null
           listing_id?: string | null
+          listing_name?: string | null
           released_at?: string | null
           status?: Database["public"]["Enums"]["escrow_group_status"]
           telegram_chat_id?: number | null
@@ -358,11 +430,21 @@ export type Database = {
       }
       marketplace_products: {
         Row: {
+          bin_number: string | null
+          card_address: string | null
+          card_bank: string | null
+          card_brand: string | null
+          card_country: string | null
+          card_number: string | null
+          card_type: string | null
+          card_user: string | null
           category: string
           created_at: string
           created_by: string
           currency: string
+          cvv: string | null
           description: string
+          expire_date: string | null
           id: string
           image_url: string | null
           is_featured: boolean
@@ -375,11 +457,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bin_number?: string | null
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_number?: string | null
+          card_type?: string | null
+          card_user?: string | null
           category: string
           created_at?: string
           created_by: string
           currency?: string
+          cvv?: string | null
           description: string
+          expire_date?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean
@@ -392,11 +484,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bin_number?: string | null
+          card_address?: string | null
+          card_bank?: string | null
+          card_brand?: string | null
+          card_country?: string | null
+          card_number?: string | null
+          card_type?: string | null
+          card_user?: string | null
           category?: string
           created_at?: string
           created_by?: string
           currency?: string
+          cvv?: string | null
           description?: string
+          expire_date?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean
@@ -593,6 +695,30 @@ export type Database = {
           wallet_address_usdc?: string | null
           wallet_address_usdc_chain?: string | null
           wallet_address_usdt?: string | null
+        }
+        Relationships: []
+      }
+      shoutbox_messages: {
+        Row: {
+          body: string
+          created_at: string
+          display_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          display_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
