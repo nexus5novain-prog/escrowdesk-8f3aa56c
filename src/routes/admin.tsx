@@ -15,6 +15,7 @@ import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, type AdPlace
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
+import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
