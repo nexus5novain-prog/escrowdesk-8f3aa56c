@@ -1009,11 +1009,10 @@ function ThreadsPanel() {
   const { data, refetch, isFetching } = useQuery({ queryKey: ["admin-threads"], queryFn: () => list() });
   const threads = data?.threads ?? [];
   const [cat, setCat] = useState<string>("All");
-  const cats = ["All", "BIN", "Enroll", "Scanner", "Combo", "Other"];
+  const cats = ["All", ...THREAD_SECTIONS.map((s) => s.label)];
   const filtered = threads.filter((t) => {
     if (cat === "All") return true;
-    if (cat === "Other") return !["BIN", "Enroll", "Scanner", "Combo"].includes(t.category);
-    return t.category === cat;
+    return sectionOf(t.category) === cat;
   });
   return (
     <div className="surface p-4 space-y-4">
