@@ -1,16 +1,31 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MediatorBot } from "@/components/MediatorBot";
-import { CryptoCalculator } from "@/components/CryptoCalculator";
-import { ShieldCheck, Send, Lock, Sparkles, Handshake, Bot, Globe, ArrowRight, Zap, Users, CheckCircle2, Wallet, MessageSquare } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { AdBanner } from "@/components/AdBanner";
+import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
+import { listProducts } from "@/lib/products.functions";
+import {
+  ShieldCheck, Search, ArrowRight, Wallet, MessageSquare, Send, Lightbulb,
+  Layers, CreditCard, Boxes, ScanLine, Megaphone, Lock, Activity, Trophy, Star, Coins, Users,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Escrow Desk — Enterprise-grade P2P Crypto Escrow" },
-      { name: "description", content: "Escrow Desk is a mediated peer-to-peer escrow platform for crypto traders. Trade BTC, ETH, USDT and USDC safely with on-platform escrow, dispute mediation, and a fully integrated Telegram bot." },
+      { title: "EscrowDesk — P2P Crypto Escrow Community" },
+      { name: "description", content: "EscrowDesk is a mediated peer-to-peer escrow community. Browse listings, chat with traders in real time, track your wallet — all from one professional dashboard." },
+      { property: "og:title", content: "EscrowDesk — P2P Crypto Escrow Community" },
+      { property: "og:description", content: "Mediated peer-to-peer crypto escrow with a live community shoutbox, market threads and a personal trading dashboard." },
     ],
   }),
   component: LandingPage,
@@ -18,244 +33,442 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="space-y-16">
+    <div className="space-y-6">
       <Hero />
-      <Stats />
-      <HowItWorks />
-      <Features />
-      <SecuritySection />
-      <CTASection />
+      <AnnouncementBanner />
+      <UniversalSearch />
+      <QuickCategories />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6 min-w-0">
+          <LatestThreads />
+          <Shoutbox />
+          <TipsWidget />
+        </div>
+        <aside className="space-y-6">
+          <UserDashboard />
+          <WalletCard />
+          <ResourcesFeed />
+        </aside>
+      </div>
     </div>
   );
 }
 
+/* ───────────────────────── Hero ───────────────────────── */
 function Hero() {
   return (
-    <section className="surface relative overflow-hidden p-6 md:p-12">
-      <BackgroundOrbs />
-      <FloatingBots />
-      <div className="relative grid items-center gap-10 md:grid-cols-2">
-        <div className="space-y-5">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Badge variant="outline" className="font-mono text-[11px]">
-              <ShieldCheck className="mr-1 h-3 w-3" /> Mediated · Telegram-native · Non-custodial-first
-            </Badge>
-          </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-            className="text-4xl font-semibold leading-tight md:text-5xl"
-          >
-            Crypto trades, <span className="text-primary">settled by a mediator</span> — not by trust.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="text-sm text-muted-foreground md:text-base"
-          >
-            Escrow Desk is a peer-to-peer escrow platform built for serious crypto traders.
-            Every deal sits behind a verified escrow group, a human-grade mediator bot, and a full
-            Telegram control surface — so buyers fund safely, sellers release on agreement, and
-            disputes get resolved on-platform, on the record.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-            className="flex flex-wrap gap-2"
-          >
-            <Link to="/marketplace"><Button className="gap-2">Browse marketplace <ArrowRight className="h-4 w-4" /></Button></Link>
-            <Link to="/escrow/new"><Button variant="outline" className="gap-2"><Lock className="h-4 w-4" /> Start an escrow</Button></Link>
-            <a href="https://t.me/" target="_blank" rel="noreferrer">
-              <Button variant="secondary" className="gap-2"><Send className="h-4 w-4" /> Open Telegram bot</Button>
-            </a>
-          </motion.div>
-          <div className="flex flex-wrap gap-3 pt-2 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Non-custodial deposits</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> Tiered reputation</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-primary" /> 24/7 mediation</span>
-          </div>
-        </div>
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
-          <MediatorBot />
-          <div className="mt-6"><CryptoCalculator /></div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function BackgroundOrbs() {
-  return (
-    <>
-      <motion.div
+    <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 px-5 py-10 sm:py-14 md:py-16">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+      <div
         aria-hidden
-        className="absolute -left-32 -top-32 h-80 w-80 rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--primary) 50%, transparent), transparent 70%)" }}
-        animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 20% 20%, hsl(var(--primary)) 0, transparent 40%), radial-gradient(circle at 80% 60%, hsl(var(--accent)) 0, transparent 40%)",
+        }}
       />
-      <motion.div
-        aria-hidden
-        className="absolute -right-24 bottom-0 h-72 w-72 rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--accent) 40%, transparent), transparent 70%)" }}
-        animate={{ x: [0, -20, 0], y: [0, -15, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </>
-  );
-}
-
-function FloatingBots() {
-  const items = [
-    { Icon: Bot, x: "8%", y: "70%", delay: 0 },
-    { Icon: ShieldCheck, x: "85%", y: "12%", delay: 1.5 },
-    { Icon: Sparkles, x: "60%", y: "85%", delay: 3 },
-  ];
-  return (
-    <>
-      {items.map(({ Icon, x, y, delay }, i) => (
-        <motion.div
-          key={i}
-          aria-hidden
-          className="pointer-events-none absolute hidden text-primary/30 md:block"
-          style={{ left: x, top: y }}
-          animate={{ y: [0, -14, 0], rotate: [0, 8, -8, 0] }}
-          transition={{ duration: 6, repeat: Infinity, delay, ease: "easeInOut" }}
-        >
-          <Icon className="h-6 w-6" />
-        </motion.div>
-      ))}
-    </>
-  );
-}
-
-function Stats() {
-  const stats = [
-    { label: "Avg. settlement", value: "< 12 min", icon: Zap },
-    { label: "Supported assets", value: "BTC · ETH · USDT · USDC", icon: Wallet },
-    { label: "Mediator coverage", value: "24 / 7", icon: ShieldCheck },
-    { label: "Telegram-native", value: "100%", icon: Send },
-  ];
-  return (
-    <section className="grid gap-3 md:grid-cols-4">
-      {stats.map((s, i) => (
-        <motion.div
-          key={s.label}
-          initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-          className="surface p-4"
-        >
-          <s.icon className="h-4 w-4 text-primary" />
-          <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</p>
-          <p className="text-base font-semibold">{s.value}</p>
-        </motion.div>
-      ))}
-    </section>
-  );
-}
-
-function HowItWorks() {
-  const steps = [
-    { n: 1, title: "Post or pick a listing", body: "Sellers list services or assets; buyers seek what they need. Tiered by Premium, Trusted, and Regular reputation.", icon: Sparkles },
-    { n: 2, title: "Auto-create escrow", body: "Buyer clicks Trade — an escrow group is opened against the seller's payout address with the agreed amount and asset.", icon: Lock },
-    { n: 3, title: "Mediator watches the room", body: "Chat, attach evidence, and let the bot enforce the agreement. Telegram alerts every step of the way.", icon: Bot },
-    { n: 4, title: "Release on agreement", body: "Both parties sign off — funds release to the seller. Disputes route to a human moderator with full audit trail.", icon: Handshake },
-  ];
-  return (
-    <section>
-      <SectionHeader eyebrow="How it works" title="From handshake to settlement in four steps" />
-      <div className="grid gap-4 md:grid-cols-4">
-        {steps.map((s, i) => (
-          <motion.div
-            key={s.n}
-            initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-            className="surface relative overflow-hidden p-5"
-          >
-            <div className="absolute right-3 top-3 font-mono text-3xl text-primary/15">{s.n.toString().padStart(2, "0")}</div>
-            <div className="grid h-9 w-9 place-items-center rounded-md bg-primary/15 text-primary">
-              <s.icon className="h-4 w-4" />
-            </div>
-            <h3 className="mt-3 text-sm font-semibold">{s.title}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Features() {
-  const features = [
-    { title: "Marketplace with reputation tiers", body: "Premium and Trusted badges are earned, not bought — milestones based on volume, distinct partners, and verified ratings.", icon: Users },
-    { title: "Live trades dashboard", body: "Open, pending, successful, and failed trades — all counted live across your portfolio in real time.", icon: Zap },
-    { title: "On-platform messaging", body: "Every trade has its own room with the mediator bot, evidence uploads, and timestamped chat.", icon: MessageSquare },
-    { title: "Telegram control surface", body: "Link your account and run trades, deposits, releases, and disputes from the bot — wherever you are.", icon: Send },
-    { title: "Multi-chain payouts", body: "BTC, ETH, USDT (ERC20/TRC20), and USDC payout addresses on your profile — buyers fund where you want it.", icon: Wallet },
-    { title: "Global by default", body: "Borderless P2P, currency-agnostic listings, fiat valuations on every quote.", icon: Globe },
-  ];
-  return (
-    <section>
-      <SectionHeader eyebrow="Why Escrow Desk" title="Built for traders who can't afford to be wrong" />
-      <div className="grid gap-4 md:grid-cols-3">
-        {features.map((f, i) => (
-          <motion.div
-            key={f.title}
-            initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
-            className="surface p-5"
-          >
-            <div className="grid h-9 w-9 place-items-center rounded-md bg-primary/15 text-primary"><f.icon className="h-4 w-4" /></div>
-            <h3 className="mt-3 text-sm font-semibold">{f.title}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{f.body}</p>
-          </motion.div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SecuritySection() {
-  return (
-    <section className="surface relative overflow-hidden p-6 md:p-10">
-      <div className="absolute inset-0 -z-10 opacity-30" style={{ background: "radial-gradient(circle at 30% 20%, color-mix(in oklab, var(--primary) 30%, transparent), transparent 60%)" }} />
-      <div className="grid items-center gap-8 md:grid-cols-2">
-        <div>
-          <Badge variant="outline" className="font-mono text-[11px]"><ShieldCheck className="mr-1 h-3 w-3" /> Security model</Badge>
-          <h2 className="mt-3 text-2xl font-semibold md:text-3xl">Funds protected. Reputation earned. Disputes mediated.</h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Escrow Desk treats every trade as a sealed room: buyer-funded deposits, seller-locked payouts,
-            a mediator with visibility into the entire conversation, and a moderator team to escalate when
-            things go sideways. We don't custody your wallets — we orchestrate the deal.
+      <div className="relative mx-auto max-w-3xl text-center">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <Badge variant="outline" className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-primary/80">
+            <ShieldCheck className="mr-1.5 h-3 w-3" /> Mediated Peer-to-Peer Escrow
+          </Badge>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+            EscrowDesk <span className="text-primary">Community</span>
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-balance text-sm leading-relaxed text-muted-foreground sm:text-base">
+            From BIN trades, scanners, enroll kits and combo packs — every deal is mediated, signed and settled on-platform.
           </p>
-          <ul className="mt-4 space-y-2 text-xs text-muted-foreground">
-            <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Row-level data isolation for every escrow group.</li>
-            <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Verified Telegram identity required for releases.</li>
-            <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Tamper-evident chat & evidence log on every dispute.</li>
-            <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-primary" /> 1–5 star ratings aggregated and visible site-wide.</li>
-          </ul>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="gap-2">
+              <Link to="/marketplace">Enter Marketplace <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="gap-2">
+              <Link to="/auth">Create account</Link>
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────── Announcement banner (from ad_banners) ─────────── */
+function AnnouncementBanner() {
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+      <div className="flex items-start gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-primary/40 bg-primary/10 text-primary">
+          <Megaphone className="h-4 w-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <AdBanner placement="top" variant="card" className="block" />
         </div>
-        <MediatorBot />
       </div>
-    </section>
-  );
-}
-
-function CTASection() {
-  return (
-    <section className="surface relative overflow-hidden p-8 text-center md:p-12">
-      <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(135deg, color-mix(in oklab, var(--primary) 18%, transparent), transparent 60%)" }} />
-      <h2 className="text-2xl font-semibold md:text-3xl">Trade like a pro — backed by a mediator that never sleeps.</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-        Spin up your first escrow in under a minute. Link Telegram for instant alerts. Build the reputation that unlocks Premium tier.
-      </p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <Link to="/auth"><Button className="gap-2">Create an account <ArrowRight className="h-4 w-4" /></Button></Link>
-        <Link to="/marketplace"><Button variant="outline">Browse marketplace</Button></Link>
-      </div>
-    </section>
-  );
-}
-
-function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <div className="mb-6 text-center">
-      <p className="text-[11px] font-mono uppercase tracking-wider text-primary">{eyebrow}</p>
-      <h2 className="mt-1 text-2xl font-semibold md:text-3xl">{title}</h2>
     </div>
+  );
+}
+
+/* ───────────────── Universal search ───────────────── */
+function UniversalSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); navigate({ to: "/marketplace", search: { q } as never }); }}
+      className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/60 px-3 py-2"
+    >
+      <Search className="h-4 w-4 text-muted-foreground" />
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search listings, BINs, scanners, sellers…"
+        className="h-9 border-0 bg-transparent shadow-none focus-visible:ring-0"
+      />
+      <Button type="submit" size="sm">Search</Button>
+    </form>
+  );
+}
+
+/* ───────────────── Quick categories ───────────────── */
+function QuickCategories() {
+  const items = [
+    { label: "New Threads", to: "/marketplace", icon: Activity },
+    { label: "BIN Store", to: "/marketplace", icon: CreditCard, category: "BIN" },
+    { label: "Enroll Store", to: "/marketplace", icon: Layers, category: "Enroll" },
+    { label: "Scanner Store", to: "/marketplace", icon: ScanLine, category: "Scanner" },
+    { label: "Combo Store", to: "/marketplace", icon: Boxes, category: "Combo" },
+    { label: "Threads", to: "/order-book", icon: Trophy },
+    { label: "Post listing", to: "/post-listing", icon: Send },
+    { label: "Post offer", to: "/post-offer", icon: Coins },
+  ];
+  return (
+    <div className="flex gap-2 overflow-x-auto rounded-xl border border-border/70 bg-card/60 p-2">
+      {items.map((it) => (
+        <Link
+          key={it.label}
+          to={it.to}
+          search={it.category ? ({ category: it.category } as never) : undefined}
+          className="flex shrink-0 items-center gap-1.5 rounded-md border border-border/60 bg-background/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-foreground"
+        >
+          <it.icon className="h-3.5 w-3.5" /> {it.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/* ───────────────── Latest threads (marketplace_products) ───────────────── */
+function LatestThreads() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["landing", "products"],
+    queryFn: () => listProducts({ data: {} as never }),
+    staleTime: 30_000,
+  });
+  const rows = (data?.products ?? []).slice(0, 12);
+  return (
+    <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60">
+      <header className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold tracking-tight">Latest Threads</h2>
+        </div>
+        <Link to="/marketplace" className="text-xs text-muted-foreground hover:text-foreground">View all →</Link>
+      </header>
+      <div className="hidden grid-cols-[1fr_120px_70px_70px_140px] gap-3 border-b border-border/60 bg-background/40 px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground sm:grid">
+        <span>Thread</span><span>Category</span><span>Price</span><span>Status</span><span>Posted</span>
+      </div>
+      {isLoading ? (
+        <div className="px-4 py-6 text-xs text-muted-foreground">Loading threads…</div>
+      ) : rows.length === 0 ? (
+        <div className="px-4 py-6 text-xs text-muted-foreground">No active listings yet.</div>
+      ) : (
+        <ul className="divide-y divide-border/50">
+          {rows.map((p) => (
+            <li key={p.id} className="grid grid-cols-1 gap-1 px-4 py-2.5 text-xs transition-colors hover:bg-background/40 sm:grid-cols-[1fr_120px_70px_70px_140px] sm:items-center sm:gap-3">
+              <Link to="/product/$id" params={{ id: p.id }} className="flex items-center gap-2 truncate font-medium text-foreground hover:text-primary">
+                {p.is_featured && <Star className="h-3 w-3 shrink-0 fill-primary text-primary" />}
+                <span className="truncate">{p.name}</span>
+              </Link>
+              <span className="font-mono text-[10px] uppercase text-muted-foreground">{p.category}</span>
+              <span className="font-mono tabular-nums">${Number(p.price).toFixed(2)}</span>
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-success" /> active
+              </span>
+              <span className="text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/* ───────────────── Shoutbox (realtime) ───────────────── */
+type ShoutMsg = { id: string; user_id: string; display_name: string; body: string; created_at: string };
+
+function Shoutbox() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const { data: messages = [] } = useQuery({
+    queryKey: ["shoutbox"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shoutbox_messages")
+        .select("id,user_id,display_name,body,created_at")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as ShoutMsg[];
+    },
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("shoutbox-public")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shoutbox_messages" }, () => {
+        qc.invalidateQueries({ queryKey: ["shoutbox"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const displayName = useMemo(() => {
+    const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
+    return (meta.display_name as string) || user?.email?.split("@")[0] || "anon";
+  }, [user]);
+
+  async function send() {
+    if (!user) return;
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    setSending(true);
+    const { error } = await supabase.from("shoutbox_messages").insert({
+      user_id: user.id, display_name: displayName, body: trimmed,
+    });
+    setSending(false);
+    if (!error) setBody("");
+  }
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60">
+      <header className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold tracking-tight">Shoutbox</h2>
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-success">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> live
+          </span>
+        </div>
+        <span className="text-[10px] font-mono uppercase text-muted-foreground">{messages.length} recent</span>
+      </header>
+
+      <ul className="max-h-72 space-y-2 overflow-y-auto p-3">
+        {messages.length === 0 && (
+          <li className="px-2 py-6 text-center text-xs text-muted-foreground">Be the first to post in the shoutbox.</li>
+        )}
+        {messages.map((m) => (
+          <li key={m.id} className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs">
+            <div className="mb-0.5 flex items-center gap-2">
+              <span className="font-semibold text-foreground">{m.display_name}</span>
+              <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</span>
+            </div>
+            <p className="break-words text-foreground/90">{m.body}</p>
+          </li>
+        ))}
+      </ul>
+
+      <Separator />
+      <div className="p-3">
+        {user ? (
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={body} onChange={(e) => setBody(e.target.value)}
+              placeholder={`Say something as ${displayName}…`}
+              maxLength={500} rows={2}
+              className="min-h-0 resize-none text-sm"
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            />
+            <Button onClick={send} disabled={sending || !body.trim()} size="sm" className="gap-1">
+              <Send className="h-3.5 w-3.5" /> Post
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-md border border-dashed border-border/70 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+            <span>Sign in to chat with the community.</span>
+            <Button asChild size="sm" variant="outline"><Link to="/auth">Sign in</Link></Button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ───────────────── Tips widget ───────────────── */
+const TIPS = [
+  "Always release escrow only after fiat clears your account — not just an SMS confirmation.",
+  "Re-check the seller's wallet address character-by-character before releasing.",
+  "Use the mediator bot in any open trade to summon a human moderator within minutes.",
+  "BIN listings show masked card metadata — buyers see full details only after escrow funds settle.",
+];
+function TipsWidget() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((x) => (x + 1) % TIPS.length), 9000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <section className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/60 p-4">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-warning/40 bg-warning/10 text-warning">
+        <Lightbulb className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary/80">Trade Tip</h3>
+        <p className="mt-1 text-xs leading-relaxed text-foreground/90">{TIPS[i]}</p>
+      </div>
+    </section>
+  );
+}
+
+/* ───────────────── User dashboard sidebar ───────────────── */
+function UserDashboard() {
+  const { user } = useAuth();
+  const { data: profile } = useQuery({
+    queryKey: ["landing-profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name,avatar_url,trades_completed")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+  if (!user) {
+    return (
+      <section className="rounded-xl border border-border/70 bg-card/60 p-4 text-center">
+        <span className="grid h-12 w-12 mx-auto place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary">
+          <Users className="h-5 w-5" />
+        </span>
+        <h3 className="mt-3 text-sm font-semibold">Join the community</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Sign in to track trades, chat in the shoutbox and manage your wallet.</p>
+        <Button asChild size="sm" className="mt-3 w-full"><Link to="/auth">Sign in / Sign up</Link></Button>
+      </section>
+    );
+  }
+  const name = profile?.display_name || user.email?.split("@")[0] || "Trader";
+  return (
+    <section className="rounded-xl border border-border/70 bg-card/60 p-4">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 place-items-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{name}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{user.email}</p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Stat label="Trades" value={profile?.trades_completed ?? 0} />
+        <Stat label="Member" value={"✓"} />
+      </div>
+      <Button asChild variant="outline" size="sm" className="mt-3 w-full"><Link to="/transactions">My transactions</Link></Button>
+    </section>
+  );
+}
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-md border border-border/60 bg-background/40 px-2 py-1.5">
+      <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-base font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+/* ───────────────── Wallet card ───────────────── */
+function WalletCard() {
+  const { user } = useAuth();
+  const { data: wallet } = useQuery({
+    queryKey: ["landing-wallet", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wallets")
+        .select("asset,available,escrow")
+        .eq("user_id", user!.id)
+        .eq("asset", "BTC")
+        .maybeSingle();
+      return data;
+    },
+  });
+  return (
+    <section className="rounded-xl border border-border/70 bg-card/60 p-4">
+      <header className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">My Wallet</h3>
+        </div>
+        <Link to="/wallet" className="text-[11px] text-muted-foreground hover:text-foreground">Manage →</Link>
+      </header>
+      <div className="space-y-2">
+        <Row label="BTC available" value={user ? (wallet?.available ?? 0).toString() : "—"} />
+        <Row label="In escrow" value={user ? (wallet?.escrow ?? 0).toString() : "—"} />
+      </div>
+      {!user && (
+        <Button asChild size="sm" variant="outline" className="mt-3 w-full"><Link to="/auth">Sign in to fund</Link></Button>
+      )}
+    </section>
+  );
+}
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border/60 bg-background/40 px-3 py-2 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono tabular-nums font-semibold">{value}</span>
+    </div>
+  );
+}
+
+/* ───────────────── Resources feed (latest products by category) ───────────────── */
+function ResourcesFeed() {
+  const { data } = useQuery({
+    queryKey: ["landing", "resources"],
+    queryFn: () => listProducts({ data: {} as never }),
+    staleTime: 30_000,
+  });
+  const rows = (data?.products ?? []).slice(0, 6);
+  return (
+    <section className="rounded-xl border border-border/70 bg-card/60 p-4">
+      <header className="mb-3 flex items-center gap-2">
+        <Lock className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold">New Resources</h3>
+      </header>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nothing posted yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((p) => {
+            const cat = MARKETPLACE_CATEGORIES.find((c) => c.value === p.category);
+            return (
+              <li key={p.id}>
+                <Link to="/product/$id" params={{ id: p.id }} className={cn(
+                  "block rounded-md border border-border/60 bg-background/40 px-3 py-2 text-xs transition-colors hover:border-primary/50 hover:bg-primary/5",
+                )}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{p.name}</span>
+                    <span className="font-mono text-[10px] uppercase text-primary/80">{cat?.value ?? p.category}</span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    ${Number(p.price).toFixed(2)} · {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

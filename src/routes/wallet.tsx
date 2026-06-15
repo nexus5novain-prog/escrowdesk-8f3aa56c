@@ -3,7 +3,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { getMe, updateWalletAddresses, getBadgeProgress, getWalletPnL } from "@/lib/escrow.functions";
+import { getMe, updateWalletAddresses, getBadgeProgress, getWalletPnL, getPurchaseHistory } from "@/lib/escrow.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,9 +30,11 @@ function Wallet() {
   const saveAddrs = useServerFn(updateWalletAddresses);
   const fetchBadges = useServerFn(getBadgeProgress);
   const fetchPnL = useServerFn(getWalletPnL);
+  const fetchHistory = useServerFn(getPurchaseHistory);
   const { data, refetch } = useQuery({ queryKey: ["me"], queryFn: () => fetchMe() });
   const { data: badges } = useQuery({ queryKey: ["badges"], queryFn: () => fetchBadges() });
   const { data: pnl } = useQuery({ queryKey: ["pnl"], queryFn: () => fetchPnL() });
+  const { data: historyData } = useQuery({ queryKey: ["purchase-history"], queryFn: () => fetchHistory() });
   const qc = useQueryClient();
   const { user } = useAuth();
 
@@ -84,25 +86,25 @@ function Wallet() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Wallet & Earnings</h1>
-        <div className="flex gap-2">
-          <Link to="/escrow/new"><Button variant="outline" size="sm">New escrow group</Button></Link>
-          <Link to="/post-offer"><Button variant="outline" size="sm">Post offer</Button></Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Link to="/escrow/new" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">New escrow group</Button></Link>
+          <Link to="/post-offer" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">Post offer</Button></Link>
         </div>
       </div>
 
       {/* Earnings PnL */}
-      <div className="surface p-6">
+      <div className="surface p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold">Lifetime activity</h2>
+          <h2 className="font-semibold text-base sm:text-lg">Lifetime activity</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Totals are derived from completed (released) trades only.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-3">
           <StatCard label="Total earned" value={fmtFiat(pnl?.total_earned_usd ?? 0, "USD")} icon={<ArrowDownRight className="h-4 w-4 text-emerald-400" />} />
           <StatCard label="Total spent"  value={fmtFiat(pnl?.total_spent_usd ?? 0, "USD")} icon={<ArrowUpRight className="h-4 w-4 text-rose-400" />} />
           <StatCard label="Net"           value={fmtFiat(pnl?.net_usd ?? 0, "USD")}          icon={<TrendingUp className="h-4 w-4 text-primary" />} />
@@ -115,11 +117,11 @@ function Wallet() {
               No completed trades yet. Earnings will appear here after your first released trade.
             </div>
           ) : (
-            <div className="grid gap-2">
+            <div className="grid gap-2 overflow-x-auto">
               {pnl?.per_asset.map((row) => (
-                <div key={row.asset} className="flex items-center justify-between rounded-md border border-border/40 bg-secondary/20 p-3">
-                  <Badge variant="outline" className="font-mono">{row.asset}</Badge>
-                  <div className="flex gap-6 text-xs">
+                <div key={row.asset} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-md border border-border/40 bg-secondary/20 p-3">
+                  <Badge variant="outline" className="font-mono w-fit">{row.asset}</Badge>
+                  <div className="flex flex-wrap gap-2 sm:gap-6 text-xs">
                     <span className="text-emerald-400">+{fmtCrypto(row.earned, row.asset as "BTC"|"USDT")}</span>
                     <span className="text-rose-400">−{fmtCrypto(row.spent, row.asset as "BTC"|"USDT")}</span>
                     <span className="font-mono">net {row.net >= 0 ? "+" : ""}{fmtCrypto(row.net, row.asset as "BTC"|"USDT")}</span>
@@ -132,37 +134,71 @@ function Wallet() {
       </div>
 
       {/* Payout addresses */}
-      <div className="surface p-6">
+      <div className="surface p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <WalletIcon className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold">Add wallet addresses</h2>
+          <h2 className="font-semibold text-base sm:text-lg">Add wallet addresses</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Paste the on-chain addresses where coin will be released and accepted after successful trades.
           These addresses are visible to your trade counterparty inside the trade chat.
         </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
           <AddrField label="BTC" icon={<Bitcoin className="h-3.5 w-3.5" />} value={btc} onChange={setBtc} placeholder={COINS[0].placeholder} />
           <AddrField label="USDT (TRC20)" icon={<CircleDollarSign className="h-3.5 w-3.5" />} value={usdt} onChange={setUsdt} placeholder={COINS[1].placeholder} />
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
               <CircleDollarSign className="h-3.5 w-3.5" /> USDC
             </Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
               <Select value={usdcChain} onValueChange={(v) => setUsdcChain(v as "ERC20"|"TRC20")}>
-                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ERC20">ERC20</SelectItem>
                   <SelectItem value="TRC20">TRC20</SelectItem>
                 </SelectContent>
               </Select>
-              <Input value={usdc} onChange={(e) => setUsdc(e.target.value)} placeholder={COINS[2].placeholder} className="font-mono" />
+              <Input value={usdc} onChange={(e) => setUsdc(e.target.value)} placeholder={COINS[2].placeholder} className="font-mono text-xs" />
             </div>
           </div>
           <AddrField label="ETH" icon={<CircleDollarSign className="h-3.5 w-3.5" />} value={eth} onChange={setEth} placeholder={COINS[3].placeholder} />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save addresses"}</Button>
+          <Button onClick={save} disabled={saving} className="w-full sm:w-auto">{saving ? "Saving…" : "Save addresses"}</Button>
+        </div>
+      </div>
+
+      <div className="surface p-4 sm:p-6">
+        <div className="flex items-center gap-2">
+          <WalletIcon className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold text-base sm:text-lg">Purchase history</h2>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">Your most recent store purchases are shown here so you can revisit product orders and escrow details.</p>
+        <div className="mt-4 space-y-3">
+          {(historyData?.purchases ?? []).length === 0 ? (
+            <div className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+              No purchases yet. Buy a product from the marketplace to create an escrow group and track it here.
+            </div>
+          ) : (
+            (historyData?.purchases ?? []).map((item) => (
+              <div key={item.id} className="rounded-xl border border-border/60 bg-background/80 p-3 sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <div>
+                    <div className="font-semibold text-sm">{item.listing_name || "Marketplace item"}</div>
+                    <div className="text-xs text-muted-foreground">{item.listing_category || "Store"}</div>
+                  </div>
+                  <div className="font-mono text-xs sm:text-sm text-primary">{item.amount} {item.asset}</div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
+                  <span>{item.status}</span>
+                  <span>•</span>
+                  <span>{item.fiat_amount} {item.fiat_currency}</span>
+                  <span>•</span>
+                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

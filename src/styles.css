@@ -41,37 +41,37 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-/* Dark "trading desk" theme by default */
+/* Professional navy + slate + gold theme */
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.16 0.025 260);
-  --foreground: oklch(0.97 0.005 250);
-  --card: oklch(0.21 0.028 262);
-  --card-foreground: oklch(0.97 0.005 250);
-  --popover: oklch(0.21 0.028 262);
-  --popover-foreground: oklch(0.97 0.005 250);
-  --primary: oklch(0.72 0.18 155);            /* emerald accent */
-  --primary-foreground: oklch(0.18 0.03 260);
-  --secondary: oklch(0.27 0.03 260);
-  --secondary-foreground: oklch(0.97 0.005 250);
-  --muted: oklch(0.25 0.025 262);
-  --muted-foreground: oklch(0.7 0.02 260);
-  --accent: oklch(0.62 0.18 250);             /* electric indigo */
-  --accent-foreground: oklch(0.98 0.005 250);
-  --destructive: oklch(0.65 0.22 25);
+  --background: oklch(0.20 0.045 252);          /* #0B1E33 deep navy */
+  --foreground: oklch(0.93 0.006 250);          /* #E6E8EB platinum */
+  --card: oklch(0.26 0.055 255);                /* #13294B */
+  --card-foreground: oklch(0.95 0.006 250);
+  --popover: oklch(0.24 0.05 255);
+  --popover-foreground: oklch(0.95 0.006 250);
+  --primary: oklch(0.78 0.105 82);              /* #C8A35A gold */
+  --primary-foreground: oklch(0.18 0.04 255);
+  --secondary: oklch(0.34 0.05 255);            /* #1F3A5F slate */
+  --secondary-foreground: oklch(0.95 0.006 250);
+  --muted: oklch(0.28 0.04 255);
+  --muted-foreground: oklch(0.72 0.015 250);
+  --accent: oklch(0.55 0.09 255);               /* muted steel blue */
+  --accent-foreground: oklch(0.97 0.006 250);
+  --destructive: oklch(0.58 0.18 25);
   --destructive-foreground: oklch(0.98 0.005 250);
-  --success: oklch(0.72 0.18 155);
+  --success: oklch(0.66 0.12 160);
   --success-foreground: oklch(0.18 0.03 260);
-  --warning: oklch(0.8 0.16 75);
+  --warning: oklch(0.78 0.105 82);
   --warning-foreground: oklch(0.18 0.03 260);
-  --border: oklch(0.3 0.025 260);
-  --input: oklch(0.27 0.025 260);
-  --ring: oklch(0.72 0.18 155);
-  --chart-1: oklch(0.72 0.18 155);
-  --chart-2: oklch(0.62 0.18 250);
-  --chart-3: oklch(0.8 0.16 75);
-  --chart-4: oklch(0.65 0.22 25);
-  --chart-5: oklch(0.85 0.1 200);
+  --border: oklch(0.36 0.04 255);
+  --input: oklch(0.30 0.04 255);
+  --ring: oklch(0.78 0.105 82);
+  --chart-1: oklch(0.78 0.105 82);
+  --chart-2: oklch(0.55 0.09 255);
+  --chart-3: oklch(0.66 0.12 160);
+  --chart-4: oklch(0.58 0.18 25);
+  --chart-5: oklch(0.72 0.015 250);
 }
 
 @layer base {
@@ -80,9 +80,9 @@
   }
   body {
     background:
-      radial-gradient(ellipse at top left, color-mix(in oklab, var(--accent) 15%, transparent), transparent 60%),
-      radial-gradient(ellipse at bottom right, color-mix(in oklab, var(--primary) 12%, transparent), transparent 55%),
+      linear-gradient(180deg, var(--color-background) 0%, color-mix(in oklab, var(--card) 50%, var(--background)) 100%),
       var(--color-background);
+    background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-display);
     min-height: 100vh;
@@ -109,5 +109,79 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border: 1px solid currentColor;
+  }
+}
+
+/* Global Mobile-First Responsive Improvements */
+@layer utilities {
+  /* Ensure touch-friendly tap targets for interactive elements */
+  @media (max-width: 640px) {
+    button,
+    [role="button"],
+    input[type="checkbox"],
+    input[type="radio"],
+    a {
+      min-height: 2.75rem; /* 44px for touch targets */
+      min-width: 2.75rem;
+    }
+  }
+
+  /* Improve form inputs on mobile */
+  input,
+  textarea,
+  select {
+    @media (max-width: 640px) {
+      font-size: 16px; /* Prevents zoom on iOS */
+      min-height: 2.75rem;
+    }
+  }
+
+  /* Better spacing for modals and overlays on mobile */
+  [role="dialog"],
+  .modal {
+    @media (max-width: 640px) {
+      margin: 1rem;
+      max-height: calc(100vh - 2rem);
+    }
+  }
+
+  /* Improve scrollable areas on mobile */
+  .overflow-x-auto {
+    @media (max-width: 640px) {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Optimize tables for mobile */
+  table {
+    @media (max-width: 768px) {
+      font-size: 0.875rem;
+    }
+  }
+
+  /* Better dropdown/select sizing on mobile */
+  select,
+  [role="combobox"] {
+    @media (max-width: 640px) {
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }
+  }
+
+  /* Improve spacing for lists on mobile */
+  ul, ol {
+    @media (max-width: 640px) {
+      padding-left: 1rem;
+    }
+  }
+
+  /* Better link hit areas on mobile */
+  a {
+    @media (max-width: 640px) {
+      padding: 0.25rem 0.5rem;
+      display: inline-flex;
+      align-items: center;
+    }
   }
 }

@@ -12,7 +12,9 @@ import {
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
 } from "@/lib/escrow.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, type AdPlacement } from "@/lib/ads.functions";
-import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct } from "@/lib/products.functions";
+import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
+import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
+import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({ component: () => (<AuthGate><Admin /></AuthGate>) });
@@ -53,6 +58,7 @@ function Admin() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="warnings">Warnings</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="threads">Threads</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -63,6 +69,7 @@ function Admin() {
         <TabsContent value="users" className="mt-4"><UsersPanel /></TabsContent>
         <TabsContent value="warnings" className="mt-4"><WarningsPanel /></TabsContent>
         <TabsContent value="products" className="mt-4"><ProductsPanel /></TabsContent>
+        <TabsContent value="threads" className="mt-4"><ThreadsPanel /></TabsContent>
         <TabsContent value="ads" className="mt-4"><AdsPanel /></TabsContent>
         <TabsContent value="telegram" className="mt-4"><TelegramPanel /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel /></TabsContent>
@@ -459,11 +466,14 @@ type AdRow = {
   created_at: string;
 };
 
-const ALL_PLACEMENTS: { value: AdPlacement; label: string }[] = [
-  { value: "top", label: "Top banner (all pages)" },
-  { value: "marketplace_grid", label: "Marketplace grid" },
-  { value: "order_book_sidebar", label: "Order Book sidebar" },
-  { value: "trades_escrow", label: "Trades dashboard" },
+const ALL_PLACEMENTS: { value: AdPlacement; label: string; group: "Site-wide" | "Page-specific" }[] = [
+  { value: "top",                label: "Top — above every page",          group: "Site-wide" },
+  { value: "center",             label: "Center — mid-content slot",        group: "Site-wide" },
+  { value: "bottom",             label: "Bottom — above the footer",        group: "Site-wide" },
+  { value: "footer",             label: "Footer — inside the footer",       group: "Site-wide" },
+  { value: "marketplace_grid",   label: "Marketplace grid banner",          group: "Page-specific" },
+  { value: "order_book_sidebar", label: "Order Book sidebar",               group: "Page-specific" },
+  { value: "trades_escrow",      label: "Trades dashboard",                 group: "Page-specific" },
 ];
 
 function AdsPanel() {
@@ -551,14 +561,40 @@ function AdsPanel() {
           </div>
           <div className="md:col-span-2">
             <Label className="text-xs uppercase text-muted-foreground">Placements</Label>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {ALL_PLACEMENTS.map((p) => (
-                <button key={p.value} type="button" onClick={() => togglePlacement(p.value)}
-                  className={`rounded-full border px-3 py-1 text-[11px] transition-colors ${form.placements.includes(p.value) ? "border-primary bg-primary/15 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"}`}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" className="mt-1.5 w-full justify-between font-normal">
+                  <span className="truncate text-left text-sm">
+                    {form.placements.length === 0
+                      ? "Select where this ad shows…"
+                      : form.placements.map((v) => ALL_PLACEMENTS.find((p) => p.value === v)?.label ?? v).join(" · ")}
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[320px] p-2">
+                {(["Site-wide", "Page-specific"] as const).map((group) => (
+                  <div key={group} className="mb-2 last:mb-0">
+                    <p className="px-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{group}</p>
+                    <div className="space-y-0.5">
+                      {ALL_PLACEMENTS.filter((p) => p.group === group).map((p) => {
+                        const checked = form.placements.includes(p.value);
+                        return (
+                          <button
+                            type="button" key={p.value}
+                            onClick={() => togglePlacement(p.value)}
+                            className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${checked ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"}`}
+                          >
+                            <Checkbox checked={checked} className="pointer-events-none" />
+                            <span className="flex-1">{p.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Priority (0-100)</Label>
@@ -622,12 +658,37 @@ type ProductRow = {
   is_featured: boolean;
   seller_wallet_address: string | null;
   seller_wallet_asset: string | null;
+  card_number?: string | null;
+  bin_number?: string | null;
+  card_user?: string | null;
+  card_type?: string | null;
+  card_brand?: string | null;
+  card_bank?: string | null;
+  card_country?: string | null;
+  card_address?: string | null;
   created_at: string;
 };
 
+type ProductFormState = {
+  name: string; description: string; price: string; currency: string;
+  image_url: string; stock: string; seller_wallet_address: string; seller_wallet_asset: string;
+  is_featured: boolean;
+  card_number: string; bin_number: string; card_user: string; card_type: string;
+  card_brand: string; card_bank: string; card_country: string; card_address: string;
+  cvv: string; expire_date: string;
+};
+
+const emptyForm = (): ProductFormState => ({
+  name: "", description: "", price: "", currency: "USD",
+  image_url: "", stock: "-1", seller_wallet_address: "", seller_wallet_asset: "BTC",
+  is_featured: false,
+  card_number: "", bin_number: "", card_user: "", card_type: "",
+  card_brand: "", card_bank: "", card_country: "", card_address: "",
+  cvv: "", expire_date: "",
+});
+
 function ProductsPanel() {
   const list = useServerFn(adminListProducts);
-  const create = useServerFn(adminCreateProduct);
   const update = useServerFn(adminUpdateProduct);
   const del = useServerFn(adminDeleteProduct);
   const { data, refetch } = useQuery({ queryKey: ["admin-products"], queryFn: () => list() });
@@ -640,23 +701,75 @@ function ProductsPanel() {
     return () => { supabase.removeChannel(ch); };
   }, [refetch]);
 
-  const [form, setForm] = useState({
-    name: "", description: "", category: "", price: "", currency: "USD",
-    image_url: "", stock: "-1", seller_wallet_address: "", seller_wallet_asset: "USDT",
-    is_featured: false,
-  });
+  return (
+    <div className="space-y-4">
+      <div className="surface flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <h2 className="font-semibold">Marketplace control center</h2>
+          <p className="text-xs text-muted-foreground">Each category has its own dedicated create form and seed control. Listings appear in the marketplace in real time.</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="BIN">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-secondary/40 p-1">
+          {MARKETPLACE_CATEGORIES.map((c) => {
+            const count = products.filter((p) => p.category === c.value).length;
+            return (
+              <TabsTrigger key={c.value} value={c.value} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                {c.label}
+                <span className="ml-2 rounded-full bg-background/30 px-1.5 py-0.5 font-mono text-[10px]">{count}</span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        {MARKETPLACE_CATEGORIES.map((c) => (
+          <TabsContent key={c.value} value={c.value} className="mt-4 space-y-4">
+            <CategoryProductsSection
+              category={c.value}
+              label={c.label}
+              blurb={c.blurb}
+              products={products.filter((p) => p.category === c.value)}
+              onChanged={refetch}
+              update={update}
+              del={del}
+            />
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+function CategoryProductsSection({
+  category, label, blurb, products, onChanged, update, del,
+}: {
+  category: MarketplaceCategory;
+  label: string;
+  blurb: string;
+  products: ProductRow[];
+  onChanged: () => void;
+  update: ReturnType<typeof useServerFn<typeof adminUpdateProduct>>;
+  del: ReturnType<typeof useServerFn<typeof adminDeleteProduct>>;
+}) {
+  const create = useServerFn(adminCreateProduct);
+  const seed = useServerFn(adminSeedSampleProducts);
+  const binLookup = useServerFn(lookupBinMetadata);
+  const [form, setForm] = useState<ProductFormState>(emptyForm());
   const [busy, setBusy] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [lookupNote, setLookupNote] = useState("Enter a full card number to autofill BIN metadata");
 
   const submit = async () => {
     if (!form.name.trim() || !form.description.trim()) return toast.error("Name and description required");
     const price = Number(form.price);
     if (!price || price <= 0) return toast.error("Valid price required");
+    if (category === "BIN" && !form.card_number.trim()) return toast.error("Card number is required for BIN listings");
     setBusy(true);
     try {
       await create({ data: {
         name: form.name.trim(),
         description: form.description.trim(),
-        category: form.category.trim() || "Other",
+        category,
         price,
         currency: form.currency.toUpperCase(),
         image_url: form.image_url || undefined,
@@ -664,73 +777,186 @@ function ProductsPanel() {
         seller_wallet_address: form.seller_wallet_address || undefined,
         seller_wallet_asset: form.seller_wallet_asset as "BTC"|"USDT"|"USDC"|"ETH",
         is_featured: form.is_featured,
+        card_number: category === "BIN" ? form.card_number || undefined : undefined,
+        bin_number: category === "BIN" ? form.bin_number || undefined : undefined,
+        card_user: category === "BIN" ? form.card_user || undefined : undefined,
+        card_type: category === "BIN" ? form.card_type || undefined : undefined,
+        card_brand: category === "BIN" ? form.card_brand || undefined : undefined,
+        card_bank: category === "BIN" ? form.card_bank || undefined : undefined,
+        card_country: category === "BIN" ? form.card_country || undefined : undefined,
+        card_address: category === "BIN" ? form.card_address || undefined : undefined,
+        cvv: category === "BIN" ? form.cvv || undefined : undefined,
+        expire_date: category === "BIN" ? form.expire_date || undefined : undefined,
       } });
-      toast.success("Product added");
-      setForm({ name: "", description: "", category: "", price: "", currency: "USD", image_url: "", stock: "-1", seller_wallet_address: "", seller_wallet_asset: "USDT", is_featured: false });
-      refetch();
+      toast.success(`${label} product added`);
+      setForm(emptyForm());
+      setLookupNote("Enter a full card number to autofill BIN metadata");
+      onChanged();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
 
+  const runSeed = async () => {
+    if (!window.confirm(`Insert 10 demo products into the ${label}?`)) return;
+    setSeeding(true);
+    try {
+      const r = await seed({ data: { perCategory: 10, category } });
+      toast.success(`Seeded ${(r as { inserted: number }).inserted} ${label} products`);
+      onChanged();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSeeding(false); }
+  };
+
+  const commonFields = (
+    <>
+      <div className="md:col-span-2">
+        <Label className="text-xs uppercase text-muted-foreground">Product name</Label>
+        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={`e.g. Premium ${label} pack`} />
+      </div>
+      <div className="md:col-span-2">
+        <Label className="text-xs uppercase text-muted-foreground">About / description</Label>
+        <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Shown on the product card and details page" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Image URL (blank = auto placeholder)</Label>
+        <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://…" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Price</Label>
+        <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Currency</Label>
+        <Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} maxLength={8} />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Stock (-1 = unlimited)</Label>
+        <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Payout asset</Label>
+        <Select value={form.seller_wallet_asset} onValueChange={(v) => setForm({ ...form, seller_wallet_asset: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="BTC">BTC</SelectItem>
+            <SelectItem value="USDT">USDT</SelectItem>
+            <SelectItem value="USDC">USDC</SelectItem>
+            <SelectItem value="ETH">ETH</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="md:col-span-2">
+        <Label className="text-xs uppercase text-muted-foreground">Payout wallet address</Label>
+        <Input value={form.seller_wallet_address} onChange={(e) => setForm({ ...form, seller_wallet_address: e.target.value })} placeholder="Where the escrow should be funded" className="font-mono text-xs" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch checked={form.is_featured} onCheckedChange={(v) => setForm({ ...form, is_featured: v })} />
+        <span className="text-sm">Featured product</span>
+      </div>
+    </>
+  );
+
+  const binFields = (
+    <>
+      <div className="md:col-span-2">
+        <Label className="text-xs uppercase text-muted-foreground">Card number</Label>
+        <Input
+          value={form.card_number}
+          onChange={(e) => setForm({ ...form, card_number: e.target.value })}
+          onBlur={async () => {
+            const digits = form.card_number.replace(/\D/g, "");
+            if (digits.length >= 16) {
+              setLookupNote("Looking up BIN metadata…");
+              try {
+                const r = await binLookup({ data: { card_number: form.card_number } });
+                if (r.metadata) {
+                  setForm((prev) => ({
+                    ...prev,
+                    bin_number: r.metadata?.bin_number ?? prev.bin_number,
+                    card_brand: r.metadata?.card_brand ?? prev.card_brand,
+                    card_type: r.metadata?.card_type ?? prev.card_type,
+                    card_bank: r.metadata?.card_bank ?? prev.card_bank,
+                    card_country: r.metadata?.card_country ?? prev.card_country,
+                    card_address: r.metadata?.card_address ?? prev.card_address,
+                  }));
+                  setLookupNote("BIN metadata filled from database.");
+                } else {
+                  setLookupNote("No BIN metadata found. Complete fields manually.");
+                }
+              } catch {
+                setLookupNote("BIN lookup failed. Please enter metadata manually.");
+              }
+            }
+          }}
+          placeholder="1234 5678 9012 3456"
+          className="font-mono"
+        />
+        <p className="text-xs text-muted-foreground">{lookupNote}</p>
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">BIN / first six digits</Label>
+        <Input value={form.bin_number} onChange={(e) => setForm({ ...form, bin_number: e.target.value })} placeholder="412345" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Cardholder</Label>
+        <Input value={form.card_user} onChange={(e) => setForm({ ...form, card_user: e.target.value })} placeholder="Cardholder name" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Card brand</Label>
+        <Input value={form.card_brand} onChange={(e) => setForm({ ...form, card_brand: e.target.value })} placeholder="Visa, Mastercard, Amex" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Card type</Label>
+        <Input value={form.card_type} onChange={(e) => setForm({ ...form, card_type: e.target.value })} placeholder="Debit / Credit" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Issuing bank</Label>
+        <Input value={form.card_bank} onChange={(e) => setForm({ ...form, card_bank: e.target.value })} placeholder="Bank name" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Country</Label>
+        <Input value={form.card_country} onChange={(e) => setForm({ ...form, card_country: e.target.value })} placeholder="US, UK, NG…" />
+      </div>
+      <div className="md:col-span-2">
+        <Label className="text-xs uppercase text-muted-foreground">Card address</Label>
+        <Input value={form.card_address} onChange={(e) => setForm({ ...form, card_address: e.target.value })} placeholder="City, state or mailing address" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">CVV / CVC</Label>
+        <Input value={form.cvv} onChange={(e) => setForm({ ...form, cvv: e.target.value })} placeholder="123" maxLength={4} type="password" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase text-muted-foreground">Expiry date (MM/YY)</Label>
+        <Input value={form.expire_date} onChange={(e) => setForm({ ...form, expire_date: e.target.value })} placeholder="12/25" maxLength={5} />
+      </div>
+    </>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="surface p-5">
-        <h2 className="font-semibold">Add marketplace product</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Label className="text-xs uppercase text-muted-foreground">Product name</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. iPhone 15 Pro" />
-          </div>
-          <div className="md:col-span-2">
-            <Label className="text-xs uppercase text-muted-foreground">Description</Label>
-            <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Category</Label>
-            <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Electronics" />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Image URL</Label>
-            <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://…" />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Price</Label>
-            <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Currency</Label>
-            <Input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} maxLength={8} />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Stock (-1 = unlimited)</Label>
-            <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Payout asset</Label>
-            <Select value={form.seller_wallet_asset} onValueChange={(v) => setForm({ ...form, seller_wallet_asset: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USDT">USDT</SelectItem>
-                <SelectItem value="USDC">USDC</SelectItem>
-                <SelectItem value="BTC">BTC</SelectItem>
-                <SelectItem value="ETH">ETH</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-2">
-            <Label className="text-xs uppercase text-muted-foreground">Payout wallet address</Label>
-            <Input value={form.seller_wallet_address} onChange={(e) => setForm({ ...form, seller_wallet_address: e.target.value })} placeholder="Where the escrow should be funded" className="font-mono text-xs" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch checked={form.is_featured} onCheckedChange={(v) => setForm({ ...form, is_featured: v })} />
-            <span className="text-sm">Featured product</span>
-          </div>
+    <>
+      <div className="surface flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <h3 className="font-semibold">{label}</h3>
+          <p className="text-xs text-muted-foreground">{blurb}</p>
         </div>
-        <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Adding…" : "Add product"}</Button>
+        <Button size="sm" variant="outline" onClick={runSeed} disabled={seeding}>
+          {seeding ? "Seeding…" : `🌱 Seed 10 demo ${label} products`}
+        </Button>
       </div>
 
       <div className="surface p-5">
-        <h2 className="font-semibold">All products ({products.length})</h2>
+        <h3 className="font-semibold">Create a new {label} product</h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {category === "BIN" && binFields}
+          {commonFields}
+        </div>
+        <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Adding…" : `Add ${label} product`}</Button>
+      </div>
+
+      <div className="surface p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-semibold">{label} listings ({products.length})</h3>
+        </div>
         <div className="mt-3 space-y-3">
           {products.map((p) => (
             <div key={p.id} className="rounded-md border border-border/60 p-3">
@@ -738,17 +964,23 @@ function ProductsPanel() {
                 <div className="flex min-w-0 gap-3">
                   {p.image_url && <img src={p.image_url} alt={p.name} className="h-16 w-16 rounded-md object-cover" loading="lazy" />}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{p.name}</span>
                       {p.is_featured && <Badge>Featured</Badge>}
                       <Badge variant={p.status === "active" ? "default" : "secondary"}>{p.status}</Badge>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{p.category} · {p.price} {p.currency} · Stock: {p.stock === -1 ? "∞" : p.stock}</div>
+                    <div className="text-[11px] text-muted-foreground">{p.price} {p.currency} · Stock: {p.stock === -1 ? "∞" : p.stock}</div>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Select value={p.status} onValueChange={async (v) => { try { await update({ data: { id: p.id, status: v as "active"|"inactive"|"sold_out" } }); toast.success("Updated"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>
+                  <Select value={p.category} onValueChange={async (v) => { try { await update({ data: { id: p.id, category: v } }); toast.success("Moved"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>
+                    <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MARKETPLACE_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.value}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={p.status} onValueChange={async (v) => { try { await update({ data: { id: p.id, status: v as "active"|"inactive"|"sold_out" } }); toast.success("Updated"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>
                     <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
@@ -756,14 +988,85 @@ function ProductsPanel() {
                       <SelectItem value="sold_out">Sold out</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button size="sm" variant="outline" onClick={async () => { try { await update({ data: { id: p.id, is_featured: !p.is_featured } }); toast.success("Updated"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>{p.is_featured ? "Unfeature" : "Feature"}</Button>
-                  <Button size="sm" variant="destructive" onClick={async () => { if (!window.confirm("Delete this product?")) return; try { await del({ data: { id: p.id } }); toast.success("Deleted"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Delete</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { try { await update({ data: { id: p.id, is_featured: !p.is_featured } }); toast.success("Updated"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>{p.is_featured ? "Unfeature" : "Feature"}</Button>
+                  <Button size="sm" variant="destructive" onClick={async () => { if (!window.confirm("Delete this product?")) return; try { await del({ data: { id: p.id } }); toast.success("Deleted"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>Delete</Button>
                 </div>
               </div>
             </div>
           ))}
-          {products.length === 0 && <p className="text-sm text-muted-foreground">No products yet. Add one above.</p>}
+          {products.length === 0 && <p className="text-sm text-muted-foreground">No {label} products yet. Use the form above or the seed button.</p>}
         </div>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────── Threads (user-posted listings) ─────────────────────── */
+function ThreadsPanel() {
+  const list = useServerFn(adminListThreads);
+  const setStatus = useServerFn(adminSetThreadStatus);
+  const del = useServerFn(adminDeleteThread);
+  const { data, refetch, isFetching } = useQuery({ queryKey: ["admin-threads"], queryFn: () => list() });
+  const threads = data?.threads ?? [];
+  const [cat, setCat] = useState<string>("All");
+  const cats = ["All", "BIN", "Enroll", "Scanner", "Combo", "Other"];
+  const filtered = threads.filter((t) => {
+    if (cat === "All") return true;
+    if (cat === "Other") return !["BIN", "Enroll", "Scanner", "Combo"].includes(t.category);
+    return t.category === cat;
+  });
+  return (
+    <div className="surface p-4 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Community Threads</h2>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="font-mono text-[10px]">{filtered.length} of {threads.length}</Badge>
+          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>Refresh</Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Threads are user-posted selling/seeking offers from the order book. Moderate categories, deactivate, mark sold, or remove.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {cats.map((c) => (
+          <button key={c} onClick={() => setCat(c)}
+            className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${cat === c ? "border-primary bg-primary/15 text-primary" : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60"}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+            <tr><th className="px-2 py-1.5">Thread</th><th className="px-2 py-1.5">Kind</th><th className="px-2 py-1.5">Category</th><th className="px-2 py-1.5">Amount</th><th className="px-2 py-1.5">Status</th><th className="px-2 py-1.5">Actions</th></tr>
+          </thead>
+          <tbody className="divide-y divide-border/50">
+            {filtered.map((t) => (
+              <tr key={t.id} className="hover:bg-background/40">
+                <td className="px-2 py-2 max-w-[280px] truncate font-medium">{t.name}</td>
+                <td className="px-2 py-2 uppercase font-mono text-[10px]">{t.kind}</td>
+                <td className="px-2 py-2"><Badge variant="outline" className="text-[10px]">{t.category}</Badge></td>
+                <td className="px-2 py-2 font-mono tabular-nums">{t.amount ? `${Number(t.amount).toFixed(2)} ${t.currency ?? ""}` : "—"}</td>
+                <td className="px-2 py-2"><Badge variant={t.status === "active" ? "default" : "secondary"} className="text-[10px]">{t.status}</Badge></td>
+                <td className="px-2 py-2">
+                  <div className="flex flex-wrap gap-1">
+                    {t.status !== "active" && (
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await setStatus({ data: { id: t.id, status: "active" } }); toast.success("Activated"); refetch(); }}>Activate</Button>
+                    )}
+                    {t.status !== "inactive" && (
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await setStatus({ data: { id: t.id, status: "inactive" } }); toast.success("Deactivated"); refetch(); }}>Deactivate</Button>
+                    )}
+                    {t.status !== "sold" && (
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await setStatus({ data: { id: t.id, status: "sold" } }); toast.success("Marked sold"); refetch(); }}>Mark sold</Button>
+                    )}
+                    <Button size="sm" variant="destructive" className="h-7 px-2 text-[11px]" onClick={async () => { if (!confirm("Delete this thread?")) return; await del({ data: { id: t.id } }); toast.success("Deleted"); refetch(); }}>Delete</Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={6} className="px-2 py-6 text-center text-muted-foreground">No threads match this filter.</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

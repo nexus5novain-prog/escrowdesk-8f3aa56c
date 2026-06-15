@@ -517,11 +517,24 @@ export const getMyTrades = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await supabaseAdmin
       .from("trades")
-      .select("id, status, asset, crypto_amount, fiat_amount, fiat_currency, price, created_at, buyer_id, seller_id")
+      .select("id, status, asset, crypto_amount, fiat_amount, buyer_id, seller_id, created_at")
       .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
       .order("created_at", { ascending: false }).limit(100);
     if (error) throw new Error(error.message);
     return { trades: data ?? [] };
+  });
+
+export const getPurchaseHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await supabaseAdmin
+      .from("escrow_groups")
+      .select("id,listing_id,listing_name,listing_category,asset,amount,fiat_amount,fiat_currency,status,created_at")
+      .eq("creator_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { purchases: data ?? [] };
   });
 
 export const getTrade = createServerFn({ method: "GET" })
@@ -809,5 +822,80 @@ export const getBadgeProgress = createServerFn({ method: "GET" })
       max_repeat_partner: maxRepeat,
       btc_volume_usd: Number(prof?.btc_volume_usd ?? 0),
       five_star_count: prof?.five_star_count ?? 0,
+    };
+  });
+
+// ---------- Portfolio aggregate stats for the current user ----------
+export const getMyPortfolioStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const uid = context.userId;
+    const [tradesRes, groupsRes, warningsRes] = await Promise.all([
+      supabaseAdmin
+        .from("trades")
+        .select("id,status,buyer_id,seller_id,fiat_amount,fiat_currency,crypto_amount,asset")
+        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`),
+      supabaseAdmin
+        .from("escrow_groups")
+        .select("id,creator_id,counterparty_id,status,fiat_amount,fiat_currency,amount,asset,listing_id,listing_name,listing_category,created_at,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address,cvv,expire_date")
+        .or(`creator_id.eq.${uid},counterparty_id.eq.${uid}`),
+      supabaseAdmin.from("user_warnings").select("id").eq("user_id", uid),
+    ]);
+
+    const trades = tradesRes.data ?? [];
+    const groups = groupsRes.data ?? [];
+    const warnings = warningsRes.data ?? [];
+
+    let spent = 0, earned = 0, refunded = 0;
+    let bought = 0, sold = 0;
+    let successful = 0, failed = 0, rejected = 0, created = 0;
+
+    for (const t of trades) {
+      const amt = Number(t.fiat_amount) || 0;
+      if (t.status === "released") {
+        if (t.buyer_id === uid) { spent += amt; bought += 1; successful += 1; }
+        if (t.seller_id === uid) { earned += amt; sold += 1; successful += 1; }
+      } else if (t.status === "cancelled") {
+        failed += 1;
+        if (t.buyer_id === uid) refunded += amt;
+      } else if (t.status === "disputed") {
+        failed += 1;
+      }
+    }
+
+    for (const g of groups) {
+      if (g.creator_id === uid) created += 1;
+      const amt = Number(g.fiat_amount) || 0;
+      if (g.status === "released") {
+        if (g.creator_id === uid) { spent += amt; bought += 1; successful += 1; }
+        if (g.counterparty_id === uid) { earned += amt; sold += 1; successful += 1; }
+      } else if (g.status === "cancelled") {
+        failed += 1;
+        if (g.creator_id === uid) refunded += amt;
+      } else if (g.status === "disputed") {
+        rejected += 1;
+      }
+    }
+
+    const purchases = groups
+      .filter((g) => g.creator_id === uid)
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+
+    return {
+      stats: {
+        spent: Math.round(spent * 100) / 100,
+        earned: Math.round(earned * 100) / 100,
+        refunded: Math.round(refunded * 100) / 100,
+        bought,
+        sold,
+        successful,
+        failed,
+        rejected,
+        created,
+        warnings: warnings.length,
+        active_trades: trades.filter((t) => ["pending_payment","paid","awaiting_agreement","awaiting_seller_confirm"].includes(t.status)).length,
+        active_groups: groups.filter((g) => ["awaiting_counterparty","active","funded"].includes(g.status)).length,
+      },
+      purchases,
     };
   });

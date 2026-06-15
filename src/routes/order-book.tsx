@@ -14,25 +14,33 @@ import { Input } from "@/components/ui/input";
 import { fmtFiat } from "@/lib/format";
 import { toast } from "sonner";
 import { Crown, ShieldCheck, Send, Globe, Plus, Search, Sparkles, ArrowLeftRight, Handshake, Loader2 } from "lucide-react";
+import { PortfolioHero } from "@/components/PortfolioHero";
 
 export const Route = createFileRoute("/order-book")({
   head: () => ({
     meta: [
-      { title: "Order Book — EscrowDesk" },
-      { name: "description", content: "Browse active selling and seeking listings from premium, trusted, and regular members." },
+      { title: "Threads — EscrowDesk" },
+      { name: "description", content: "Browse active selling and seeking threads from premium, trusted, and regular members across BIN, Enroll, Scanner and Combo categories." },
     ],
   }),
   component: OrderBookPage,
 });
+
+const CATEGORY_TABS = ["All", "BIN", "Enroll", "Scanner", "Combo", "Other"] as const;
+type CatTab = (typeof CATEGORY_TABS)[number];
 
 function OrderBookPage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const fetchMarket = useServerFn(listMarketplace);
   const [q, setQ] = useState("");
+  const [cat, setCat] = useState<CatTab>("All");
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["order-book", q],
-    queryFn: () => fetchMarket({ data: { q: q || undefined } }),
+    queryKey: ["order-book", q, cat],
+    queryFn: () => fetchMarket({ data: {
+      q: q || undefined,
+      category: cat === "All" || cat === "Other" ? undefined : cat,
+    } }),
     refetchInterval: 20_000,
   });
 
@@ -42,46 +50,57 @@ function OrderBookPage() {
     { key: "regular", label: "Regular members", icon: <Sparkles className="h-4 w-4" />, subtitle: "New & standard sellers and seekers." },
   ];
 
+  // Client-side filter for the "Other" tab (anything not in the 4 core categories)
+  const filterOther = (rows: ListingRow[]) =>
+    cat === "Other" ? rows.filter((r) => !["BIN", "Enroll", "Scanner", "Combo"].includes(r.category)) : rows;
+
   return (
     <div className="space-y-8 md:space-y-10">
-      {/* Hero with mediator bot */}
-      <section className="surface relative overflow-hidden p-5 sm:p-6 md:p-10">
-        <div className="absolute inset-0 -z-10 opacity-30" style={{ background: "radial-gradient(circle at 70% 20%, color-mix(in oklab, var(--primary) 35%, transparent), transparent 60%)" }} />
-        <div className="grid items-center gap-6 md:gap-8 md:grid-cols-2">
-          <div className="space-y-4">
-            <Badge variant="outline" className="font-mono text-[11px]"><ArrowLeftRight className="mr-1 h-3 w-3" /> Peer-to-peer order book</Badge>
-            <h1 className="text-2xl font-semibold leading-tight sm:text-3xl md:text-4xl">
-              List what you <span className="text-primary">sell</span>. Find what you <span className="text-primary">seek</span>.
-            </h1>
-            <p className="text-sm text-muted-foreground md:text-base">
-              Our bot sits between buyer and seller — chat, agree, and trade safely.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => nav({ to: user ? "/post-listing" : "/auth" })} className="gap-2">
-                <Plus className="h-4 w-4" /> Post a listing
-              </Button>
-              <Link to="/marketplace"><Button variant="outline">E-commerce marketplace</Button></Link>
-            </div>
-          </div>
-          <div className="hidden md:block"><MediatorBot /></div>
-        </div>
-      </section>
+      <PortfolioHero
+        eyebrow="Peer-to-peer threads"
+        title="Post a thread. Discover what you need."
+        subtitle="Our mediator bot sits between buyer and seller — chat, agree, and trade safely. Every thread can open an escrow group instantly."
+        icon={ArrowLeftRight}
+        gradient="from-sky-500/25 via-primary/15 to-violet-500/20"
+        stats={[
+          { label: "Active threads", value: data?.total ?? 0, accent: "primary" },
+          { label: "Premium", value: ((data?.groups?.premium?.selling?.length ?? 0) + (data?.groups?.premium?.seeking?.length ?? 0)), accent: "amber", icon: Crown },
+          { label: "Trusted", value: ((data?.groups?.trusted?.selling?.length ?? 0) + (data?.groups?.trusted?.seeking?.length ?? 0)), accent: "emerald", icon: ShieldCheck },
+          { label: "Regular", value: ((data?.groups?.regular?.selling?.length ?? 0) + (data?.groups?.regular?.seeking?.length ?? 0)), accent: "sky", icon: Sparkles },
+        ]}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => nav({ to: user ? "/post-listing" : "/auth" })} className="gap-2">
+          <Plus className="h-4 w-4" /> Post a thread
+        </Button>
+        <Link to="/marketplace"><Button variant="outline">E-commerce marketplace</Button></Link>
+      </div>
+      <div className="hidden md:block"><MediatorBot /></div>
+
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="space-y-6 md:space-y-8">
-          {/* Search */}
-          <section className="surface p-4">
+          {/* Search + category tabs */}
+          <section className="surface p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search listings by name…" className="pl-9" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search threads by name…" className="pl-9" />
               </div>
               <Badge variant="secondary" className="font-mono">{data?.total ?? 0} active</Badge>
               <Button size="sm" variant="ghost" onClick={() => refetch()} disabled={isFetching}>Refresh</Button>
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {CATEGORY_TABS.map((c) => (
+                <button key={c} onClick={() => setCat(c)}
+                  className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${cat === c ? "border-primary bg-primary/15 text-primary" : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60"}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
           </section>
 
-          {/* Tier sections */}
+          {/* Tier sections — already rank-sorted server-side */}
           {tiers.map((t) => {
             const group = data?.groups?.[t.key];
             return (
@@ -91,8 +110,8 @@ function OrderBookPage() {
                 subtitle={t.subtitle}
                 icon={t.icon}
                 emptyHint={t.emptyHint}
-                selling={group?.selling ?? []}
-                seeking={group?.seeking ?? []}
+                selling={filterOther(group?.selling ?? [])}
+                seeking={filterOther(group?.seeking ?? [])}
                 loading={isLoading}
               />
             );
@@ -129,8 +148,9 @@ function TierSection({ label, subtitle, icon, emptyHint, selling, seeking, loadi
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <ListingTable title="Selling" tone="primary" rows={selling} loading={loading} emptyText="No active selling listings." />
-        <ListingTable title="Seeking" tone="accent" rows={seeking} loading={loading} emptyText="No active seeking listings." />
+        <ListingTable title="Selling" tone="primary" rows={selling} loading={loading} emptyText="No active selling threads." />
+        <ListingTable title="Seeking" tone="accent" rows={seeking} loading={loading} emptyText="No active seeking threads." />
+
       </div>
 
       {isEmpty && emptyHint && !loading && (
@@ -151,7 +171,7 @@ function ListingTable({ title, tone, rows, loading, emptyText }: {
     <div className="rounded-lg border border-border/60 bg-secondary/10">
       <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
         <h3 className={`text-sm font-semibold uppercase tracking-wider ${accent}`}>{title}</h3>
-        <span className="text-[10px] font-mono text-muted-foreground">{rows.length} listing{rows.length === 1 ? "" : "s"}</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{rows.length} thread{rows.length === 1 ? "" : "s"}</span>
       </div>
       <div className="max-h-[420px] divide-y divide-border/40 overflow-y-auto">
         <AnimatePresence initial={false}>
