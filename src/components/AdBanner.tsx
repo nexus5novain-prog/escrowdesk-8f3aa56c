@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listAdsForPlacement, type AdPlacement } from "@/lib/ads.functions";
@@ -27,6 +27,7 @@ interface Props {
 
 export function AdBanner({ placement, className = "", dismissable = false, rotateMs = 12000, variant = "banner" }: Props) {
   const fn = useServerFn(listAdsForPlacement);
+  const instanceId = useId();
   const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
 
@@ -38,12 +39,15 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   });
 
   useEffect(() => {
+    // Unique channel name per component instance — Supabase reuses channels
+    // by name, so a duplicate name throws "cannot add postgres_changes
+    // callbacks after subscribe()" when two AdBanners share a placement.
     const ch = supabase
-      .channel(`ads-${placement}`)
+      .channel(`ads-${placement}-${instanceId.replace(/[^a-zA-Z0-9]/g, "")}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => refetch())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [placement, refetch]);
+  }, [placement, refetch, instanceId]);
 
   const ads = useMemo<Ad[]>(() => (data?.ads ?? []) as Ad[], [data]);
 
