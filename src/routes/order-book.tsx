@@ -15,6 +15,7 @@ import { fmtFiat } from "@/lib/format";
 import { toast } from "sonner";
 import { Crown, ShieldCheck, Send, Globe, Plus, Search, Sparkles, ArrowLeftRight, Handshake, Loader2 } from "lucide-react";
 import { PortfolioHero } from "@/components/PortfolioHero";
+import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 
 export const Route = createFileRoute("/order-book")({
   head: () => ({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/order-book")({
   component: OrderBookPage,
 });
 
-const CATEGORY_TABS = ["All", "BIN", "Enroll", "Scanner", "Combo", "Other"] as const;
+const CATEGORY_TABS = ["All", ...THREAD_SECTIONS.map((s) => s.label)] as const;
 type CatTab = (typeof CATEGORY_TABS)[number];
 
 function OrderBookPage() {
@@ -36,11 +37,8 @@ function OrderBookPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<CatTab>("All");
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["order-book", q, cat],
-    queryFn: () => fetchMarket({ data: {
-      q: q || undefined,
-      category: cat === "All" || cat === "Other" ? undefined : cat,
-    } }),
+    queryKey: ["order-book", q],
+    queryFn: () => fetchMarket({ data: { q: q || undefined } }),
     refetchInterval: 20_000,
   });
 
@@ -50,9 +48,10 @@ function OrderBookPage() {
     { key: "regular", label: "Regular members", icon: <Sparkles className="h-4 w-4" />, subtitle: "New & standard sellers and seekers." },
   ];
 
-  // Client-side filter for the "Other" tab (anything not in the 4 core categories)
-  const filterOther = (rows: ListingRow[]) =>
-    cat === "Other" ? rows.filter((r) => !["BIN", "Enroll", "Scanner", "Combo"].includes(r.category)) : rows;
+  // Filter rows by the selected top-level forum section (resolved from the
+  // stored "Section · Subcategory" string).
+  const filterCat = (rows: ListingRow[]) =>
+    cat === "All" ? rows : rows.filter((r) => sectionOf(r.category) === cat);
 
   return (
     <div className="space-y-8 md:space-y-10">

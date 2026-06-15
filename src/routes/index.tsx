@@ -133,7 +133,7 @@ function UniversalSearch() {
 function QuickCategories() {
   const items = [
     { label: "New Threads", to: "/marketplace", icon: Activity },
-    { label: "BIN Store", to: "/marketplace", icon: CreditCard, category: "BIN" },
+    { label: "BIN Store", to: "/marketplace", icon: CreditCard, category: "BIN/CC" },
     { label: "Enroll Store", to: "/marketplace", icon: Layers, category: "Enroll" },
     { label: "Scanner Store", to: "/marketplace", icon: ScanLine, category: "Scanner" },
     { label: "Combo Store", to: "/marketplace", icon: Boxes, category: "Combo" },

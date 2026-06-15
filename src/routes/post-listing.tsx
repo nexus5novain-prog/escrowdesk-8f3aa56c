@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
+import { THREAD_SECTIONS } from "@/lib/thread-categories";
 import { toast } from "sonner";
 import { ShoppingBag, Search, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
@@ -105,11 +105,17 @@ function Page() {
               <Field label="Category">
                 <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Choose a category" /></SelectTrigger>
-                  <SelectContent>
-                    {MARKETPLACE_CATEGORIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  <SelectContent className="max-h-[60vh]">
+                    {THREAD_SECTIONS.map((section) => (
+                      <div key={section.key} className="py-1">
+                        <div className="px-2 pb-1 pt-2 font-mono text-[10px] uppercase tracking-wider text-primary/80">
+                          {section.label}
+                        </div>
+                        {section.subcategories.map((sub) => (
+                          <SelectItem key={sub.value} value={sub.value}>{sub.label}</SelectItem>
+                        ))}
+                      </div>
                     ))}
-                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>

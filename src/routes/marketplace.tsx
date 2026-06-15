@@ -55,7 +55,7 @@ const PAGE_SIZE = 12;
 function MarketplacePage() {
   const qc = useQueryClient();
   const fetchFn = useServerFn(listProducts);
-  const [tab, setTab] = useState<MarketplaceCategory>("BIN");
+  const [tab, setTab] = useState<MarketplaceCategory>("BIN/CC");
 
   const { data, isLoading } = useQuery({
     queryKey: ["products-all"],
@@ -177,7 +177,7 @@ function StoreSection({ category, blurb, all, isLoading }: { category: Marketpla
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={category === "BIN" ? "Search BIN…" : `Search ${category}…`}
+              placeholder={category === "BIN/CC" ? "Search BIN…" : `Search ${category}…`}
               className="pl-9 text-sm"
             />
           </div>

@@ -23,7 +23,6 @@ export const listProducts = createServerFn({ method: "GET" })
       .from("marketplace_products")
       .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,card_number,bin_number,card_type,card_bank,card_user")
       .eq("status", "active")
-      .neq("category", "BIN")
       .order("is_featured", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
@@ -67,18 +66,18 @@ export const getProduct = createServerFn({ method: "GET" })
     return { product: row };
   });
 
-// Admin dev tool: seed N sample products for one category (or all four when omitted)
+// Admin dev tool: seed N sample products for one category (or all when omitted)
 export const adminSeedSampleProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
       perCategory: z.number().int().min(1).max(50).default(10),
-      category: z.enum(["BIN", "Enroll", "Scanner", "Combo"]).optional(),
+      category: z.enum(["BIN/CC", "ENROLL", "SCANNER", "COMBO", "OTHERS"]).optional(),
     }).optional().transform((v) => v ?? { perCategory: 10 }),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const cats = (data.category ? [data.category] : ["BIN", "Enroll", "Scanner", "Combo"]) as Array<"BIN"|"Enroll"|"Scanner"|"Combo">;
+    const cats = (data.category ? [data.category] : ["BIN/CC", "ENROLL", "SCANNER", "COMBO", "OTHERS"]) as Array<"BIN/CC"|"ENROLL"|"SCANNER"|"COMBO"|"OTHERS">;
     const rows: Array<Record<string, unknown>> = [];
     for (const cat of cats) {
       for (let i = 1; i <= data.perCategory; i++) {
@@ -96,7 +95,7 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           status: "active",
           created_by: context.userId,
         };
-        if (cat === "BIN") {
+        if (cat === "BIN/CC") {
           row.card_number = `4${String(1000000000000000 + i).slice(1, 16)}`;
           row.bin_number = "412345";
           row.card_user = `Cardholder ${i}`;
