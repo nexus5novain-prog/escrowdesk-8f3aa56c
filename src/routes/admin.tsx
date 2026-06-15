@@ -710,7 +710,7 @@ function ProductsPanel() {
         </div>
       </div>
 
-      <Tabs defaultValue="BIN">
+      <Tabs defaultValue="BIN/CC">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-secondary/40 p-1">
           {MARKETPLACE_CATEGORIES.map((c) => {
             const count = products.filter((p) => p.category === c.value).length;
@@ -763,7 +763,7 @@ function CategoryProductsSection({
     if (!form.name.trim() || !form.description.trim()) return toast.error("Name and description required");
     const price = Number(form.price);
     if (!price || price <= 0) return toast.error("Valid price required");
-    if (category === "BIN" && !form.card_number.trim()) return toast.error("Card number is required for BIN listings");
+    if (category === "BIN/CC" && !form.card_number.trim()) return toast.error("Card number is required for BIN listings");
     setBusy(true);
     try {
       await create({ data: {
@@ -777,16 +777,16 @@ function CategoryProductsSection({
         seller_wallet_address: form.seller_wallet_address || undefined,
         seller_wallet_asset: form.seller_wallet_asset as "BTC"|"USDT"|"USDC"|"ETH",
         is_featured: form.is_featured,
-        card_number: category === "BIN" ? form.card_number || undefined : undefined,
-        bin_number: category === "BIN" ? form.bin_number || undefined : undefined,
-        card_user: category === "BIN" ? form.card_user || undefined : undefined,
-        card_type: category === "BIN" ? form.card_type || undefined : undefined,
-        card_brand: category === "BIN" ? form.card_brand || undefined : undefined,
-        card_bank: category === "BIN" ? form.card_bank || undefined : undefined,
-        card_country: category === "BIN" ? form.card_country || undefined : undefined,
-        card_address: category === "BIN" ? form.card_address || undefined : undefined,
-        cvv: category === "BIN" ? form.cvv || undefined : undefined,
-        expire_date: category === "BIN" ? form.expire_date || undefined : undefined,
+        card_number: category === "BIN/CC" ? form.card_number || undefined : undefined,
+        bin_number: category === "BIN/CC" ? form.bin_number || undefined : undefined,
+        card_user: category === "BIN/CC" ? form.card_user || undefined : undefined,
+        card_type: category === "BIN/CC" ? form.card_type || undefined : undefined,
+        card_brand: category === "BIN/CC" ? form.card_brand || undefined : undefined,
+        card_bank: category === "BIN/CC" ? form.card_bank || undefined : undefined,
+        card_country: category === "BIN/CC" ? form.card_country || undefined : undefined,
+        card_address: category === "BIN/CC" ? form.card_address || undefined : undefined,
+        cvv: category === "BIN/CC" ? form.cvv || undefined : undefined,
+        expire_date: category === "BIN/CC" ? form.expire_date || undefined : undefined,
       } });
       toast.success(`${label} product added`);
       setForm(emptyForm());
@@ -947,7 +947,7 @@ function CategoryProductsSection({
       <div className="surface p-5">
         <h3 className="font-semibold">Create a new {label} product</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {category === "BIN" && binFields}
+          {category === "BIN/CC" && binFields}
           {commonFields}
         </div>
         <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Adding…" : `Add ${label} product`}</Button>
