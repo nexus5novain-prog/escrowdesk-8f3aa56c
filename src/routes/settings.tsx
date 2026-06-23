@@ -261,7 +261,9 @@ function WalletTab({ data }: { data: SettingsData }) {
   const qc = useQueryClient();
 
   const [btc, setBtc] = useState(data.profile?.wallet_address_btc ?? "");
-  const [method, setMethod] = useState<"lightning" | "onchain">(data.profile?.default_withdrawal_method ?? "lightning");
+  const [method, setMethod] = useState<"lightning" | "onchain">(
+    ((data.profile?.default_withdrawal_method as "lightning" | "onchain" | undefined) ?? "lightning"),
+  );
 
   const p = data.policy;
   const [perTx, setPerTx] = useState(((p?.per_tx_limit_sats ?? 50_000_000) / SATS).toString());
