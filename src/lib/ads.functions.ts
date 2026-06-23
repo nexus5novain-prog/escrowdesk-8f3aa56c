@@ -97,10 +97,11 @@ export const adminCreateAd = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     title: z.string().trim().min(2).max(120),
-    media_type: z.enum(["image", "video", "html"]),
+    media_type: z.enum(["image", "video", "html", "link"]),
     media_url: z.string().trim().max(1000).optional().nullable(),
     html_content: z.string().trim().max(8000).optional().nullable(),
     link_url: z.string().trim().max(1000).optional().nullable(),
+    cta_label: z.string().trim().max(60).optional().nullable(),
     placements: z.array(PlacementSchema).min(1),
     priority: z.number().int().min(0).max(100).default(0),
     is_active: z.boolean().default(true),
@@ -115,12 +116,16 @@ export const adminCreateAd = createServerFn({ method: "POST" })
     if (data.media_type === "html" && !data.html_content) {
       throw new Error("HTML content required for HTML ads");
     }
+    if (data.media_type === "link" && !data.link_url) {
+      throw new Error("Click-through URL required for link/CTA ads");
+    }
     const { data: row, error } = await supabaseAdmin.from("ad_banners").insert({
       title: data.title,
       media_type: data.media_type,
       media_url: data.media_url || null,
       html_content: data.html_content || null,
       link_url: data.link_url || null,
+      cta_label: data.cta_label || null,
       placements: data.placements,
       priority: data.priority,
       is_active: data.is_active,
