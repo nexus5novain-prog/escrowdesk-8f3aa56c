@@ -566,16 +566,17 @@ function AdsPanel() {
           </div>
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Media type</Label>
-            <Select value={form.media_type} onValueChange={(v) => setForm({ ...form, media_type: v as "image"|"video"|"html" })}>
+            <Select value={form.media_type} onValueChange={(v) => setForm({ ...form, media_type: v as "image"|"video"|"html"|"link" })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="image">Image (URL)</SelectItem>
                 <SelectItem value="video">Video (URL)</SelectItem>
                 <SelectItem value="html">HTML embed</SelectItem>
+                <SelectItem value="link">Link / CTA only</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {form.media_type !== "html" && (
+          {(form.media_type === "image" || form.media_type === "video") && (
             <div className="md:col-span-2 space-y-2">
               <Label className="text-xs uppercase text-muted-foreground">{form.media_type === "image" ? "Image" : "Video"} URL or upload</Label>
               <Input value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} placeholder="https://… or upload below" />
@@ -595,8 +596,14 @@ function AdsPanel() {
             </div>
           )}
           <div className="md:col-span-2">
-            <Label className="text-xs uppercase text-muted-foreground">Click-through URL (optional)</Label>
+            <Label className="text-xs uppercase text-muted-foreground">
+              Click-through URL {form.media_type === "link" ? "(required)" : "(optional)"}
+            </Label>
             <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://…" />
+          </div>
+          <div className="md:col-span-2">
+            <Label className="text-xs uppercase text-muted-foreground">CTA button label (optional, defaults to "Visit")</Label>
+            <Input value={form.cta_label} onChange={(e) => setForm({ ...form, cta_label: e.target.value })} placeholder="Shop now" maxLength={60} />
           </div>
           <div className="md:col-span-2">
             <Label className="text-xs uppercase text-muted-foreground">Placements</Label>
