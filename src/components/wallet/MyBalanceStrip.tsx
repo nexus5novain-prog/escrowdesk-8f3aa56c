@@ -5,9 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { fmtCrypto } from "@/lib/format";
 
+const SATS_PER_BTC = 100_000_000;
+
 /**
- * Compact, user-scoped live balance strip. Shows ONLY the signed-in user's
- * own internal wallet balances (RLS-scoped) — never treasury data.
+ * Compact, user-scoped live balance strip. Reads from the new ledger view
+ * (v_wallet_balances) — never the legacy wallets table, never treasury data.
  */
 export function MyBalanceStrip({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
@@ -18,12 +20,11 @@ export function MyBalanceStrip({ compact = false }: { compact?: boolean }) {
     enabled: !!user,
     queryFn: async () => {
       const { data } = await supabase
-        .from("wallets")
-        .select("asset, available, escrow")
+        .from("v_wallet_balances")
+        .select("available_sats, locked_escrow_sats")
         .eq("user_id", user!.id)
-        .eq("asset", "BTC")
         .maybeSingle();
-      return data ?? { asset: "BTC", available: 0, escrow: 0 };
+      return data ?? { available_sats: 0, locked_escrow_sats: 0 };
     },
   });
 
@@ -33,15 +34,15 @@ export function MyBalanceStrip({ compact = false }: { compact?: boolean }) {
       .channel(`my-wallet-strip-${user.id}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` },
+        { event: "INSERT", schema: "public", table: "ledger_entries", filter: `user_id=eq.${user.id}` },
         () => qc.invalidateQueries({ queryKey: ["my-wallet-strip", user.id] }),
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user, qc]);
 
-  const available = Number(data?.available ?? 0);
-  const escrow = Number(data?.escrow ?? 0);
+  const available = Number(data?.available_sats ?? 0) / SATS_PER_BTC;
+  const escrow = Number(data?.locked_escrow_sats ?? 0) / SATS_PER_BTC;
 
   return (
     <div className={`grid gap-2 ${compact ? "grid-cols-3" : "sm:grid-cols-3"}`}>
