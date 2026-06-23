@@ -1210,6 +1210,8 @@ function AdMediaUploader({ accept, onUploaded }: { accept: string; onUploaded: (
 function ShoutboxPanel() {
   const listFn = useServerFn(adminListShouts);
   const reviewFn = useServerFn(adminReviewShout);
+  const pinFn = useServerFn(adminTogglePin);
+  const hideFn = useServerFn(adminToggleHide);
   const cfgFn = useServerFn(getShoutboxConfig);
   const setCfg = useServerFn(adminSetShoutboxBtc);
   const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
@@ -1278,17 +1280,28 @@ function ShoutboxPanel() {
                   <Badge variant={m.status === "approved" ? "default" : m.status === "rejected" ? "destructive" : "secondary"}>{m.status}</Badge>
                   <Badge variant="outline" className="font-mono text-[10px] uppercase">{m.payment_method ?? "—"}</Badge>
                   {m.paid_amount_usd != null && <span className="font-mono text-[11px]">${Number(m.paid_amount_usd).toFixed(2)}</span>}
+                  {m.is_pinned && <Badge className="bg-amber-500 text-white">📌 Pinned</Badge>}
+                  {m.is_hidden && <Badge variant="destructive">Hidden</Badge>}
+                  {(m.report_count ?? 0) > 0 && <Badge variant="destructive">⚠ {m.report_count} reports</Badge>}
                 </div>
                 <span>{new Date(m.created_at).toLocaleString()}</span>
               </div>
               <p className="mt-1 text-sm text-foreground">{m.body}</p>
               {m.payment_txid && <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">txid: {m.payment_txid}</div>}
-              {m.status === "pending" && (
-                <div className="mt-2 flex gap-2">
-                  <Button size="sm" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "approve" } }); toast.success("Approved"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Approve</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "reject" } }); toast.success("Rejected"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Reject</Button>
-                </div>
-              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {m.status === "pending" && (
+                  <>
+                    <Button size="sm" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "approve" } }); toast.success("Approved"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Approve</Button>
+                    <Button size="sm" variant="outline" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "reject" } }); toast.success("Rejected"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Reject</Button>
+                  </>
+                )}
+                <Button size="sm" variant="outline" onClick={async () => { try { await pinFn({ data: { id: m.id, pinned: !m.is_pinned } }); toast.success(m.is_pinned ? "Unpinned" : "Pinned"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>
+                  {m.is_pinned ? "Unpin" : "Pin"}
+                </Button>
+                <Button size="sm" variant={m.is_hidden ? "default" : "outline"} onClick={async () => { try { await hideFn({ data: { id: m.id, hidden: !m.is_hidden } }); toast.success(m.is_hidden ? "Unhidden" : "Hidden"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>
+                  {m.is_hidden ? "Unhide" : "Hide"}
+                </Button>
+              </div>
             </div>
           ))}
         </div>
