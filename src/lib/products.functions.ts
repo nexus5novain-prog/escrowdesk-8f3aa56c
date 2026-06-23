@@ -11,7 +11,54 @@ async function assertAdmin(userId: string) {
   if (!data) throw new Error("Admin only");
 }
 
-// Public browse
+/* ─────────────────────── Public masking helpers ─────────────────────── */
+// Mask cardholder: show first name + asterisks for every remaining name char.
+// e.g. "John Michael Smith" -> "John ******* *****"
+function maskHolder(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const trimmed = String(name).trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) {
+    // single name -> reveal first 2 chars
+    const first = parts[0];
+    if (first.length <= 2) return first;
+    return first[0] + "•".repeat(Math.max(3, first.length - 1));
+  }
+  const [first, ...rest] = parts;
+  const masked = rest.map((p) => "•".repeat(Math.max(3, p.length))).join(" ");
+  return `${first} ${masked}`;
+}
+
+// Reveal only the real 6-digit BIN, mask the rest. Never leak last 4 publicly.
+function publicCardNumber(cardNumber?: string | null, bin?: string | null): string | null {
+  const digits = (cardNumber ?? "").replace(/\D/g, "");
+  const realBin = (bin ?? digits.slice(0, 6)).replace(/\D/g, "").slice(0, 6);
+  if (realBin.length < 6) return null;
+  // 16-digit synthetic representation: real BIN + masked tail (display layer adds spacing)
+  return `${realBin}XXXXXXXXXX`;
+}
+
+// Apply masking to a product row — preserves the row's shape, only overrides
+// sensitive fields. Uses a loose mutable cast so we can null out fields whether
+// or not the row's static type includes them (card_address/cvv are absent on
+// the listProducts projection but present on getProduct).
+function maskProductRow<T extends { card_number?: string | null; bin_number?: string | null; card_user?: string | null }>(row: T): T {
+  const bin = row.bin_number ?? (row.card_number ? String(row.card_number).replace(/\D/g, "").slice(0, 6) : null);
+  const out: Record<string, unknown> = { ...row };
+  out.card_number = publicCardNumber(row.card_number ?? null, bin);
+  out.bin_number = bin;
+  out.card_user = maskHolder(row.card_user ?? null);
+  out.card_address = null;
+  out.cvv = null;
+  return out as T;
+}
+
+
+
+
+
+/* ─────────────────────── Public reads ─────────────────────── */
 export const listProducts = createServerFn({ method: "GET" })
   .inputValidator(
     z.object({ q: z.string().max(120).optional(), category: z.string().max(60).optional() })
@@ -29,13 +76,14 @@ export const listProducts = createServerFn({ method: "GET" })
     if (data.q) {
       const needle = `%${data.q}%`;
       q = q.or(
-        `name.ilike.${needle},description.ilike.${needle},card_number.ilike.${needle},bin_number.ilike.${needle},card_bank.ilike.${needle},card_type.ilike.${needle},card_user.ilike.${needle}`,
+        `name.ilike.${needle},description.ilike.${needle},bin_number.ilike.${needle},card_bank.ilike.${needle},card_type.ilike.${needle}`,
       );
     }
     if (data.category) q = q.eq("category", data.category);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { products: rows ?? [] };
+    const products = (rows ?? []).map((r) => maskProductRow(r));
+    return { products };
   });
 
 export const lookupBinMetadata = createServerFn({ method: "GET" })
@@ -52,21 +100,99 @@ export const lookupBinMetadata = createServerFn({ method: "GET" })
     return { metadata: row ?? null };
   });
 
-// Public single-product fetch for the product detail page
 export const getProduct = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
       .from("marketplace_products")
-      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address")
+      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address,expire_date,card_style")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Product not found");
-    return { product: row };
+    // Sensitive details (full PAN, CVV, billing address) are only revealed inside the
+    // escrow group after a buyer completes the purchase — see buyProduct.
+    return { product: maskProductRow(row) };
   });
 
-// Admin dev tool: seed N sample products for one category (or all when omitted)
+/* ─────────────────────── Seed pools (realistic demo data) ─────────────────────── */
+const FIRST_NAMES = [
+  "James","Mary","John","Patricia","Robert","Jennifer","Michael","Linda","William","Elizabeth",
+  "David","Barbara","Richard","Susan","Joseph","Jessica","Thomas","Sarah","Charles","Karen",
+  "Daniel","Nancy","Matthew","Lisa","Anthony","Margaret","Mark","Betty","Donald","Sandra",
+  "Steven","Ashley","Paul","Emily","Andrew","Kimberly","Joshua","Donna","Kevin","Michelle",
+  "Brian","Carol","George","Amanda","Edward","Melissa","Ronald","Deborah","Timothy","Stephanie",
+];
+const LAST_NAMES = [
+  "Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez",
+  "Hernandez","Lopez","Gonzalez","Wilson","Anderson","Thomas","Taylor","Moore","Jackson","Martin",
+  "Lee","Perez","Thompson","White","Harris","Sanchez","Clark","Ramirez","Lewis","Robinson",
+  "Walker","Young","Allen","King","Wright","Scott","Torres","Nguyen","Hill","Flores",
+];
+
+function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function randomName(): string { return `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`; }
+function randInt(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function randomExpire(): string {
+  const month = String(randInt(1, 12)).padStart(2, "0");
+  const year = String(randInt(26, 30)).padStart(2, "0");
+  return `${month}/${year}`;
+}
+
+function randomCVV(brand: string): string {
+  const len = /amex|express/i.test(brand) ? 4 : 3;
+  let s = "";
+  for (let i = 0; i < len; i++) s += String(randInt(0, 9));
+  return s;
+}
+
+function randomCardNumber(bin: string, brand: string): string {
+  const totalLen = /amex|express/i.test(brand) ? 15 : 16;
+  let s = bin;
+  while (s.length < totalLen) s += String(randInt(0, 9));
+  return s.slice(0, totalLen);
+}
+
+// Realistic-looking listing titles per category
+const NAME_TEMPLATES: Record<string, string[]> = {
+  ENROLL: [
+    "{bank} Online Banking Enroll Guide",
+    "{bank} Bill Pay Enroll Kit",
+    "Fresh {bank} Enrollment Pack",
+    "{bank} New Account Walkthrough",
+  ],
+  SCANNER: [
+    "FullZ Scanner Pro v{v}",
+    "Bank Statement OCR Scanner v{v}",
+    "ID Doc Validator v{v}",
+    "Routing/Account Scanner v{v}",
+  ],
+  COMBO: [
+    "USA Fresh Combo {n}x",
+    "EU Mail:Pass Combo {n}k",
+    "Crypto Exchange Combo {n}x",
+    "Banking Logins Combo {n}x",
+  ],
+  OTHERS: [
+    "RDP Tier-1 (US East)",
+    "SOCKS5 Residential Proxies Pack",
+    "Stealth VPN — 30 day",
+    "Disposable Email Pack",
+    "Verified SMS Numbers Pack",
+  ],
+};
+const BANK_POOL = ["Chase","Wells Fargo","Bank of America","Citi","Capital One","HSBC","Barclays","TD","BMO","Santander"];
+
+function templateName(cat: keyof typeof NAME_TEMPLATES): string {
+  const t = pick(NAME_TEMPLATES[cat]);
+  return t
+    .replace("{bank}", pick(BANK_POOL))
+    .replace("{v}", String(randInt(2, 9)))
+    .replace("{n}", String(randInt(1, 9)));
+}
+
+/* ─────────────────────── Seeder ─────────────────────── */
 export const adminSeedSampleProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -78,13 +204,21 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const cats = (data.category ? [data.category] : ["BIN/CC", "ENROLL", "SCANNER", "COMBO", "OTHERS"]) as Array<"BIN/CC"|"ENROLL"|"SCANNER"|"COMBO"|"OTHERS">;
+
+    // Preload real BIN reference data for realistic card seeding
+    const { data: binRows } = await supabaseAdmin
+      .from("bin_metadata")
+      .select("bin_number,card_brand,card_type,card_bank,card_country");
+    const bins = (binRows ?? []) as Array<{
+      bin_number: string; card_brand: string | null; card_type: string | null;
+      card_bank: string | null; card_country: string | null;
+    }>;
+
     const rows: Array<Record<string, unknown>> = [];
     for (const cat of cats) {
       for (let i = 1; i <= data.perCategory; i++) {
         const price = Math.round((10 + Math.random() * 290) * 100) / 100;
-        const row: Record<string, unknown> = {
-          name: `${cat} Sample #${i}`,
-          description: `Demo ${cat} product #${i} — replace with real listing details from the admin panel.`,
+        const base: Record<string, unknown> = {
           category: cat,
           price,
           currency: "USD",
@@ -93,23 +227,32 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           seller_wallet_asset: "BTC",
           is_featured: i === 1,
           status: "active",
+          is_seeded: true,
           created_by: context.userId,
         };
         if (cat === "BIN/CC") {
-          row.card_number = `4${String(1000000000000000 + i).slice(1, 16)}`;
-          row.bin_number = "412345";
-          row.card_user = `Cardholder ${i}`;
-          row.card_type = i % 2 === 0 ? "Credit" : "Debit";
-          row.card_brand = "Visa";
-          row.card_bank = "Global Bank";
-          row.card_country = "US";
-          row.card_address = "New York, NY";
-          row.cvv = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
-          const expMonth = String((i % 12) + 1).padStart(2, "0");
-          const expYear = String((2025 + Math.floor(i / 12)) % 100).padStart(2, "0");
-          row.expire_date = `${expMonth}/${expYear}`;
+          const bin = bins.length ? pick(bins) : null;
+          const brand = bin?.card_brand ?? "Visa";
+          const binNum = bin?.bin_number ?? "414720";
+          const cardNumber = randomCardNumber(binNum, brand);
+          const holder = randomName();
+          base.name = `${bin?.card_bank ?? "Bank"} ${brand} ${bin?.card_type ?? "Credit"} — BIN ${binNum}`;
+          base.description = `Real-BIN demo card from ${bin?.card_bank ?? "Issuer"} (${bin?.card_country ?? "US"}). Seeded for testing — purchase to reveal full PAN/CVV via escrow.`;
+          base.card_number = cardNumber;
+          base.bin_number = binNum;
+          base.card_user = holder;
+          base.card_type = bin?.card_type ?? "Credit";
+          base.card_brand = brand;
+          base.card_bank = bin?.card_bank ?? "Global Bank";
+          base.card_country = bin?.card_country ?? "US";
+          base.card_address = null;
+          base.cvv = randomCVV(brand);
+          base.expire_date = randomExpire();
+        } else {
+          base.name = templateName(cat);
+          base.description = `[SEEDED DEMO] ${base.name} — replace with a real listing from the admin panel.`;
         }
-        rows.push(row);
+        rows.push(base);
       }
     }
     const { error } = await supabaseAdmin.from("marketplace_products").insert(rows as never);
@@ -117,7 +260,7 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
     return { inserted: rows.length };
   });
 
-// Admin: list all (any status)
+/* ─────────────────────── Admin CRUD ─────────────────────── */
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -207,7 +350,7 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Buy → auto-create an escrow group between buyer and product owner (admin)
+/* ─────────────────────── Buy → escrow group (reveals full details to parties) ─────────────────────── */
 export const buyProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }))
@@ -225,7 +368,7 @@ export const buyProduct = createServerFn({ method: "POST" })
 
     const asset = "BTC" as const;
     const fiatAmount = Number(p.price);
-    const cryptoAmount = fiatAmount; // 1:1 placeholder for stablecoins; real conversion happens off-platform
+    const cryptoAmount = fiatAmount;
 
     const { data: g, error: gErr } = await supabaseAdmin.from("escrow_groups").insert({
       creator_id: userId,
