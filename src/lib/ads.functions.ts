@@ -41,23 +41,23 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
     return { ads: rows ?? [], fetched_at: now };
   });
 
-// Tracking — authenticated users only, and ad_id must exist & be active
+// Tracking — public (anonymous impressions/clicks allowed); ad_id must exist & be active
 export const trackAdEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     ad_id: z.string().uuid(),
     kind: z.enum(["impression", "click"]),
     placement: PlacementSchema,
   }))
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data }) => {
     const { data: ad } = await supabaseAdmin
       .from("ad_banners").select("id,is_active").eq("id", data.ad_id).maybeSingle();
     if (!ad || !ad.is_active) return { ok: false };
     await supabaseAdmin.from("ad_events").insert({
-      ad_id: data.ad_id, kind: data.kind, placement: data.placement, viewer_id: context.userId,
+      ad_id: data.ad_id, kind: data.kind, placement: data.placement, viewer_id: null,
     });
     return { ok: true };
   });
+
 
 export const adminListAds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
