@@ -1360,6 +1360,41 @@ export type Database = {
           },
         ]
       }
+      platform_fees: {
+        Row: {
+          created_at: string
+          fee_sats: number
+          id: string
+          metadata: Json
+          source: string
+          trade_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          fee_sats: number
+          id?: string
+          metadata?: Json
+          source: string
+          trade_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          fee_sats?: number
+          id?: string
+          metadata?: Json
+          source?: string
+          trade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_fees_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_settings: {
         Row: {
           key: string
