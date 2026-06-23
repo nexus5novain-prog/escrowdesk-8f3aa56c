@@ -526,14 +526,15 @@ function WalletCard() {
     enabled: !!user,
     queryFn: async () => {
       const { data } = await supabase
-        .from("wallets")
-        .select("asset,available,escrow")
+        .from("v_wallet_balances")
+        .select("available_sats, locked_escrow_sats")
         .eq("user_id", user!.id)
-        .eq("asset", "BTC")
         .maybeSingle();
       return data;
     },
   });
+  const available = Number(wallet?.available_sats ?? 0) / 100_000_000;
+  const escrow = Number(wallet?.locked_escrow_sats ?? 0) / 100_000_000;
   return (
     <section className="rounded-xl border border-border/70 bg-card/60 p-4">
       <header className="mb-3 flex items-center justify-between">
@@ -544,8 +545,8 @@ function WalletCard() {
         <Link to="/wallet" className="text-[11px] text-muted-foreground hover:text-foreground">Manage →</Link>
       </header>
       <div className="space-y-2">
-        <Row label="BTC available" value={user ? (wallet?.available ?? 0).toString() : "—"} />
-        <Row label="In escrow" value={user ? (wallet?.escrow ?? 0).toString() : "—"} />
+        <Row label="BTC available" value={user ? available.toFixed(8) : "—"} />
+        <Row label="In escrow" value={user ? escrow.toFixed(8) : "—"} />
       </div>
       {!user && (
         <Button asChild size="sm" variant="outline" className="mt-3 w-full"><Link to="/auth">Sign in to fund</Link></Button>

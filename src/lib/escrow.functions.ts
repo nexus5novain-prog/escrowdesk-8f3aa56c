@@ -76,11 +76,12 @@ export const createOffer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     if (data.max_amount < data.min_amount) throw new Error("max < min");
-    // If selling crypto, require enough available balance.
+    // If selling crypto, require enough available balance (from new ledger view).
     if (data.side === "sell") {
+      const needSats = Math.floor(data.available_crypto * 100_000_000);
       const { data: w } = await supabaseAdmin
-        .from("wallets").select("available").eq("user_id", userId).eq("asset", data.asset).maybeSingle();
-      if (!w || Number(w.available) < data.available_crypto) {
+        .from("v_wallet_balances").select("available_sats").eq("user_id", userId).maybeSingle();
+      if (!w || Number(w.available_sats ?? 0) < needSats) {
         throw new Error("Insufficient wallet balance to back this offer");
       }
     }
@@ -508,16 +509,18 @@ export const adminCreditWallet = createServerFn({ method: "POST" })
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [profile, wallets, pms, roles, settings] = await Promise.all([
+    const [profile, balances, pms, roles, settings] = await Promise.all([
       supabaseAdmin.from("profiles").select("*").eq("user_id", context.userId).maybeSingle(),
-      supabaseAdmin.from("wallets").select("*").eq("user_id", context.userId),
+      supabaseAdmin.from("v_wallet_balances")
+        .select("wallet_code, available_sats, locked_escrow_sats, pending_deposit_sats, pending_withdrawal_sats")
+        .eq("user_id", context.userId).maybeSingle(),
       supabaseAdmin.from("payment_methods").select("*").eq("user_id", context.userId).order("created_at"),
       supabaseAdmin.from("user_roles").select("role").eq("user_id", context.userId),
       supabaseAdmin.from("platform_settings").select("*"),
     ]);
     return {
       profile: profile.data,
-      wallets: wallets.data ?? [],
+      balances: balances.data ?? null,
       payment_methods: pms.data ?? [],
       roles: (roles.data ?? []).map((r) => r.role),
       settings: settings.data ?? [],

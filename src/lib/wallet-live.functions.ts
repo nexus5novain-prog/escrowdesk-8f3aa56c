@@ -42,10 +42,12 @@ async function btcpayStore<T>(path: string): Promise<T | null> {
 export const getLivePortfolio = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Internal wallet snapshot (RLS scoped to caller)
-    const { data: wallets } = await context.supabase
-      .from("wallets").select("asset, available, escrow").eq("user_id", context.userId);
-    const btcWallet = wallets?.find((w) => w.asset === "BTC");
+    // Internal wallet snapshot from the new ledger (RLS scoped to caller)
+    const { data: bal } = await context.supabase
+      .from("v_wallet_balances")
+      .select("available_sats, locked_escrow_sats")
+      .eq("user_id", context.userId)
+      .maybeSingle();
 
     // Aggregate escrow exposure for this user via escrow_invoices joined to trades
     const { data: openTrades } = await context.supabase
@@ -67,8 +69,8 @@ export const getLivePortfolio = createServerFn({ method: "GET" })
     const ln_local = Number(lightning?.local?.balance ?? lightning?.balance ?? 0) / 1e8;
     const ln_remote = Number(lightning?.remote?.balance ?? 0) / 1e8;
 
-    const internal_available = Number(btcWallet?.available ?? 0);
-    const internal_escrow = Number(btcWallet?.escrow ?? 0);
+    const internal_available = Number(bal?.available_sats ?? 0) / 1e8;
+    const internal_escrow = Number(bal?.locked_escrow_sats ?? 0) / 1e8;
     const total_btc = internal_available + internal_escrow;
 
     return {

@@ -370,9 +370,14 @@ async function handle(update: Record<string, unknown>) {
   }
 
   if (text.startsWith("/balance")) {
-    const { data: w } = await supabaseAdmin.from("wallets").select("asset, available, escrow").eq("user_id", profile.user_id);
-    const lines = (w ?? []).map((r) => `${r.asset}: <code>${Number(r.available).toFixed(4)}</code> (escrow ${Number(r.escrow).toFixed(4)})`).join("\n");
-    return send(`💼 <b>Balance</b>\n${lines || "—"}`);
+    const { data: w } = await supabaseAdmin
+      .from("v_wallet_balances")
+      .select("available_sats, locked_escrow_sats")
+      .eq("user_id", profile.user_id)
+      .maybeSingle();
+    const avail = (Number(w?.available_sats ?? 0) / 1e8).toFixed(8);
+    const esc   = (Number(w?.locked_escrow_sats ?? 0) / 1e8).toFixed(8);
+    return send(`💼 <b>Balance</b>\nBTC: <code>${avail}</code> (escrow ${esc})`);
   }
   if (text.startsWith("/trades")) {
     const { data: t } = await supabaseAdmin.from("trades")
