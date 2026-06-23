@@ -21,7 +21,7 @@ export const listOffers = createServerFn({ method: "GET" })
   .inputValidator(
     z.object({
       side: z.enum(["buy", "sell"]).optional(),
-      asset: z.enum(["USDT", "BTC"]).optional(),
+      asset: z.enum(["BTC"]).optional(),
       fiat: z.string().max(8).optional(),
     }).optional().transform((v) => v ?? {}),
   )
@@ -50,7 +50,7 @@ export const createOffer = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       side: z.enum(["buy", "sell"]),
-      asset: z.enum(["USDT", "BTC"]),
+      asset: z.enum(["BTC"]),
       fiat_currency: z.string().min(3).max(8),
       price: z.number().positive(),
       min_amount: z.number().positive(),
