@@ -15,6 +15,7 @@ import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
 import { listApprovedShouts, reportShout, type ShoutMsg as ShoutMessage } from "@/lib/shoutbox.functions";
 import { ShoutboxComposer } from "@/components/ShoutboxComposer";
+import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ShieldCheck, Search, ArrowRight, Wallet, MessageSquare, Send, Lightbulb,
