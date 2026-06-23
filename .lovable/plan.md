@@ -1,128 +1,99 @@
-## 1. Wallet page rework
+## Scope
 
-- Remove deposit UI entirely.
-- Replace single balance with **per-asset PnL** (Earned − Spent) for BTC, USDT-TRC20, USDC, ETH, plus a lifetime USD summary (Total earned, Total spent, Net).
-  - Earned = sum of `wallet_transactions` of kind `escrow_release` credited to user as seller.
-  - Spent = sum of `crypto_amount` from `trades` where user is buyer and status='released'.
-  - USD totals derived from `trades.fiat_amount`.
-- Replace deposit panel with **Add Wallet Address** form, one input per accepted coin:
-  - BTC, USDT (TRC20), USDC (chain selectable: ERC20 / TRC20), ETH.
-  - Stored on `profiles` as new columns (see schema below).
-- Keep the Trusted / Premium milestone journey panel as-is.
+Three independent workstreams. Given the size, I'll ship in 4 phases — each phase is a usable milestone you can review before the next starts.
 
-## 2. Escrow bank system — multi-coin
+---
 
-- Extend the `asset_type` enum to include `USDC` and `ETH` (currently `BTC`, `USDT`).
-- Every trade must record which payout address of the seller will receive funds, and which address of the buyer is funding escrow — snapshotted on the trade row so address rotations don't break history.
-- Buyer's tx hash (on-chain deposit reference) becomes a required field before seller can confirm deposit.
+### Phase 1 — BTC-only conversion (destructive)
 
-## 3. Escrow Groups (new core feature)
+Goal: remove USDT / USDC / ETH everywhere.
 
-A reusable "room" that owns the trade chat, terms, deposit address, tx hash, and participants. Two creation paths:
+**DB migration**
+- Drop non-BTC rows from `wallets`, `wallet_transactions`, `offers`, `trades`, `escrow_groups`.
+- Drop columns `wallet_address_usdt`, `wallet_address_usdc`, `wallet_address_usdc_chain`, `wallet_address_eth` from `profiles`.
+- Narrow `asset_type` enum to `'BTC'` only (recreate enum, recast columns).
+- Update `handle_new_user()` to seed only a BTC wallet.
+- Update `get_my_private_profile()` to drop removed columns.
 
-- **From marketplace**: clicking a listing's "Trade" button auto-creates a group with the buyer + listing owner (seller).
-- **Manual**: any user can open `/escrow/new`, invite a counterparty by site username OR Telegram username, and pick coin/amount.
+**Frontend**
+- Wallet, deposit, withdraw, escrow.new, post-offer, settings → asset selectors hardcoded to BTC, multi-coin UI removed.
+- Server fns validating `asset` reject anything other than `'BTC'`.
 
-Each group supports:
-- Invite **moderator (judge)** button — pings staff with `judge` role; first to accept joins the group.
-- In-app chat (reuses `trade_messages` realtime).
-- Selected escrow bank address (seller's payout address for the chosen coin).
-- Amount + coin.
-- **Tx hash submission** by the group creator (buyer) once funds are sent on-chain. Seller verifies → releases.
-- Optional Telegram mirror — see §4.
+---
 
-## 4. Telegram parity
+### Phase 2 — Order-book "Top Authors" tab + realtime category feed
 
-Telegram bots cannot create groups. Flow:
-1. Buyer clicks "Open in Telegram" in the group → bot DM gives them a `t.me/...?startgroup=<token>` deep link.
-2. Buyer creates the group in Telegram, adds the bot, and (optionally) the seller's @username.
-3. Bot binds that Telegram chat to the escrow group via the start token, then mirrors messages both ways between Telegram and the website chat.
-4. `/invite_moderator` slash command pings a staff judge.
-5. `/txhash <hash>` and `/release` commands available to the right participants.
+**Authors tab (first tab in order-book)**
+- New server fn `listTopAuthors` aggregating `listings` per `user_id`, joining `profiles` for badges/rating/trades/volume.
+- Rank = same `computeThreadRank` composite applied per-user (tier-boost + avg rating + trades + freshness of newest thread).
+- UI card per author: avatar, display_name, premium/trusted badge, ★ rating, trades count, BTC volume, active-thread count.
 
-## Technical details
+**Realtime category feed**
+- Below tabs: live list of threads for the selected category with columns `thread | category | price | status | posted`.
+- Supabase Realtime subscription on `listings` (filter by category client-side), `INSERT`/`UPDATE`/`DELETE` patches the React-Query cache.
+- Migration: `ALTER PUBLICATION supabase_realtime ADD TABLE public.listings;` + ensure replica identity full.
 
-### Schema (new migration)
+---
 
-```text
-alter type asset_type add value 'USDC';
-alter type asset_type add value 'ETH';
+### Phase 3 — Arbitration core (data + roles + evidence + timeline)
 
-alter table profiles
-  add column wallet_address_usdc text,
-  add column wallet_address_usdc_chain text default 'ERC20',
-  add column wallet_address_eth text;
+**New roles** added to `app_role` enum: `support`, `mediator`, `senior_arbitrator`, `super_admin` (admin / moderator / judge / finance already exist).
 
-create table escrow_groups (
-  id uuid pk,
-  creator_id uuid,           -- buyer
-  counterparty_id uuid null,  -- seller (null until accepted if invited by tg handle)
-  invited_telegram text null,
-  invited_username text null,
-  listing_id uuid null,       -- if created from marketplace
-  trade_id uuid null,         -- once escrow proper begins
-  asset asset_type,
-  amount numeric,
-  fiat_amount numeric null,
-  fiat_currency text default 'USD',
-  escrow_address text,        -- seller's payout addr snapshot
-  deposit_tx_hash text null,
-  status text  -- 'awaiting_counterparty' | 'active' | 'funded' | 'released' | 'cancelled' | 'disputed'
-  telegram_chat_id bigint null,
-  telegram_link_token text unique,
-  created_at, updated_at
-);
+**New tables** (all with GRANTs, RLS, policies via `has_role` / `is_staff`):
+- `arbitration_cases` — case_id (`ESC-DSP-YYYY-NNNNNN`), trade_id/escrow_group_id, buyer_id, seller_id, status (`open|evidence|under_review|awaiting_decision|appealed|resolved|closed`), severity, value_usd, opened_by, assigned_mediator_id, assigned_arbitrator_id, outcome, outcome_split jsonb, frozen_at, resolved_at.
+- `arbitration_evidence` — case_id, uploader_id, kind (`image|document|comm|blockchain|video`), file_path (storage), sha256, size, mime, caption, is_confidential.
+- `arbitration_timeline` — case_id, actor_id, actor_role, event, payload jsonb (append-only; no UPDATE/DELETE policy).
+- `arbitration_notes` — case_id, staff_id, role, body (staff-only RLS).
+- `arbitration_messages` — case_id, sender_id, body, visible_to (`all|staff`).
+- `arbitration_appeals` — case_id, requested_by, reason, new_evidence_ref, status, reviewed_by, decision_note.
+- `arbitration_audit_log` — global, append-only.
 
-create table escrow_group_members (
-  group_id uuid, user_id uuid, role text  -- 'buyer'|'seller'|'moderator'
-  primary key (group_id, user_id)
-);
-```
+**Storage bucket** `arbitration-evidence` (private, authenticated SELECT, server-side write only). Hash computed server-side on upload-finalize.
 
-Group chat uses existing `trade_messages` keyed by a synthetic trade once funding starts, or a new `escrow_group_messages` table — I'll add the latter to avoid coupling.
+**Server fns** (`src/lib/arbitration.functions.ts`):
+- `openCase`, `uploadEvidence` (returns signed-upload URL + finalizes hash), `listMyCases`, `getCase` (role-aware payload — buyer/seller redacted from confidential evidence + notes).
+- Staff: `assignMediator` (workload + conflict-of-interest check vs party history), `setStatus`, `addInternalNote`, `recommendOutcome`.
+- Senior arbitrator: `ruleCase` with outcome enum + split — triggers fund movement via existing wallet RPCs; gated by value tier (≥$5k single SA, ≥$25k two SA, ≥$100k multi-sig table `arbitration_signoffs`).
 
-### Server functions (`src/lib/escrow-groups.functions.ts`)
+**Auto-freeze**: opening a case sets parent trade/escrow_group to `disputed`, locks withdrawals (already enforced on `disputed` in existing RPCs).
 
-- `createEscrowGroup({ asset, amount, counterparty: { username? | telegram? }, listing_id? })`
-- `acceptGroupInvite({ group_id })`
-- `inviteModerator({ group_id })`
-- `submitTxHash({ group_id, hash })`
-- `confirmDepositReceived({ group_id })` → spins up actual `trades` row + locks escrow
-- `releaseEscrowGroup({ group_id })`
-- `sendGroupMessage` / `getEscrowGroup`
-- All gated by `requireSupabaseAuth` and membership checks.
+---
 
-### Telegram webhook additions
+### Phase 4 — Arbitration UI + fraud + notifications + exports
 
-- Handle `/start <link_token>` in groups → bind `telegram_chat_id`.
-- Handle `/invite_moderator`, `/txhash`, `/release`.
-- Mirror website→Telegram on insert via realtime subscriber in webhook handler (or a server fn that fans out).
+**User-facing**
+- `/disputes` route (under `_authenticated/`): list of my cases + open-dispute form from a trade/escrow.
+- `/disputes/$id`: timeline, evidence vault (drag-drop upload), message thread, appeal button when eligible.
 
-### Frontend
+**Staff dashboard** (`/admin` → new "Arbitration" tab)
+- Sub-tabs: Open Cases / Pending Evidence / Pending Decisions / High-Risk / Escrow Balances / Analytics.
+- Mediator/arbitrator assignment UI, internal notes panel, decision form (release-seller / refund-buyer / partial-% / request-evidence / negotiated), appeal review.
 
-- `src/routes/wallet.tsx` rewritten: PnL view + multi-coin address inputs.
-- `src/routes/escrow.new.tsx` — group creation wizard.
-- `src/routes/escrow.$id.tsx` — group detail page with chat, deposit panel, tx hash submission, invite moderator button, "Open in Telegram" button.
-- `src/routes/index.tsx` (Marketplace): "Trade" CTA on each listing → calls `createEscrowGroup` then redirects to group page.
-- `src/components/SiteHeader.tsx`: new "Escrow" nav.
+**Fraud signals** (background view + flags column):
+- Shared IP / device fingerprint across parties (uses existing audit-log IPs).
+- Repeated disputes per user (count last 90 days).
+- Duplicate evidence sha256 across cases.
+- Surface in High-Risk tab.
 
-### Migration / behavior of existing trades
+**Notifications**: in-app toasts + reuse existing Telegram bot helper for "dispute opened / mediator assigned / decision issued / appeal received". Email + SMS deferred unless you want them wired (no SMS provider configured).
 
-Existing `trades` rows continue to work via the original `/trade/$id` page. New trades originating from escrow groups will have `trade_id` linked back to the group; the group page shows the same data plus the new fields.
+**Exports**: server fn `exportCaseReport(caseId, format)` → PDF (via `pdf-lib` — Worker-safe), CSV, XLSX (via `xlsxwriter`-equivalent JS lib). Includes case summary, evidence index with hashes, timeline, decision, audit log.
 
-## Build sequence
+---
 
-1. Schema migration (assets + profile cols + escrow_groups + messages).
-2. Wallet page rewrite (PnL + multi-coin addresses).
-3. Escrow group server functions + website UI (create, invite, chat, tx hash, release).
-4. Marketplace "Trade" CTA wiring.
-5. Telegram webhook commands + group binding + mirror.
-6. Test end-to-end on a sample group.
+## Technical notes
 
-## Open assumptions (flag if wrong)
+- All new server fns are `createServerFn` with `requireSupabaseAuth` + per-role checks via `has_role` / `is_staff`. Privileged operations load `supabaseAdmin` inside the handler.
+- Multi-sig high-value rule lives in `arbitration_signoffs` table (case_id, signer_id, approved_at); `ruleCase` checks signoff count against tier threshold before executing.
+- Audit log writes are triggered from each privileged RPC, not from client.
+- Timeline + audit are append-only via RLS (no UPDATE/DELETE policy, no grants for those verbs).
+- Evidence hash: SHA-256 of file bytes stored at finalize time; immutable after that.
 
-- "USDC" defaults to ERC20 but user can switch to TRC20 via dropdown.
-- ETH = native Ether (not an ERC20 token list).
-- Moderator = any user with `judge` role in `user_roles`. First to accept the ping joins.
-- Telegram mirroring is best-effort (no guaranteed ordering between web↔TG).
-- Existing `/trade/$id` page stays for legacy trades; escrow groups become the new default path.
+## What you get when
+
+1. Phase 1 merged → app is BTC-only end-to-end.
+2. Phase 2 merged → order-book has Top Authors tab and live category feed.
+3. Phase 3 merged → arbitration backend functional via API (no UI yet, testable from admin).
+4. Phase 4 merged → full arbitration UI + fraud + notifications + exports.
+
+Reply "go phase 1" (or any phase number) to start. I'll execute one phase per turn so each migration and UI batch stays reviewable.

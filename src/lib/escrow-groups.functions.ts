@@ -6,7 +6,7 @@ import { tgSendMessage } from "./telegram.server";
 
 type ProfileLite = { user_id: string; display_name: string; telegram_user_id: number | null; telegram_username: string | null };
 
-const ASSETS = ["BTC", "USDT", "USDC", "ETH"] as const;
+const ASSETS = ["BTC"] as const;
 type Asset = typeof ASSETS[number];
 
 async function loadProfiles(userIds: string[]) {
@@ -18,20 +18,14 @@ async function loadProfiles(userIds: string[]) {
   return new Map((data ?? []).map((p) => [p.user_id, p as ProfileLite]));
 }
 
-async function getSellerPayoutAddress(userId: string, asset: Asset): Promise<{ address: string | null; chain: string | null }> {
+async function getSellerPayoutAddress(userId: string, _asset: Asset): Promise<{ address: string | null; chain: string | null }> {
   const { data } = await supabaseAdmin
     .from("profiles")
-    .select("wallet_address_btc, wallet_address_usdt, wallet_address_usdc, wallet_address_usdc_chain, wallet_address_eth")
+    .select("wallet_address_btc")
     .eq("user_id", userId)
     .maybeSingle();
   if (!data) return { address: null, chain: null };
-  const d = data as Record<string, string | null>;
-  switch (asset) {
-    case "BTC":  return { address: d.wallet_address_btc, chain: "BTC" };
-    case "USDT": return { address: d.wallet_address_usdt, chain: "TRC20" };
-    case "USDC": return { address: d.wallet_address_usdc, chain: d.wallet_address_usdc_chain ?? "ERC20" };
-    case "ETH":  return { address: d.wallet_address_eth, chain: "ETH" };
-  }
+  return { address: (data as { wallet_address_btc: string | null }).wallet_address_btc, chain: "BTC" };
 }
 
 async function ensureMember(groupId: string, userId: string) {

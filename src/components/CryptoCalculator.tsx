@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, ArrowLeftRight } from "lucide-react";
 
 type Rates = Record<string, number>; // USD per 1 unit of asset
-const ASSETS = ["BTC", "ETH", "USDT", "USDC"] as const;
+const ASSETS = ["BTC"] as const;
 const COINGECKO_IDS: Record<(typeof ASSETS)[number], string> = {
-  BTC: "bitcoin", ETH: "ethereum", USDT: "tether", USDC: "usd-coin",
+  BTC: "bitcoin",
 };
 
 export function CryptoCalculator({ className = "" }: { className?: string }) {

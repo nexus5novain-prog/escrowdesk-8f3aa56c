@@ -676,10 +676,6 @@ export type Database = {
           updated_at: string
           user_id: string
           wallet_address_btc: string | null
-          wallet_address_eth: string | null
-          wallet_address_usdc: string | null
-          wallet_address_usdc_chain: string | null
-          wallet_address_usdt: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -704,10 +700,6 @@ export type Database = {
           updated_at?: string
           user_id: string
           wallet_address_btc?: string | null
-          wallet_address_eth?: string | null
-          wallet_address_usdc?: string | null
-          wallet_address_usdc_chain?: string | null
-          wallet_address_usdt?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -732,10 +724,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           wallet_address_btc?: string | null
-          wallet_address_eth?: string | null
-          wallet_address_usdc?: string | null
-          wallet_address_usdc_chain?: string | null
-          wallet_address_usdt?: string | null
         }
         Relationships: []
       }
@@ -1194,10 +1182,6 @@ export type Database = {
           telegram_user_id: number
           telegram_username: string
           wallet_address_btc: string
-          wallet_address_eth: string
-          wallet_address_usdc: string
-          wallet_address_usdc_chain: string
-          wallet_address_usdt: string
         }[]
       }
       has_role: {
@@ -1276,7 +1260,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "judge" | "finance" | "support"
-      asset_type: "USDT" | "BTC" | "USDC" | "ETH"
+      asset_type: "BTC"
       dispute_status: "open" | "resolved_buyer" | "resolved_seller"
       escrow_group_status:
         | "awaiting_counterparty"
@@ -1435,7 +1419,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "judge", "finance", "support"],
-      asset_type: ["USDT", "BTC", "USDC", "ETH"],
+      asset_type: ["BTC"],
       dispute_status: ["open", "resolved_buyer", "resolved_seller"],
       escrow_group_status: [
         "awaiting_counterparty",

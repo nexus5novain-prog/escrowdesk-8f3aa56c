@@ -109,7 +109,7 @@ export const postShoutWithWallet = createServerFn({ method: "POST" })
       .from("profiles").select("display_name,is_banned").eq("user_id", userId).maybeSingle();
     if (prof?.is_banned) throw new Error("Account banned");
     const { error: debitErr } = await supabaseAdmin.rpc("debit_wallet", {
-      _user: userId, _asset: "USDT", _amount: fee, _note: "Shoutbox post fee",
+      _user: userId, _asset: "BTC", _amount: fee, _note: "Shoutbox post fee",
     });
     if (debitErr) throw new Error(debitErr.message);
     const display = prof?.display_name || "anon";
@@ -119,7 +119,7 @@ export const postShoutWithWallet = createServerFn({ method: "POST" })
       reviewed_at: new Date().toISOString(),
     }).select("id").single();
     if (error) {
-      await supabaseAdmin.rpc("credit_wallet", { _user: userId, _asset: "USDT", _amount: fee, _note: "Shoutbox refund" });
+      await supabaseAdmin.rpc("credit_wallet", { _user: userId, _asset: "BTC", _amount: fee, _note: "Shoutbox refund" });
       throw new Error(error.message);
     }
     return { id: row.id, status: "approved" as const };
