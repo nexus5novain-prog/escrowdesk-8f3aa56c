@@ -112,7 +112,7 @@ export const getProduct = createServerFn({ method: "GET" })
     if (!row) throw new Error("Product not found");
     // Sensitive details (full PAN, CVV, billing address) are only revealed inside the
     // escrow group after a buyer completes the purchase — see buyProduct.
-    return { product: publicMaskProduct(row as AnyProductRow) };
+    return { product: maskProductRow(row) };
   });
 
 /* ─────────────────────── Seed pools (realistic demo data) ─────────────────────── */
