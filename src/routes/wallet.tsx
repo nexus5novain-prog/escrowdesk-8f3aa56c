@@ -1,262 +1,382 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AuthGate } from "@/components/AuthGate";
-import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { getMe, updateWalletAddresses, getBadgeProgress, getWalletPnL, getPurchaseHistory } from "@/lib/escrow.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-// removed Select import (BTC-only)
-import { ShieldCheck, Crown, Wallet as WalletIcon, Bitcoin, ArrowDownRight, ArrowUpRight, TrendingUp } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Bitcoin, Zap, Lock, Wallet as WalletIcon, ArrowDownToLine, ArrowUpFromLine, Copy, Activity, Clock, ShieldCheck, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { fmtCrypto, fmtFiat } from "@/lib/format";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { MyBalanceStrip } from "@/components/wallet/MyBalanceStrip";
+import { fmtFiat } from "@/lib/format";
+import { getMyWallet, listMyLedger, listMyDeposits, createBtcDeposit, createLightningDeposit } from "@/lib/wallet-deposits.functions";
+import { listMyWithdrawals, requestWithdrawal, cancelWithdrawal } from "@/lib/wallet-withdrawals.functions";
+
+const SATS_PER_BTC = 100_000_000;
+const fmtSats = (s: number | null | undefined) =>
+  ((Number(s ?? 0)) / SATS_PER_BTC).toFixed(8) + " BTC";
 
 export const Route = createFileRoute("/wallet")({ component: () => (<AuthGate><Wallet /></AuthGate>) });
 
-const COINS = [
-  { key: "btc", label: "BTC", chainLabel: "Bitcoin", placeholder: "Paste your BTC address (bc1… / 3… / 1…)" },
-] as const;
-
 function Wallet() {
-  const fetchMe = useServerFn(getMe);
-  const saveAddrs = useServerFn(updateWalletAddresses);
-  const fetchBadges = useServerFn(getBadgeProgress);
-  const fetchPnL = useServerFn(getWalletPnL);
-  const fetchHistory = useServerFn(getPurchaseHistory);
-  const { data, refetch } = useQuery({ queryKey: ["me"], queryFn: () => fetchMe() });
-  const { data: badges } = useQuery({ queryKey: ["badges"], queryFn: () => fetchBadges() });
-  const { data: pnl } = useQuery({ queryKey: ["pnl"], queryFn: () => fetchPnL() });
-  const { data: historyData } = useQuery({ queryKey: ["purchase-history"], queryFn: () => fetchHistory() });
-  const qc = useQueryClient();
   const { user } = useAuth();
+  const qc = useQueryClient();
 
-  // Live updates: when this user's profile or roles change, refresh badges + me
+  const getWallet = useServerFn(getMyWallet);
+  const getLedger = useServerFn(listMyLedger);
+  const getDeposits = useServerFn(listMyDeposits);
+  const getWithdrawals = useServerFn(listMyWithdrawals);
+
+  const { data: wallet } = useQuery({ queryKey: ["my-wallet"], queryFn: () => getWallet(), refetchInterval: 30_000 });
+  const { data: ledger } = useQuery({ queryKey: ["my-ledger"], queryFn: () => getLedger({ data: { limit: 50 } }) });
+  const { data: deposits } = useQuery({ queryKey: ["my-deposits"], queryFn: () => getDeposits() });
+  const { data: withdrawals } = useQuery({ queryKey: ["my-withdrawals"], queryFn: () => getWithdrawals() });
+
+  // BTC/USD rate
+  const { data: rate } = useQuery({
+    queryKey: ["btc-rate"],
+    queryFn: async () => {
+      const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+      const j = await r.json() as { bitcoin?: { usd?: number } };
+      return j.bitcoin?.usd ?? 0;
+    },
+    refetchInterval: 60_000,
+  });
+
+  // Realtime: any ledger / deposit / withdrawal change for this user → refetch everything
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
+    const ch = supabase
       .channel(`wallet-live-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
-        () => { qc.invalidateQueries({ queryKey: ["badges"] }); qc.invalidateQueries({ queryKey: ["me"] }); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
-        () => { qc.invalidateQueries({ queryKey: ["badges"] }); qc.invalidateQueries({ queryKey: ["my-roles", user.id] }); qc.invalidateQueries({ queryKey: ["me"] }); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ledger_entries", filter: `user_id=eq.${user.id}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["my-wallet"] });
+          qc.invalidateQueries({ queryKey: ["my-ledger"] });
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "deposit_requests", filter: `user_id=eq.${user.id}` },
+        () => qc.invalidateQueries({ queryKey: ["my-deposits"] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "withdrawal_requests", filter: `user_id=eq.${user.id}` },
+        () => qc.invalidateQueries({ queryKey: ["my-withdrawals"] }))
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(ch); };
   }, [user, qc]);
 
-  const [btc, setBtc] = useState("");
-  const [saving, setSaving] = useState(false);
+  const totalSats =
+    Number(wallet?.available_sats ?? 0) +
+    Number(wallet?.locked_escrow_sats ?? 0) +
+    Number(wallet?.pending_deposit_sats ?? 0) +
+    Number(wallet?.pending_withdrawal_sats ?? 0);
+  const totalUsd = (totalSats / SATS_PER_BTC) * (rate ?? 0);
 
-  useEffect(() => {
-    const p = data?.profile as Record<string, string | null> | undefined;
-    if (p) setBtc(p.wallet_address_btc ?? "");
-  }, [data?.profile]);
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+              <WalletIcon className="h-3.5 w-3.5" /> Custodial wallet
+            </div>
+            <p className="mt-1 font-mono text-sm text-primary">{wallet?.wallet_code ?? "WAL-…"}</p>
+            <h1 className="mt-2 font-mono text-4xl font-bold tabular-nums">{fmtFiat(totalUsd, "USD")}</h1>
+            <p className="mt-0.5 font-mono text-xs text-muted-foreground">{fmtSats(totalSats)} · 1 BTC = {fmtFiat(rate ?? 0, "USD")}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/escrow-portfolio"><Button variant="outline" size="sm">How escrow works</Button></Link>
+            <Link to="/trades"><Button variant="outline" size="sm">My trades</Button></Link>
+          </div>
+        </div>
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await saveAddrs({ data: { wallet_address_btc: btc } });
-      toast.success("Payout address saved");
-      refetch();
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSaving(false); }
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          <BucketTile icon={<WalletIcon className="h-3.5 w-3.5 text-emerald-500" />} label="Available" sats={Number(wallet?.available_sats ?? 0)} rate={rate ?? 0} />
+          <BucketTile icon={<Lock className="h-3.5 w-3.5 text-primary" />} label="In escrow" sats={Number(wallet?.locked_escrow_sats ?? 0)} rate={rate ?? 0} />
+          <BucketTile icon={<ArrowDownToLine className="h-3.5 w-3.5 text-blue-500" />} label="Pending deposits" sats={Number(wallet?.pending_deposit_sats ?? 0)} rate={rate ?? 0} />
+          <BucketTile icon={<ArrowUpFromLine className="h-3.5 w-3.5 text-amber-500" />} label="Pending withdrawals" sats={Number(wallet?.pending_withdrawal_sats ?? 0)} rate={rate ?? 0} />
+        </div>
+      </Card>
+
+      <Tabs defaultValue="deposit">
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+          <TabsTrigger value="deposit"><ArrowDownToLine className="mr-1 h-3.5 w-3.5" /> Deposit</TabsTrigger>
+          <TabsTrigger value="withdraw"><ArrowUpFromLine className="mr-1 h-3.5 w-3.5" /> Withdraw</TabsTrigger>
+          <TabsTrigger value="activity"><Activity className="mr-1 h-3.5 w-3.5" /> Activity</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="deposit" className="mt-4 space-y-4">
+          <DepositPanel onCreated={() => qc.invalidateQueries({ queryKey: ["my-deposits"] })} />
+          <DepositList rows={deposits ?? []} />
+        </TabsContent>
+
+        <TabsContent value="withdraw" className="mt-4 space-y-4">
+          <WithdrawPanel availableSats={Number(wallet?.available_sats ?? 0)} onCreated={() => {
+            qc.invalidateQueries({ queryKey: ["my-withdrawals"] });
+            qc.invalidateQueries({ queryKey: ["my-wallet"] });
+          }} />
+          <WithdrawList rows={withdrawals ?? []} />
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-4">
+          <LedgerFeed rows={ledger ?? []} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function BucketTile({ icon, label, sats, rate }: { icon: React.ReactNode; label: string; sats: number; rate: number }) {
+  const usd = (sats / SATS_PER_BTC) * rate;
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/40 p-3 backdrop-blur">
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">{icon}{label}</div>
+      <p className="mt-1.5 font-mono text-base font-semibold tabular-nums">{fmtSats(sats)}</p>
+      <p className="text-[11px] text-muted-foreground">{fmtFiat(usd, "USD")}</p>
+    </div>
+  );
+}
+
+function DepositPanel({ onCreated }: { onCreated: () => void }) {
+  const createBtc = useServerFn(createBtcDeposit);
+  const createLn = useServerFn(createLightningDeposit);
+  const [lnSats, setLnSats] = useState("10000");
+  const [btcAddr, setBtcAddr] = useState<{ address: string; expires_at: string } | null>(null);
+  const [lnInv, setLnInv] = useState<{ bolt11: string; expires_at: string } | null>(null);
+  const [busy, setBusy] = useState<"btc" | "ln" | null>(null);
+
+  const newBtcAddress = async () => {
+    setBusy("btc");
+    try { const r = await createBtc({ data: {} }); setBtcAddr({ address: r.address, expires_at: r.expires_at }); onCreated(); }
+    catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
+  };
+  const newLnInvoice = async () => {
+    const sats = Number(lnSats);
+    if (!sats || sats <= 0) return toast.error("Enter sats amount");
+    setBusy("ln");
+    try { const r = await createLn({ data: { amount_sats: sats } }); setLnInv({ bolt11: r.bolt11, expires_at: r.expires_at }); onCreated(); }
+    catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold">Wallet & Earnings</h1>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Link to="/escrow/new" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">New escrow group</Button></Link>
-          <Link to="/post-offer" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">Post offer</Button></Link>
-        </div>
-      </div>
-
-      {/* User-scoped balance strip (internal ledger; never treasury) */}
-      <div className="surface p-4 sm:p-5">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">My balances</p>
-          <Link to="/escrow-portfolio" className="text-xs text-primary hover:underline">How escrow works →</Link>
-        </div>
-        <MyBalanceStrip />
-      </div>
-
-      {/* Earnings PnL */}
-      <div className="surface p-4 sm:p-6">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-base sm:text-lg">Lifetime activity</h2>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Totals are derived from completed (released) trades only.
-        </p>
-        <div className="mt-4 grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-3">
-          <StatCard label="Total earned" value={fmtFiat(pnl?.total_earned_usd ?? 0, "USD")} icon={<ArrowDownRight className="h-4 w-4 text-emerald-400" />} />
-          <StatCard label="Total spent"  value={fmtFiat(pnl?.total_spent_usd ?? 0, "USD")} icon={<ArrowUpRight className="h-4 w-4 text-rose-400" />} />
-          <StatCard label="Net"           value={fmtFiat(pnl?.net_usd ?? 0, "USD")}          icon={<TrendingUp className="h-4 w-4 text-primary" />} />
-        </div>
-
-        <div className="mt-5">
-          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Per-asset PnL</div>
-          {(pnl?.per_asset?.length ?? 0) === 0 ? (
-            <div className="rounded-md border border-dashed border-border/60 p-4 text-center text-xs text-muted-foreground">
-              No completed trades yet. Earnings will appear here after your first released trade.
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="p-5">
+        <div className="flex items-center gap-2"><Bitcoin className="h-4 w-4 text-orange-500" /><h3 className="font-semibold">Bitcoin (on-chain)</h3></div>
+        <p className="mt-1 text-xs text-muted-foreground">Generate a fresh deposit address. Funds credit your wallet after 1 confirmation.</p>
+        <Button className="mt-3" size="sm" onClick={newBtcAddress} disabled={busy === "btc"}>
+          {busy === "btc" ? "Generating…" : "Generate address"}
+        </Button>
+        {btcAddr && (
+          <div className="mt-4 rounded-md border border-border/60 bg-secondary/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Send Bitcoin to</p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 break-all font-mono text-xs">{btcAddr.address}</code>
+              <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(btcAddr.address); toast.success("Copied"); }}>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
             </div>
-          ) : (
-            <div className="grid gap-2 overflow-x-auto">
-              {pnl?.per_asset.map((row) => (
-                <div key={row.asset} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-md border border-border/40 bg-secondary/20 p-3">
-                  <Badge variant="outline" className="font-mono w-fit">{row.asset}</Badge>
-                  <div className="flex flex-wrap gap-2 sm:gap-6 text-xs">
-                    <span className="text-emerald-400">+{fmtCrypto(row.earned, "BTC")}</span>
-                    <span className="text-rose-400">−{fmtCrypto(row.spent, "BTC")}</span>
-                    <span className="font-mono">net {row.net >= 0 ? "+" : ""}{fmtCrypto(row.net, "BTC")}</span>
-                  </div>
-                </div>
-              ))}
+            <p className="mt-2 text-[10px] text-muted-foreground">Expires {new Date(btcAddr.expires_at).toLocaleString()}</p>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5">
+        <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" /><h3 className="font-semibold">Lightning</h3></div>
+        <p className="mt-1 text-xs text-muted-foreground">Instant deposits. Enter the amount you want to receive (sats).</p>
+        <div className="mt-3 flex items-end gap-2">
+          <div className="flex-1">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Amount (sats)</Label>
+            <Input value={lnSats} onChange={(e) => setLnSats(e.target.value)} type="number" min="1" />
+          </div>
+          <Button size="sm" onClick={newLnInvoice} disabled={busy === "ln"}>
+            {busy === "ln" ? "Creating…" : "Create invoice"}
+          </Button>
+        </div>
+        {lnInv && (
+          <div className="mt-4 rounded-md border border-border/60 bg-secondary/30 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pay this Lightning invoice</p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 truncate font-mono text-xs">{lnInv.bolt11}</code>
+              <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(lnInv.bolt11); toast.success("Copied"); }}>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
             </div>
-          )}
+            <p className="mt-2 text-[10px] text-muted-foreground">Expires {new Date(lnInv.expires_at).toLocaleString()}</p>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function WithdrawPanel({ availableSats, onCreated }: { availableSats: number; onCreated: () => void }) {
+  const req = useServerFn(requestWithdrawal);
+  const [method, setMethod] = useState<"btc_onchain" | "lightning">("btc_onchain");
+  const [dest, setDest] = useState("");
+  const [sats, setSats] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const n = Number(sats);
+    if (!n || n <= 0) return toast.error("Enter amount");
+    if (n > availableSats) return toast.error("Exceeds available balance");
+    if (!dest.trim()) return toast.error("Enter destination");
+    setBusy(true);
+    try {
+      const r = await req({ data: { method, amount_sats: n, destination: dest.trim() } });
+      toast.success(r.requires_approval ? "Submitted for admin review" : "Withdrawal approved");
+      setDest(""); setSats("");
+      onCreated();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-center gap-2"><ArrowUpFromLine className="h-4 w-4 text-amber-500" /><h3 className="font-semibold">Withdraw funds</h3></div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Funds move to <em>pending withdrawal</em> while we verify. Withdrawals ≥ $500 USD require admin approval.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Method</Label>
+          <div className="mt-1 flex rounded-md border border-border/60 p-1">
+            <button type="button" onClick={() => setMethod("btc_onchain")}
+              className={`flex-1 rounded px-2 py-1 text-xs ${method === "btc_onchain" ? "bg-primary/15 text-primary" : "text-muted-foreground"}`}>
+              <Bitcoin className="mr-1 inline h-3 w-3" /> BTC
+            </button>
+            <button type="button" onClick={() => setMethod("lightning")}
+              className={`flex-1 rounded px-2 py-1 text-xs ${method === "lightning" ? "bg-primary/15 text-primary" : "text-muted-foreground"}`}>
+              <Zap className="mr-1 inline h-3 w-3" /> LN
+            </button>
+          </div>
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Amount (sats)</Label>
+          <Input value={sats} onChange={(e) => setSats(e.target.value)} type="number" min="1" placeholder="50000" />
+        </div>
+        <div className="flex items-end">
+          <Button onClick={submit} disabled={busy} className="w-full">{busy ? "Submitting…" : "Submit"}</Button>
         </div>
       </div>
-
-      {/* Payout addresses */}
-      <div className="surface p-4 sm:p-6">
-        <div className="flex items-center gap-2">
-          <WalletIcon className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-base sm:text-lg">Add wallet address</h2>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Paste the on-chain BTC address where coin will be released and accepted after successful trades.
-          This address is visible to your trade counterparty inside the trade chat.
-        </p>
-        <div className="mt-4 grid gap-3 sm:gap-4 grid-cols-1">
-          <AddrField label="BTC" icon={<Bitcoin className="h-3.5 w-3.5" />} value={btc} onChange={setBtc} placeholder={COINS[0].placeholder} />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={save} disabled={saving} className="w-full sm:w-auto">{saving ? "Saving…" : "Save addresses"}</Button>
-        </div>
+      <div className="mt-3">
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {method === "btc_onchain" ? "Destination BTC address" : "Lightning invoice (bolt11)"}
+        </Label>
+        <Input value={dest} onChange={(e) => setDest(e.target.value)}
+          placeholder={method === "btc_onchain" ? "bc1q…" : "lnbc…"} className="font-mono text-xs" />
       </div>
+      <p className="mt-3 text-[10px] text-muted-foreground">
+        Available: {fmtSats(availableSats)}
+      </p>
+    </Card>
+  );
+}
 
-      <div className="surface p-4 sm:p-6">
-        <div className="flex items-center gap-2">
-          <WalletIcon className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-base sm:text-lg">Purchase history</h2>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">Your most recent store purchases are shown here so you can revisit product orders and escrow details.</p>
-        <div className="mt-4 space-y-3">
-          {(historyData?.purchases ?? []).length === 0 ? (
-            <div className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-              No purchases yet. Buy a product from the marketplace to create an escrow group and track it here.
-            </div>
-          ) : (
-            (historyData?.purchases ?? []).map((item) => (
-              <div key={item.id} className="rounded-xl border border-border/60 bg-background/80 p-3 sm:p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                  <div>
-                    <div className="font-semibold text-sm">{item.listing_name || "Marketplace item"}</div>
-                    <div className="text-xs text-muted-foreground">{item.listing_category || "Store"}</div>
-                  </div>
-                  <div className="font-mono text-xs sm:text-sm text-primary">{item.amount} {item.asset}</div>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1 sm:gap-2 text-xs text-muted-foreground">
-                  <span>{item.status}</span>
-                  <span>•</span>
-                  <span>{item.fiat_amount} {item.fiat_currency}</span>
-                  <span>•</span>
-                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                </div>
+function DepositList({ rows }: { rows: Array<{ id: string; method: string; status: string; amount_sats: number | null; destination: string; confirmations: number; created_at: string }> }) {
+  if (rows.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Deposits</h3>
+      <ul className="divide-y divide-border/40">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              {r.method === "lightning" ? <Zap className="h-3.5 w-3.5 text-yellow-400" /> : <Bitcoin className="h-3.5 w-3.5 text-orange-500" />}
+              <div>
+                <p className="font-mono text-xs">{r.destination.slice(0, 24)}…</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</p>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <BadgeJourney badges={badges} />
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-border/40 bg-secondary/20 p-4">
-      <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
-        {label}{icon}
-      </div>
-      <div className="mt-1 font-mono text-xl">{value}</div>
-    </div>
-  );
-}
-
-function AddrField({ label, icon, value, onChange, placeholder }: {
-  label: string; icon: React.ReactNode; value: string; onChange: (s: string)=>void; placeholder: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-        {icon} {label}
-      </Label>
-      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="font-mono" />
-    </div>
-  );
-}
-
-function BadgeJourney({ badges }: { badges?: { is_trusted: boolean; is_premium: boolean; trades_completed: number; distinct_4plus_raters: number; max_repeat_partner: number; btc_volume_usd: number; five_star_count: number } }) {
-  const b = badges ?? { is_trusted: false, is_premium: false, trades_completed: 0, distinct_4plus_raters: 0, max_repeat_partner: 0, btc_volume_usd: 0, five_star_count: 0 };
-  const trustedSteps = [
-    { label: "5 successful trades", cur: b.trades_completed, goal: 5 },
-    { label: "5 different 4★+ ratings", cur: b.distinct_4plus_raters, goal: 5 },
-    { label: "3 trades with one partner", cur: b.max_repeat_partner, goal: 3 },
-    { label: "$500 BTC traded", cur: Math.round(b.btc_volume_usd), goal: 500 },
-  ];
-  const premiumSteps = [
-    { label: "Trusted badge unlocked", cur: b.is_trusted ? 1 : 0, goal: 1 },
-    { label: "25 successful trades", cur: b.trades_completed, goal: 25 },
-    { label: "15 five-star ratings", cur: b.five_star_count, goal: 15 },
-    { label: "$5,000 BTC traded", cur: Math.round(b.btc_volume_usd), goal: 5000 },
-  ];
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <BadgeCard title="Trusted badge" icon={<ShieldCheck className="h-4 w-4" />} unlocked={b.is_trusted}
-        accentClass="text-emerald-400" intro="Earn your Trusted badge by completing this journey:" steps={trustedSteps} />
-      <BadgeCard title="Premium tier" icon={<Crown className="h-4 w-4" />} unlocked={b.is_premium}
-        accentClass="text-amber-400" intro="Top-tier verified merchant. Unlock by maintaining excellence:" steps={premiumSteps} />
-    </div>
-  );
-}
-
-function BadgeCard({ title, icon, unlocked, accentClass, intro, steps }: {
-  title: string; icon: React.ReactNode; unlocked: boolean; accentClass: string; intro: string;
-  steps: { label: string; cur: number; goal: number }[];
-}) {
-  return (
-    <div className="surface p-5">
-      <div className="flex items-center justify-between">
-        <div className={`flex items-center gap-2 font-semibold ${accentClass}`}>{icon} {title}</div>
-        {unlocked
-          ? <Badge className="bg-primary/15 text-primary">Unlocked</Badge>
-          : <Badge variant="outline" className="font-mono text-[10px]">In progress</Badge>}
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">{intro}</p>
-      <ul className="mt-3 space-y-3">
-        {steps.map((s) => {
-          const pct = Math.min(100, Math.round((s.cur / s.goal) * 100));
-          const done = s.cur >= s.goal;
-          return (
-            <li key={s.label}>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className={done ? "text-foreground" : "text-muted-foreground"}>{s.label}</span>
-                <span className="font-mono text-[11px] text-muted-foreground">{Math.min(s.cur, s.goal)} / {s.goal}</span>
-              </div>
-              <Progress value={pct} className="h-1.5" />
-            </li>
-          );
-        })}
+            </div>
+            <div className="text-right">
+              <Badge variant="secondary" className="text-[10px] uppercase">{r.status}</Badge>
+              <p className="mt-1 font-mono text-[10px] text-muted-foreground">{r.amount_sats ? fmtSats(r.amount_sats) : "any"}</p>
+            </div>
+          </li>
+        ))}
       </ul>
-    </div>
+    </Card>
   );
+}
+
+function WithdrawList({ rows }: { rows: Array<{ id: string; method: string; status: string; amount_sats: number; destination: string; risk_score: number; created_at: string }> }) {
+  const cancel = useServerFn(cancelWithdrawal);
+  const qc = useQueryClient();
+  const handleCancel = async (id: string) => {
+    try { await cancel({ data: { id } }); toast.success("Cancelled"); qc.invalidateQueries({ queryKey: ["my-withdrawals"] }); qc.invalidateQueries({ queryKey: ["my-wallet"] }); }
+    catch (e) { toast.error((e as Error).message); }
+  };
+  if (rows.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Withdrawals</h3>
+      <ul className="divide-y divide-border/40">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              {r.method === "lightning" ? <Zap className="h-3.5 w-3.5 text-yellow-400" /> : <Bitcoin className="h-3.5 w-3.5 text-orange-500" />}
+              <div>
+                <p className="font-mono text-xs">{r.destination.slice(0, 28)}…</p>
+                <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()} · risk {r.risk_score}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <Badge variant="secondary" className="text-[10px] uppercase">{r.status.replace(/_/g, " ")}</Badge>
+                <p className="mt-1 font-mono text-[10px] text-muted-foreground">{fmtSats(r.amount_sats)}</p>
+              </div>
+              {(r.status === "pending_review" || r.status === "approved") && (
+                <Button size="sm" variant="ghost" onClick={() => handleCancel(r.id)}>Cancel</Button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function LedgerFeed({ rows }: { rows: Array<{ id: string; kind: string; direction: string; bucket: string; amount_sats: number; created_at: string }> }) {
+  if (rows.length === 0) {
+    return (
+      <Card className="p-8 text-center text-sm text-muted-foreground">
+        <Clock className="mx-auto mb-2 h-6 w-6 opacity-50" />
+        No activity yet. Deposit some Bitcoin to get started.
+      </Card>
+    );
+  }
+  return (
+    <Card className="p-5">
+      <ul className="divide-y divide-border/40">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-center justify-between py-2.5">
+            <div className="flex items-center gap-2">
+              <KindIcon kind={r.kind} direction={r.direction} />
+              <div>
+                <p className="text-xs font-medium">{prettyKind(r.kind)}</p>
+                <p className="text-[10px] text-muted-foreground">{r.bucket.replace(/_/g, " ")} · {new Date(r.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+            <p className={`font-mono text-sm ${r.direction === "credit" ? "text-emerald-500" : "text-rose-500"}`}>
+              {r.direction === "credit" ? "+" : "−"}{fmtSats(r.amount_sats)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function KindIcon({ kind, direction }: { kind: string; direction: string }) {
+  if (kind === "deposit") return <ArrowDownToLine className="h-3.5 w-3.5 text-blue-500" />;
+  if (kind === "withdrawal") return <ArrowUpFromLine className="h-3.5 w-3.5 text-amber-500" />;
+  if (kind.startsWith("escrow")) return <Lock className="h-3.5 w-3.5 text-primary" />;
+  if (kind === "refund") return <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />;
+  if (kind === "fee") return <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />;
+  return <Activity className="h-3.5 w-3.5 text-muted-foreground" />;
+}
+function prettyKind(k: string) {
+  return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
