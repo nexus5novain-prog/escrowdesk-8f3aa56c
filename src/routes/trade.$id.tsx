@@ -187,7 +187,13 @@ function TradePage() {
           </div>
         </div>
       </div>
+      {isBuyer && ["awaiting_agreement","awaiting_seller_confirm"].includes(t.status) && t.asset === "BTC" && (
+        <div className="mt-4">
+          <EscrowPaymentPanel tradeId={t.id} amountBtc={Number(t.crypto_amount)} />
+        </div>
+      )}
       <div className="surface flex h-[600px] flex-col">
+
         <div className="border-b border-border/60 p-3 text-sm font-semibold">Chat</div>
         <div className="flex-1 space-y-2 overflow-y-auto p-3 text-sm">
           {data.messages.map((m) => (
