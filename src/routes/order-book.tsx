@@ -37,6 +37,7 @@ function OrderBookPage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const fetchMarket = useServerFn(listMarketplace);
+  const fetchSidebarAds = useServerFn(listAdsForPlacement);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<CatTab>("Top Authors");
   const { data, isLoading, refetch, isFetching } = useQuery({
@@ -44,6 +45,15 @@ function OrderBookPage() {
     queryFn: () => fetchMarket({ data: { q: q || undefined } }),
     refetchInterval: 20_000,
   });
+  // Same query key as <AdBanner placement="order_book_sidebar" /> so the
+  // sidebar layout decision dedupes with the actual ad fetch.
+  const { data: sidebarAds } = useQuery({
+    queryKey: ["ads", "order_book_sidebar"],
+    queryFn: () => fetchSidebarAds({ data: { placement: "order_book_sidebar" } }),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+  const hasSidebarAd = (sidebarAds?.ads?.length ?? 0) > 0;
 
   const tiers: { key: Tier; label: string; icon: React.ReactNode; subtitle: string; emptyHint?: string }[] = [
     { key: "premium", label: "Premium members", icon: <Crown className="h-4 w-4" />, subtitle: "Top-tier merchants: Trusted + 25 trades, 15 five-star ratings, $5,000 BTC traded.", emptyHint: "No Premium members yet. Reach the milestones from your Wallet page to unlock this tier." },
