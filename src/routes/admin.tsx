@@ -558,9 +558,16 @@ function AdsPanel() {
             </Select>
           </div>
           {form.media_type !== "html" && (
-            <div className="md:col-span-2">
-              <Label className="text-xs uppercase text-muted-foreground">{form.media_type === "image" ? "Image" : "Video"} URL</Label>
-              <Input value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} placeholder="https://…" />
+            <div className="md:col-span-2 space-y-2">
+              <Label className="text-xs uppercase text-muted-foreground">{form.media_type === "image" ? "Image" : "Video"} URL or upload</Label>
+              <Input value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} placeholder="https://… or upload below" />
+              <AdMediaUploader
+                accept={form.media_type === "image" ? "image/*" : "video/*"}
+                onUploaded={(url) => setForm((f) => ({ ...f, media_url: url }))}
+              />
+              {form.media_url && form.media_type === "image" && (
+                <img src={form.media_url} alt="preview" className="mt-2 max-h-32 rounded-md border border-border/60" />
+              )}
             </div>
           )}
           {form.media_type === "html" && (
@@ -587,7 +594,7 @@ function AdsPanel() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[320px] p-2">
-                {(["Site-wide", "Page-specific"] as const).map((group) => (
+                {(["Site-wide", "Landing extras", "Page-specific"] as const).map((group) => (
                   <div key={group} className="mb-2 last:mb-0">
                     <p className="px-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{group}</p>
                     <div className="space-y-0.5">
