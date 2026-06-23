@@ -16,6 +16,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fmtFiat } from "@/lib/format";
 import { MARKETPLACE_CATEGORIES, SORT_OPTIONS, type MarketplaceCategory, type SortKey } from "@/lib/marketplace-categories";
 import { CategoryPlaceholder } from "@/components/CategoryPlaceholder";
+import { CreditCardArt } from "@/components/CreditCardArt";
+import { styleFor } from "@/lib/card-styles";
 import { PortfolioHero } from "@/components/PortfolioHero";
 import { toast } from "sonner";
 import { Search, ShoppingBag, Sparkles, Loader2, Star, ChevronLeft, ChevronRight, Eye } from "lucide-react";
