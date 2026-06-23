@@ -501,19 +501,26 @@ function AdsPanel() {
   const create = useServerFn(adminCreateAd);
   const update = useServerFn(adminUpdateAd);
   const del = useServerFn(adminDeleteAd);
+  const healthFn = useServerFn(adminAdHealth);
   const { data, refetch } = useQuery({ queryKey: ["admin-ads"], queryFn: () => list() });
   const ads = ((data as { ads: AdRow[] } | undefined)?.ads ?? []);
+  const { data: healthData, refetch: refetchHealth } = useQuery({
+    queryKey: ["admin-ad-health"],
+    queryFn: () => healthFn(),
+    refetchInterval: 60_000,
+  });
+  const health = ((healthData as { health: Record<string, { impressions: number; clicks: number; errors: number }> } | undefined)?.health ?? {});
 
   useEffect(() => {
     const ch = supabase.channel("admin-ads-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => { refetch(); refetchHealth(); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [refetch]);
+  }, [refetch, refetchHealth]);
 
   const [form, setForm] = useState({
-    title: "", media_type: "image" as "image"|"video"|"html",
-    media_url: "", html_content: "", link_url: "", priority: 0,
+    title: "", media_type: "image" as "image"|"video"|"html"|"link",
+    media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0,
     placements: ["top"] as AdPlacement[], is_active: true,
     starts_at: "", ends_at: "",
   });
@@ -525,6 +532,7 @@ function AdsPanel() {
   const submit = async () => {
     if (!form.title.trim()) return toast.error("Title required");
     if (form.placements.length === 0) return toast.error("Pick at least one placement");
+    if (form.media_type === "link" && !form.link_url.trim()) return toast.error("Click-through URL required for link/CTA ads");
     setBusy(true);
     try {
       await create({ data: {
@@ -533,6 +541,7 @@ function AdsPanel() {
         media_url: form.media_url || undefined,
         html_content: form.html_content || undefined,
         link_url: form.link_url || undefined,
+        cta_label: form.cta_label || undefined,
         placements: form.placements,
         priority: form.priority,
         is_active: form.is_active,
@@ -540,7 +549,7 @@ function AdsPanel() {
         ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       } });
       toast.success("Ad created");
-      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
+      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
