@@ -678,6 +678,79 @@ function AdsPanel() {
   );
 }
 
+function AdAnalyticsPanel() {
+  const fn = useServerFn(adminAdAnalytics);
+  const [days, setDays] = useState(30);
+  const { data } = useQuery({ queryKey: ["ad-analytics", days], queryFn: () => fn({ data: { days } }) });
+  type Row = { ad_id: string; title: string; placements: string[]; impressions: number; clicks: number; ctr: number };
+  type PRow = { placement: string; impressions: number; clicks: number; ctr: number };
+  const ads = ((data as { ads: Row[] } | undefined)?.ads ?? []);
+  const placements = ((data as { placements: PRow[] } | undefined)?.placements ?? []);
+  return (
+    <div className="surface p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Ad performance (last {days} days)</h2>
+        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">24 hours</SelectItem>
+            <SelectItem value="7">7 days</SelectItem>
+            <SelectItem value="30">30 days</SelectItem>
+            <SelectItem value="90">90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-xs font-mono uppercase text-muted-foreground">By ad</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr><th className="text-left py-2">Title</th><th className="text-right">Impr.</th><th className="text-right">Clicks</th><th className="text-right">CTR</th></tr>
+              </thead>
+              <tbody>
+                {ads.map((r) => (
+                  <tr key={r.ad_id} className="border-t border-border/40">
+                    <td className="py-1.5 pr-2 truncate max-w-[180px]">{r.title}</td>
+                    <td className="text-right font-mono">{Number(r.impressions).toLocaleString()}</td>
+                    <td className="text-right font-mono">{Number(r.clicks).toLocaleString()}</td>
+                    <td className="text-right font-mono">{Number(r.ctr).toFixed(2)}%</td>
+                  </tr>
+                ))}
+                {ads.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No events yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-2 text-xs font-mono uppercase text-muted-foreground">By placement</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr><th className="text-left py-2">Placement</th><th className="text-right">Impr.</th><th className="text-right">Clicks</th><th className="text-right">CTR</th></tr>
+              </thead>
+              <tbody>
+                {placements.map((p) => (
+                  <tr key={p.placement} className="border-t border-border/40">
+                    <td className="py-1.5 font-mono text-xs">{p.placement}</td>
+                    <td className="text-right font-mono">{p.impressions.toLocaleString()}</td>
+                    <td className="text-right font-mono">{p.clicks.toLocaleString()}</td>
+                    <td className="text-right font-mono">{p.ctr.toFixed(2)}%</td>
+                  </tr>
+                ))}
+                {placements.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No events yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ============================ PRODUCTS PANEL ===========================
 
 type ProductRow = {
