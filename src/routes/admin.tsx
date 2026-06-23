@@ -648,6 +648,14 @@ function AdsPanel() {
               </PopoverContent>
             </Popover>
           </div>
+          <div className="md:col-span-2">
+            <AdSizePicker
+              presetKey={form.size_preset}
+              width={form.width}
+              height={form.height}
+              onChange={(p) => setForm((f) => ({ ...f, size_preset: p.size_preset, width: p.width, height: p.height }))}
+            />
+          </div>
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Priority (0-100)</Label>
             <Input type="number" min="0" max="100" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
