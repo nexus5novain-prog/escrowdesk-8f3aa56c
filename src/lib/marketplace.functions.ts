@@ -18,6 +18,7 @@ export type ListingRow = {
   created_at: string;
   profile: {
     display_name: string;
+    avatar_url: string | null;
     telegram_username: string | null;
     is_premium: boolean;
     is_trusted: boolean;
