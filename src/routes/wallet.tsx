@@ -77,6 +77,9 @@ function Wallet() {
         </div>
       </div>
 
+      {/* Live BTC/LN portfolio */}
+      <LivePortfolio />
+
       {/* Earnings PnL */}
       <div className="surface p-4 sm:p-6">
         <div className="flex items-center gap-2">
