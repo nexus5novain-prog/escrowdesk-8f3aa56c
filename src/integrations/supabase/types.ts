@@ -704,6 +704,12 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          paid_amount_usd: number | null
+          payment_method: string | null
+          payment_txid: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
           user_id: string
         }
         Insert: {
@@ -711,6 +717,12 @@ export type Database = {
           created_at?: string
           display_name: string
           id?: string
+          paid_amount_usd?: number | null
+          payment_method?: string | null
+          payment_txid?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           user_id: string
         }
         Update: {
@@ -718,6 +730,12 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          paid_amount_usd?: number | null
+          payment_method?: string | null
+          payment_txid?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
