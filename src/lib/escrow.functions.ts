@@ -264,7 +264,8 @@ export const deletePaymentMethod = createServerFn({ method: "POST" })
 export const generateTelegramLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const { randomBytes } = await import("crypto");
+    const code = randomBytes(6).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toUpperCase();
     const { error } = await supabaseAdmin.from("telegram_link_codes").insert({
       code, user_id: context.userId,
     });
