@@ -157,18 +157,34 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
     }
   };
 
-  // CTA fallback card — shown for link-only ads, broken media, and during
-  // long media loads. Keeps the slot occupied and clickable.
+  // CTA fallback card — for link-only ads, broken media, and during long media
+  // loads. Enriched with Open-Graph preview (image + description) when available.
   const ctaLabel = ad.cta_label?.trim() || (ad.link_url ? "Visit" : "Learn more");
+  const previewImage = ad.media_type === "link" ? linkPreview?.image_url : null;
+  const previewDesc = ad.media_type === "link" ? linkPreview?.description : null;
+  const previewSite = ad.media_type === "link" ? linkPreview?.site_name : null;
   const fallbackCard = (
-    <div className={`flex h-full w-full items-center justify-between gap-3 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent px-4 py-3 ${variant === "sidebar" ? "flex-col items-start text-left" : ""}`}>
-      <div className="min-w-0">
-        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Sponsored</p>
-        <p className="mt-0.5 truncate text-sm font-semibold text-foreground sm:text-base">{ad.title}</p>
+    <div className={`flex h-full w-full items-stretch gap-3 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ${variant === "sidebar" ? "flex-col" : ""}`}>
+      {previewImage && (
+        <div className={`relative shrink-0 overflow-hidden bg-secondary/40 ${variant === "sidebar" ? "h-32 w-full" : "h-full w-24 sm:w-32"}`}>
+          <img src={previewImage} alt="" loading="lazy" decoding="async"
+            className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Sponsored{previewSite ? ` · ${previewSite}` : ""}
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-foreground sm:text-base">{ad.title}</p>
+          {previewDesc && variant !== "banner" && (
+            <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{previewDesc}</p>
+          )}
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+          {ctaLabel} <ArrowUpRight className="h-3.5 w-3.5" />
+        </span>
       </div>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-        {ctaLabel} <ArrowUpRight className="h-3.5 w-3.5" />
-      </span>
     </div>
   );
 
