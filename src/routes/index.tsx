@@ -431,6 +431,9 @@ function ReportButton({ id }: { id: string }) {
       ⚠
     </button>
   );
+}
+
+
 
 /* ───────────────── Tips widget ───────────────── */
 const TIPS = [
