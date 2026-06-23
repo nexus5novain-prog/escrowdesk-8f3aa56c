@@ -1188,6 +1188,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_my_private_profile: {
+        Args: never
+        Returns: {
+          telegram_user_id: number
+          telegram_username: string
+          wallet_address_btc: string
+          wallet_address_eth: string
+          wallet_address_usdc: string
+          wallet_address_usdc_chain: string
+          wallet_address_usdt: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
