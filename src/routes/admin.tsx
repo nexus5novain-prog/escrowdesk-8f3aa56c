@@ -628,9 +628,20 @@ function AdsPanel() {
             <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
             <span className="text-sm">Active</span>
           </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Starts at (optional)</Label>
+            <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Ends at (optional)</Label>
+            <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
+          </div>
         </div>
         <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Creating…" : "Create banner"}</Button>
       </div>
+
+      <AdAnalyticsPanel />
+
 
       <div className="surface p-5">
         <h2 className="font-semibold">All banners ({ads.length})</h2>
