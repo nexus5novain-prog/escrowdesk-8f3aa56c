@@ -705,19 +705,11 @@ export const updateWalletAddresses = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       wallet_address_btc: z.string().trim().max(120).optional().nullable(),
-      wallet_address_usdt: z.string().trim().max(120).optional().nullable(),
-      wallet_address_usdc: z.string().trim().max(120).optional().nullable(),
-      wallet_address_usdc_chain: z.enum(["ERC20","TRC20"]).optional(),
-      wallet_address_eth: z.string().trim().max(120).optional().nullable(),
     }),
   )
   .handler(async ({ data, context }) => {
     const patch: Record<string, string | null> = {};
     if (data.wallet_address_btc !== undefined) patch.wallet_address_btc = data.wallet_address_btc || null;
-    if (data.wallet_address_usdt !== undefined) patch.wallet_address_usdt = data.wallet_address_usdt || null;
-    if (data.wallet_address_usdc !== undefined) patch.wallet_address_usdc = data.wallet_address_usdc || null;
-    if (data.wallet_address_usdc_chain !== undefined) patch.wallet_address_usdc_chain = data.wallet_address_usdc_chain;
-    if (data.wallet_address_eth !== undefined) patch.wallet_address_eth = data.wallet_address_eth || null;
     const { error } = await supabaseAdmin
       .from("profiles").update(patch as never).eq("user_id", context.userId);
     if (error) throw new Error(error.message);
