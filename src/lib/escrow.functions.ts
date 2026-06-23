@@ -509,16 +509,18 @@ export const adminCreditWallet = createServerFn({ method: "POST" })
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [profile, wallets, pms, roles, settings] = await Promise.all([
+    const [profile, balances, pms, roles, settings] = await Promise.all([
       supabaseAdmin.from("profiles").select("*").eq("user_id", context.userId).maybeSingle(),
-      supabaseAdmin.from("wallets").select("*").eq("user_id", context.userId),
+      supabaseAdmin.from("v_wallet_balances")
+        .select("wallet_code, available_sats, locked_escrow_sats, pending_deposit_sats, pending_withdrawal_sats")
+        .eq("user_id", context.userId).maybeSingle(),
       supabaseAdmin.from("payment_methods").select("*").eq("user_id", context.userId).order("created_at"),
       supabaseAdmin.from("user_roles").select("role").eq("user_id", context.userId),
       supabaseAdmin.from("platform_settings").select("*"),
     ]);
     return {
       profile: profile.data,
-      wallets: wallets.data ?? [],
+      balances: balances.data ?? null,
       payment_methods: pms.data ?? [],
       roles: (roles.data ?? []).map((r) => r.role),
       settings: settings.data ?? [],
