@@ -144,6 +144,10 @@ function Settings() {
           </div>
         )}
       </div>
+
+      <div className="surface p-5">
+        <NotificationSettings />
+      </div>
     </div>
   );
 }
