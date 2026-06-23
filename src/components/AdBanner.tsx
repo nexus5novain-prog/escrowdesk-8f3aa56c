@@ -76,6 +76,15 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   const ads = useMemo<Ad[]>(() => (data?.ads ?? []) as Ad[], [data]);
   const ad = ads.length > 0 ? ads[idx % ads.length] : null;
 
+  // Open-Graph preview for link-only ads
+  const previewFn = useServerFn(fetchLinkPreview);
+  const { data: linkPreview } = useQuery({
+    queryKey: ["link-preview", ad?.id, ad?.link_url],
+    queryFn: () => previewFn({ data: { url: ad!.link_url! } }),
+    enabled: !!ad && ad.media_type === "link" && !!ad.link_url,
+    staleTime: 6 * 3600_000,
+  });
+
   // Reset media state whenever the active ad changes; preload the next ad's
   // image so the rotation crossfade swaps to something ready.
   useEffect(() => {
