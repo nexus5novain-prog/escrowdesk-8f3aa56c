@@ -160,10 +160,13 @@ function OrderBookPage() {
           )}
         </div>
 
-        {/* Sidebar ads */}
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <AdBanner placement="order_book_sidebar" variant="sidebar" />
-        </aside>
+        {/* Sidebar ads — only mounted when an ad is configured for this placement,
+            so the 5 sections span the full page width otherwise. */}
+        {hasSidebarAd && (
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            <AdBanner placement="order_book_sidebar" variant="sidebar" />
+          </aside>
+        )}
       </div>
     </div>
   );
