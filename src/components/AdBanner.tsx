@@ -95,7 +95,7 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
         <video src={ad.media_url} className="block w-full" autoPlay muted loop playsInline />
       )}
       {ad.media_type === "html" && ad.html_content && (
-        <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: ad.html_content }} />
+        <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ad.html_content, { FORBID_TAGS: ["script","style","iframe","object","embed","form"], FORBID_ATTR: ["onerror","onload","onclick","onmouseover","onfocus","onmouseenter","onmouseleave","onkeydown","onkeyup","onsubmit","onchange","onblur","onabort","ondblclick"] }) }} />
       )}
       {variant !== "card" && ad.title && (
         <div className="pointer-events-none absolute left-2 top-2 rounded bg-background/70 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground backdrop-blur">
