@@ -133,7 +133,7 @@ function ProductDetailPage() {
                 <div className="mt-2 text-xs text-muted-foreground">
                   {[p.card_bank, p.card_type, p.card_brand, p.card_country].filter(Boolean).join(" · ")}
                 </div>
-                {p.card_address && <div className="mt-2 text-xs text-muted-foreground">{p.card_address}</div>}
+                <div className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground/80">Full PAN, CVV & billing address unlock inside escrow after purchase.</div>
               </div>
             )}
           </div>
