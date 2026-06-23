@@ -74,6 +74,7 @@ function Admin() {
         <TabsContent value="disputes" className="mt-4"><DisputesPanel /></TabsContent>
         <TabsContent value="arbitration" className="mt-4"><ArbitrationPanel /></TabsContent>
         <TabsContent value="offers" className="mt-4"><OffersPanel /></TabsContent>
+        <TabsContent value="withdrawals" className="mt-4"><WithdrawalsPanel /></TabsContent>
         <TabsContent value="trades" className="mt-4"><TradesPanel /></TabsContent>
         <TabsContent value="users" className="mt-4"><UsersPanel /></TabsContent>
         <TabsContent value="warnings" className="mt-4"><WarningsPanel /></TabsContent>
