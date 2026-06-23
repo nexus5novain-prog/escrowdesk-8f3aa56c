@@ -468,6 +468,8 @@ type AdRow = {
   impressions: number;
   clicks: number;
   created_at: string;
+  starts_at: string | null;
+  ends_at: string | null;
 };
 
 const ALL_PLACEMENTS: { value: AdPlacement; label: string; group: "Site-wide" | "Landing extras" | "Page-specific" }[] = [
