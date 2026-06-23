@@ -89,7 +89,11 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   // image so the rotation crossfade swaps to something ready.
   useEffect(() => {
     if (!ad) return;
-    setMediaState(ad.media_type === "image" || ad.media_type === "video" ? "loading" : "loaded");
+    const linkMediaKind = (linkPreview as { media_kind?: string | null } | undefined)?.media_kind;
+    const linkHasMedia = ad.media_type === "link" && (linkMediaKind === "image" || linkMediaKind === "video");
+    setMediaState(
+      ad.media_type === "image" || ad.media_type === "video" || linkHasMedia ? "loading" : "loaded"
+    );
     if (ads.length > 1) {
       const next = ads[(idx + 1) % ads.length];
       if (next?.media_type === "image" && next.media_url) {
@@ -97,7 +101,8 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
         img.src = next.media_url;
       }
     }
-  }, [ad, ads, idx]);
+  }, [ad, ads, idx, linkPreview]);
+
 
   // 6s media timeout → fall back to CTA card if the asset is still loading.
   useEffect(() => {
@@ -161,8 +166,13 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   // loads. Enriched with Open-Graph preview (image + description) when available.
   const ctaLabel = ad.cta_label?.trim() || (ad.link_url ? "Visit" : "Learn more");
   const previewImage = ad.media_type === "link" ? linkPreview?.image_url : null;
+  const previewVideo = ad.media_type === "link" ? (linkPreview as { video_url?: string | null } | undefined)?.video_url : null;
+  const previewKind = ad.media_type === "link" ? (linkPreview as { media_kind?: string | null } | undefined)?.media_kind : null;
   const previewDesc = ad.media_type === "link" ? linkPreview?.description : null;
   const previewSite = ad.media_type === "link" ? linkPreview?.site_name : null;
+  // When the link target *is* a media asset (image/video) or exposes one,
+  // embed it directly instead of just showing the OG card.
+  const embedLinkMedia = ad.media_type === "link" && (previewVideo || (previewKind === "image" && previewImage));
   const fallbackCard = (
     <div className={`flex h-full w-full items-stretch gap-3 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ${variant === "sidebar" ? "flex-col" : ""}`}>
       {previewImage && (
@@ -203,7 +213,8 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   const showMedia =
     (ad.media_type === "image" && ad.media_url && mediaState !== "error") ||
     (ad.media_type === "video" && ad.media_url && mediaState !== "error") ||
-    (ad.media_type === "html" && !!sanitizedHtml);
+    (ad.media_type === "html" && !!sanitizedHtml) ||
+    (embedLinkMedia && mediaState !== "error");
 
   const sizeStyle: React.CSSProperties =
     ad.width && ad.height ? { aspectRatio: `${ad.width} / ${ad.height}`, maxWidth: `${ad.width}px`, marginInline: "auto" } : {};
@@ -215,9 +226,10 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
       className={`group relative isolate w-full overflow-hidden border border-border/60 bg-secondary/20 transition-opacity duration-300 ${sizeBase}`}
     >
       {/* Reserve aspect so the slot doesn't collapse during load */}
-      {!showMedia || ad.media_type === "link" ? (
-        <div className={ad.media_type === "link" || (ad.width && ad.height) ? "h-full w-full" : ASPECT[variant]}>{fallbackCard}</div>
+      {!showMedia || (ad.media_type === "link" && !embedLinkMedia) ? (
+        <div className={(ad.media_type === "link" && !embedLinkMedia) || (ad.width && ad.height) ? "h-full w-full" : ASPECT[variant]}>{fallbackCard}</div>
       ) : null}
+
 
       {ad.media_type === "image" && ad.media_url && mediaState !== "error" && (
         <img
@@ -248,10 +260,38 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
         <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
       )}
 
+      {/* Link ad → embed the actual image/video discovered at the target URL */}
+      {ad.media_type === "link" && embedLinkMedia && previewVideo && mediaState !== "error" && (
+        <video
+          key={`${ad.id}-link-video`}
+          src={previewVideo}
+          className={`block h-full w-full object-cover transition-opacity duration-300 ${mediaState === "loaded" ? "opacity-100" : "opacity-0"}`}
+          autoPlay muted loop playsInline preload="metadata"
+          onLoadedData={() => setMediaState("loaded")}
+          onPlay={() => { videoPlayingRef.current = true; }}
+          onPause={() => { videoPlayingRef.current = false; }}
+          onEnded={() => { videoPlayingRef.current = false; }}
+          onError={handleMediaError}
+        />
+      )}
+      {ad.media_type === "link" && embedLinkMedia && !previewVideo && previewImage && mediaState !== "error" && (
+        <img
+          key={`${ad.id}-link-img`}
+          src={previewImage}
+          alt={ad.title}
+          loading="lazy"
+          decoding="async"
+          className={`block h-full w-full object-cover transition-opacity duration-300 ${mediaState === "loaded" ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setMediaState("loaded")}
+          onError={handleMediaError}
+        />
+      )}
+
       {/* Loading shimmer for media types that are still resolving */}
-      {(ad.media_type === "image" || ad.media_type === "video") && mediaState === "loading" && (
+      {(ad.media_type === "image" || ad.media_type === "video" || (ad.media_type === "link" && embedLinkMedia)) && mediaState === "loading" && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-secondary/40 via-secondary/10 to-secondary/40" />
       )}
+
 
       {/* "Ad · title" overlay for non-card variants when real media is showing */}
       {variant !== "card" && showMedia && ad.media_type !== "link" && ad.media_type !== "html" && (
