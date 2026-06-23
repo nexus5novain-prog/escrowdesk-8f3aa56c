@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LivePortfolio } from "@/components/wallet/LivePortfolio";
 
 export const Route = createFileRoute("/wallet")({ component: () => (<AuthGate><Wallet /></AuthGate>) });
 
