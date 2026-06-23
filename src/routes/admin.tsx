@@ -664,6 +664,11 @@ function AdsPanel() {
                   <div className="mt-1 text-[11px] text-muted-foreground font-mono">
                     {a.impressions} impressions · {a.clicks} clicks · {new Date(a.created_at).toLocaleDateString()}
                   </div>
+                  {(a.starts_at || a.ends_at) && (
+                    <div className="mt-1 text-[11px] font-mono text-muted-foreground">
+                      Schedule: {a.starts_at ? new Date(a.starts_at).toLocaleString() : "—"} → {a.ends_at ? new Date(a.ends_at).toLocaleString() : "—"}
+                    </div>
+                  )}
                   {a.media_url && <div className="mt-1 truncate text-[11px] text-muted-foreground font-mono">{a.media_url}</div>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
