@@ -58,7 +58,66 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           .select("id, trade_id, status")
           .eq("btcpay_invoice_id", evt.invoiceId)
           .maybeSingle();
-        if (!row) return Response.json({ ok: true, unknown_invoice: true });
+
+        // Not an escrow invoice? Try user-wallet deposit_request
+        if (!row) {
+          const { data: dep } = await supabaseAdmin
+            .from("deposit_requests")
+            .select("id, user_id, wallet_id, method, status, amount_sats")
+            .eq("btcpay_invoice_id", evt.invoiceId)
+            .maybeSingle();
+          if (!dep) return Response.json({ ok: true, unknown_invoice: true });
+
+          // Fetch live amounts/confs
+          let conf = 0, paidBtc = 0;
+          try {
+            const pms = await getInvoicePaymentMethods(evt.invoiceId);
+            conf = pms.flatMap((p) => p.payments ?? []).reduce((m, p) => Math.max(m, p.confirmations ?? 0), 0);
+            paidBtc = pms.reduce((s, p) => s + Number(p.totalPaid ?? 0), 0);
+          } catch (e) { console.warn("[wallet-dep] pm fetch", e); }
+          const paidSats = Math.round(paidBtc * 100_000_000);
+          const nextDepStatus = mapStatus(evt.type);
+
+          await supabaseAdmin.from("deposit_requests").update({
+            confirmations: conf,
+            status: nextDepStatus === "processing" ? "detected"
+                  : nextDepStatus === "settled" ? "settled"
+                  : nextDepStatus === "expired" ? "expired"
+                  : nextDepStatus === "invalid" ? "invalid"
+                  : dep.status,
+            detected_at: nextDepStatus === "processing" ? new Date().toISOString() : undefined,
+            settled_at: nextDepStatus === "settled" ? new Date().toISOString() : undefined,
+          } as never).eq("id", dep.id);
+
+          if (nextDepStatus === "settled" && dep.status !== "settled" && paidSats > 0) {
+            // Credit user's available balance via the ledger
+            await supabaseAdmin.rpc("ledger_credit" as never, {
+              _user_id: dep.user_id,
+              _bucket: "available",
+              _amount_sats: paidSats,
+              _kind: "deposit",
+              _ref_type: "deposit_request",
+              _ref_id: dep.id,
+              _metadata: { method: dep.method, btcpay_invoice_id: evt.invoiceId },
+            } as never);
+            await supabaseAdmin.rpc("wallet_audit" as never, {
+              _user_id: dep.user_id, _action: "deposit_settled",
+              _ref_type: "deposit_request", _ref_id: dep.id,
+              _payload: { amount_sats: paidSats, method: dep.method },
+            } as never);
+            try {
+              const { notifyUser } = await import("@/lib/notify.server");
+              await notifyUser({
+                userId: dep.user_id, kind: "wallet_credit",
+                title: "Deposit confirmed",
+                body: `${paidBtc.toFixed(8)} BTC credited to your wallet.`,
+                link: "/wallet",
+              });
+            } catch (e) { console.warn("[wallet-dep] notify", e); }
+          }
+          return Response.json({ ok: true, kind: "wallet_deposit" });
+        }
+
 
         // Pull live confirmations + totals
         let confirmations = 0;
