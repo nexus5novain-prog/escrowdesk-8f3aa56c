@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listMarketplace, type ListingRow, type Tier } from "@/lib/marketplace.functions";
+import { listAdsForPlacement } from "@/lib/ads.functions";
 import { createEscrowGroup } from "@/lib/escrow-groups.functions";
 import { MediatorBot } from "@/components/MediatorBot";
 import { AdBanner } from "@/components/AdBanner";
@@ -36,6 +37,7 @@ function OrderBookPage() {
   const { user } = useAuth();
   const nav = useNavigate();
   const fetchMarket = useServerFn(listMarketplace);
+  const fetchSidebarAds = useServerFn(listAdsForPlacement);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<CatTab>("Top Authors");
   const { data, isLoading, refetch, isFetching } = useQuery({
@@ -43,6 +45,15 @@ function OrderBookPage() {
     queryFn: () => fetchMarket({ data: { q: q || undefined } }),
     refetchInterval: 20_000,
   });
+  // Same query key as <AdBanner placement="order_book_sidebar" /> so the
+  // sidebar layout decision dedupes with the actual ad fetch.
+  const { data: sidebarAds } = useQuery({
+    queryKey: ["ads", "order_book_sidebar"],
+    queryFn: () => fetchSidebarAds({ data: { placement: "order_book_sidebar" } }),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+  const hasSidebarAd = (sidebarAds?.ads?.length ?? 0) > 0;
 
   const tiers: { key: Tier; label: string; icon: React.ReactNode; subtitle: string; emptyHint?: string }[] = [
     { key: "premium", label: "Premium members", icon: <Crown className="h-4 w-4" />, subtitle: "Top-tier merchants: Trusted + 25 trades, 15 five-star ratings, $5,000 BTC traded.", emptyHint: "No Premium members yet. Reach the milestones from your Wallet page to unlock this tier." },
@@ -79,7 +90,7 @@ function OrderBookPage() {
       <div className="hidden md:block"><MediatorBot /></div>
 
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className={`grid gap-6 ${hasSidebarAd ? "lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]" : "grid-cols-1"}`}>
         <div className="space-y-6 md:space-y-8">
           {/* Search + category tabs */}
           <section className="surface p-4 space-y-3">
@@ -149,10 +160,13 @@ function OrderBookPage() {
           )}
         </div>
 
-        {/* Sidebar ads */}
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <AdBanner placement="order_book_sidebar" variant="sidebar" />
-        </aside>
+        {/* Sidebar ads — only mounted when an ad is configured for this placement,
+            so the 5 sections span the full page width otherwise. */}
+        {hasSidebarAd && (
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            <AdBanner placement="order_book_sidebar" variant="sidebar" />
+          </aside>
+        )}
       </div>
     </div>
   );
