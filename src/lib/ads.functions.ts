@@ -31,7 +31,7 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
     const now = new Date().toISOString();
     const { data: rows } = await supabaseAdmin
       .from("ad_banners")
-      .select("id,title,media_type,media_url,html_content,link_url,placements,priority,starts_at,ends_at")
+      .select("id,title,media_type,media_url,html_content,link_url,cta_label,placements,priority,starts_at,ends_at")
       .eq("is_active", true)
       .contains("placements", [data.placement])
       .or(`starts_at.is.null,starts_at.lte.${now}`)
