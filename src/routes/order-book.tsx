@@ -53,7 +53,7 @@ function OrderBookPage() {
   // Filter rows by the selected top-level forum section (resolved from the
   // stored "Section · Subcategory" string).
   const filterCat = (rows: ListingRow[]) =>
-    cat === "All" ? rows : rows.filter((r) => sectionOf(r.category) === cat);
+    cat === "All" || cat === "Top Authors" ? rows : rows.filter((r) => sectionOf(r.category) === cat);
 
   return (
     <div className="space-y-8 md:space-y-10">
