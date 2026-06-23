@@ -179,14 +179,18 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
     (ad.media_type === "video" && ad.media_url && mediaState !== "error") ||
     (ad.media_type === "html" && !!sanitizedHtml);
 
+  const sizeStyle: React.CSSProperties =
+    ad.width && ad.height ? { aspectRatio: `${ad.width} / ${ad.height}`, maxWidth: `${ad.width}px`, marginInline: "auto" } : {};
+
   const body = (
     <div
       ref={rootRef}
-      className={`group relative isolate overflow-hidden border border-border/60 bg-secondary/20 transition-opacity duration-300 ${sizeBase}`}
+      style={sizeStyle}
+      className={`group relative isolate w-full overflow-hidden border border-border/60 bg-secondary/20 transition-opacity duration-300 ${sizeBase}`}
     >
       {/* Reserve aspect so the slot doesn't collapse during load */}
       {!showMedia || ad.media_type === "link" ? (
-        <div className={ad.media_type === "link" ? "" : ASPECT[variant]}>{fallbackCard}</div>
+        <div className={ad.media_type === "link" || (ad.width && ad.height) ? "h-full w-full" : ASPECT[variant]}>{fallbackCard}</div>
       ) : null}
 
       {ad.media_type === "image" && ad.media_url && mediaState !== "error" && (
