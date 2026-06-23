@@ -862,25 +862,31 @@ export type Database = {
           description: string | null
           fetched_at: string
           image_url: string | null
+          media_kind: string | null
           site_name: string | null
           title: string | null
           url: string
+          video_url: string | null
         }
         Insert: {
           description?: string | null
           fetched_at?: string
           image_url?: string | null
+          media_kind?: string | null
           site_name?: string | null
           title?: string | null
           url: string
+          video_url?: string | null
         }
         Update: {
           description?: string | null
           fetched_at?: string
           image_url?: string | null
+          media_kind?: string | null
           site_name?: string | null
           title?: string | null
           url?: string
+          video_url?: string | null
         }
         Relationships: []
       }
