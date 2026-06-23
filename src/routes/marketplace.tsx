@@ -240,13 +240,6 @@ function ProductSkeleton() {
   );
 }
 
-function maskCardNumber(num: string) {
-  const digits = num.replace(/\D/g, "");
-  if (digits.length < 6) return num;
-  const visible = digits.slice(0, 6);
-  const masked = "**** **** ****";
-  return `${visible} ${masked}`;
-}
 
 function Card({ p, onBuy, busy }: { p: Product; onBuy: (p: Product) => void; busy: boolean }) {
   const isCard = p.category === "BIN/CC";
