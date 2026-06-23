@@ -86,16 +86,16 @@ export function ShoutboxComposer({ displayName, onPosted }: Props) {
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setMode("wallet")}
               className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${mode === "wallet" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:text-foreground"}`}>
-              <Wallet className="h-4 w-4" /> Wallet (USDT)
+              <Wallet className="h-4 w-4" /> Wallet (BTC)
             </button>
             <button type="button" onClick={() => setMode("btc")}
               className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${mode === "btc" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:text-foreground"}`}>
-              <Bitcoin className="h-4 w-4" /> BTC payment
+              <Bitcoin className="h-4 w-4" /> On-chain BTC payment
             </button>
           </div>
 
           {mode === "wallet" ? (
-            <p className="text-xs text-muted-foreground">${fee} USDT will be debited from your wallet balance and your shoutbox will go live immediately. No escrow.</p>
+            <p className="text-xs text-muted-foreground">${fee} worth of BTC will be debited from your wallet balance and your shoutbox will go live immediately. No escrow.</p>
           ) : (
             <div className="space-y-2">
               <Label className="text-xs uppercase text-muted-foreground">Send exactly ${fee} worth of BTC to:</Label>

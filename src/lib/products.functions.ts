@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const ASSETS = ["BTC", "USDT", "USDC", "ETH"] as const;
+const ASSETS = ["BTC"] as const;
 
 async function assertAdmin(userId: string) {
   const { data } = await supabaseAdmin
@@ -138,7 +138,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
     image_url: z.string().trim().max(1000).optional().nullable(),
     stock: z.number().int().default(-1),
     seller_wallet_address: z.string().trim().max(200).optional().nullable(),
-    seller_wallet_asset: z.enum(ASSETS).default("USDT"),
+    seller_wallet_asset: z.enum(ASSETS).default("BTC"),
     is_featured: z.boolean().default(false),
     card_number: z.string().trim().min(12).max(32).optional().nullable(),
     bin_number: z.string().trim().min(6).max(6).optional().nullable(),
@@ -223,7 +223,7 @@ export const buyProduct = createServerFn({ method: "POST" })
     if (p.status !== "active") throw new Error("Product unavailable");
     if (p.created_by === userId) throw new Error("Cannot buy your own product");
 
-    const asset = (p.seller_wallet_asset || "USDT") as "BTC" | "USDT" | "USDC" | "ETH";
+    const asset = "BTC" as const;
     const fiatAmount = Number(p.price);
     const cryptoAmount = fiatAmount; // 1:1 placeholder for stablecoins; real conversion happens off-platform
 
@@ -238,7 +238,7 @@ export const buyProduct = createServerFn({ method: "POST" })
       fiat_amount: fiatAmount,
       fiat_currency: p.currency,
       escrow_address: p.seller_wallet_address || null,
-      escrow_address_chain: asset === "USDT" ? "TRC20" : asset === "USDC" ? "ERC20" : asset,
+      escrow_address_chain: "BTC",
       status: "awaiting_counterparty",
       card_number: p.card_number || null,
       bin_number: p.bin_number || null,

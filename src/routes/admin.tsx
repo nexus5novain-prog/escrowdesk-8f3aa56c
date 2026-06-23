@@ -890,7 +890,7 @@ function CategoryProductsSection({
         image_url: form.image_url || undefined,
         stock: Number(form.stock) || -1,
         seller_wallet_address: form.seller_wallet_address || undefined,
-        seller_wallet_asset: form.seller_wallet_asset as "BTC"|"USDT"|"USDC"|"ETH",
+        seller_wallet_asset: "BTC",
         is_featured: form.is_featured,
         card_number: category === "BIN/CC" ? form.card_number || undefined : undefined,
         bin_number: category === "BIN/CC" ? form.bin_number || undefined : undefined,
@@ -950,15 +950,7 @@ function CategoryProductsSection({
       </div>
       <div>
         <Label className="text-xs uppercase text-muted-foreground">Payout asset</Label>
-        <Select value={form.seller_wallet_asset} onValueChange={(v) => setForm({ ...form, seller_wallet_asset: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="BTC">BTC</SelectItem>
-            <SelectItem value="USDT">USDT</SelectItem>
-            <SelectItem value="USDC">USDC</SelectItem>
-            <SelectItem value="ETH">ETH</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex h-10 items-center rounded-md border border-input bg-secondary/30 px-3 text-sm font-medium">BTC</div>
       </div>
       <div className="md:col-span-2">
         <Label className="text-xs uppercase text-muted-foreground">Payout wallet address</Label>
