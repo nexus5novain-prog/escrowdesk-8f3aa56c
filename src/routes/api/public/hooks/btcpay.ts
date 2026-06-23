@@ -49,8 +49,9 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           trade_id: null,
           invoice_id: null,
           kind: "webhook_received",
-          payload: evt as unknown as Record<string, unknown>,
+          payload: JSON.parse(JSON.stringify(evt)),
         });
+
 
         const { data: row } = await supabaseAdmin
           .from("escrow_invoices")
