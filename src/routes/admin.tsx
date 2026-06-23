@@ -691,6 +691,7 @@ function AdsPanel() {
                     <Badge variant={a.is_active ? "default" : "secondary"}>{a.is_active ? "Active" : "Paused"}</Badge>
                     <Badge variant="outline" className="uppercase">{a.media_type}</Badge>
                     <span className="text-[11px] font-mono text-muted-foreground">P{a.priority}</span>
+                    <AdHealthBadge h={health[a.id]} />
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {a.placements.map((p) => <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>)}
