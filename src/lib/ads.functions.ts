@@ -157,6 +157,9 @@ export const adminUpdateAd = createServerFn({ method: "POST" })
     placements: z.array(PlacementSchema).min(1).optional(),
     starts_at: z.string().datetime().nullable().optional(),
     ends_at: z.string().datetime().nullable().optional(),
+    size_preset: z.string().max(80).nullable().optional(),
+    width: z.number().int().positive().max(2000).nullable().optional(),
+    height: z.number().int().positive().max(2000).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
