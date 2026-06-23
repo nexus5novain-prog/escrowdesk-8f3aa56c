@@ -29,7 +29,7 @@ export const Route = createFileRoute("/order-book")({
   component: OrderBookPage,
 });
 
-const CATEGORY_TABS = ["All", ...THREAD_SECTIONS.map((s) => s.label)] as const;
+const CATEGORY_TABS = ["Top Authors", "All", ...THREAD_SECTIONS.map((s) => s.label)] as const;
 type CatTab = (typeof CATEGORY_TABS)[number];
 
 function OrderBookPage() {
