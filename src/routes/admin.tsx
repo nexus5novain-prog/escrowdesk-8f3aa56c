@@ -1079,8 +1079,10 @@ function CategoryProductsSection({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{p.name}</span>
                       {p.is_featured && <Badge>Featured</Badge>}
+                      {p.is_seeded && <Badge variant="outline" className="border-amber-500/60 text-amber-600 dark:text-amber-400">Seeded demo</Badge>}
                       <Badge variant={p.status === "active" ? "default" : "secondary"}>{p.status}</Badge>
                     </div>
+
                     <div className="text-[11px] text-muted-foreground">{p.price} {p.currency} · Stock: {p.stock === -1 ? "∞" : p.stock}</div>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
                   </div>
