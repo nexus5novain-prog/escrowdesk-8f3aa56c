@@ -73,15 +73,18 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           console.warn("[btcpay-webhook] could not fetch payment methods", e);
         }
 
-        const nextStatus = mapStatus(evt.type) ?? undefined;
-        const update: Record<string, unknown> = {
-          confirmations,
-          paid_amount_btc: paid,
-        };
+        const nextStatus = mapStatus(evt.type);
+        const update: {
+          confirmations: number;
+          paid_amount_btc: number;
+          status?: "new" | "processing" | "settled" | "expired" | "invalid";
+          settled_at?: string;
+        } = { confirmations, paid_amount_btc: paid };
         if (nextStatus) update.status = nextStatus;
         if (nextStatus === "settled") update.settled_at = new Date().toISOString();
 
         await supabaseAdmin.from("escrow_invoices").update(update).eq("id", row.id);
+
 
         await supabaseAdmin.from("escrow_events").insert({
           trade_id: row.trade_id,
