@@ -101,6 +101,20 @@ function OrderBookPage() {
             </div>
           </section>
 
+          {/* Top Authors composite-rank leaderboard */}
+          {cat === "Top Authors" && (
+            <section className="surface p-4 sm:p-5">
+              <header className="mb-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-primary"><Crown className="h-4 w-4" /></div>
+                <div>
+                  <h2 className="text-base font-semibold leading-tight sm:text-lg">Top thread authors</h2>
+                  <p className="text-xs text-muted-foreground">Composite rank: tier + rating + trades + freshness + active threads.</p>
+                </div>
+              </header>
+              <TopAuthors />
+            </section>
+          )}
+
           {/* Tier sections — already rank-sorted server-side */}
           {tiers.map((t) => {
             const group = data?.groups?.[t.key];
@@ -117,6 +131,22 @@ function OrderBookPage() {
               />
             );
           })}
+
+          {/* Live category feed appears under the product list when a section tab is selected */}
+          {cat !== "Top Authors" && cat !== "All" && (
+            <section className="surface p-4 sm:p-5">
+              <header className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-primary"><Sparkles className="h-4 w-4" /></div>
+                  <div>
+                    <h2 className="text-base font-semibold leading-tight sm:text-lg">{cat} — live feed</h2>
+                    <p className="text-xs text-muted-foreground">Thread, category, price, status and posting time. Updates in real time.</p>
+                  </div>
+                </div>
+              </header>
+              <CategoryFeed section={cat} />
+            </section>
+          )}
         </div>
 
         {/* Sidebar ads */}
