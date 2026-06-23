@@ -76,11 +76,12 @@ export const createOffer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     if (data.max_amount < data.min_amount) throw new Error("max < min");
-    // If selling crypto, require enough available balance.
+    // If selling crypto, require enough available balance (from new ledger view).
     if (data.side === "sell") {
+      const needSats = Math.floor(data.available_crypto * 100_000_000);
       const { data: w } = await supabaseAdmin
-        .from("wallets").select("available").eq("user_id", userId).eq("asset", data.asset).maybeSingle();
-      if (!w || Number(w.available) < data.available_crypto) {
+        .from("v_wallet_balances").select("available_sats").eq("user_id", userId).maybeSingle();
+      if (!w || Number(w.available_sats ?? 0) < needSats) {
         throw new Error("Insufficient wallet balance to back this offer");
       }
     }
