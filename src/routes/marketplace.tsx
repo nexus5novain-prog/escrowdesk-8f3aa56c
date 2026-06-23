@@ -247,24 +247,41 @@ function maskCardNumber(num: string) {
 }
 
 function Card({ p, onBuy, busy }: { p: Product; onBuy: (p: Product) => void; busy: boolean }) {
-  const visibleCard = p.card_number ? maskCardNumber(p.card_number) : p.bin_number ? `${p.bin_number} **** **** ****` : null;
+  const isCard = p.category === "BIN/CC";
   return (
     <motion.article
       initial={{ opacity: 0, y: 6 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
       whileHover={{ y: -2 }}
       className="group flex flex-col overflow-hidden rounded-lg border border-border/70 bg-card/80 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
     >
-      <div className="relative aspect-video w-full overflow-hidden border-b border-border/60 bg-secondary/40">
-        {p.image_url ? (
-          <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" />
+      <div className="relative overflow-hidden border-b border-border/60 bg-secondary/40 p-3">
+        {isCard ? (
+          <CreditCardArt
+            id={p.id}
+            cardStyle={p.card_style}
+            brand={p.card_brand}
+            bank={p.card_bank}
+            holder={p.card_user}
+            cardNumber={p.card_number}
+            binNumber={p.bin_number}
+            expire={p.expire_date}
+            type={p.card_type}
+            compact
+          />
         ) : (
-          <CategoryPlaceholder category={p.category} name={p.name} />
+          <div className="relative aspect-video w-full overflow-hidden rounded-md">
+            {p.image_url ? (
+              <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" />
+            ) : (
+              <StoreArt id={p.id} cardStyle={p.card_style} category={p.category} name={p.name} />
+            )}
+          </div>
         )}
-        <Badge variant="outline" className="absolute right-2 top-2 border-border/60 bg-background/85 text-[10px] font-mono uppercase tracking-wider backdrop-blur">
+        <Badge variant="outline" className="absolute right-3 top-3 border-border/60 bg-background/85 text-[10px] font-mono uppercase tracking-wider backdrop-blur">
           {p.category}
         </Badge>
         {p.is_featured && (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-sm border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-sm border border-primary/40 bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
             <Star className="h-3 w-3" /> Featured
           </span>
         )}
@@ -277,14 +294,11 @@ function Card({ p, onBuy, busy }: { p: Product; onBuy: (p: Product) => void; bus
           </span>
         </div>
         <p className="mt-1.5 line-clamp-2 flex-1 text-xs leading-relaxed text-muted-foreground">{p.description}</p>
-        {visibleCard && (
-          <div className="mt-3 rounded-md border border-border/60 bg-background/40 px-2.5 py-2">
-            <div className="font-mono text-[11px] tracking-wider text-foreground/90">{visibleCard}</div>
-            {(p.card_bank || p.card_type) && (
-              <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {[p.card_bank, p.card_type].filter(Boolean).join(" · ")}
-              </div>
-            )}
+        {isCard && (p.card_bank || p.card_type || p.card_country) && (
+          <div className="mt-2 flex flex-wrap gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+            {p.card_bank && <span className="rounded-sm border border-border/60 px-1.5 py-0.5">{p.card_bank}</span>}
+            {p.card_type && <span className="rounded-sm border border-border/60 px-1.5 py-0.5">{p.card_type}</span>}
+            {p.card_country && <span className="rounded-sm border border-border/60 px-1.5 py-0.5">{p.card_country}</span>}
           </div>
         )}
         <div className="mt-3 flex items-center justify-between gap-2">
@@ -307,5 +321,18 @@ function Card({ p, onBuy, busy }: { p: Product; onBuy: (p: Product) => void; bus
         </div>
       </div>
     </motion.article>
+  );
+}
+
+function StoreArt({ id, cardStyle, category, name }: { id: string; cardStyle?: number | null; category: string; name: string }) {
+  const s = styleFor(id, cardStyle);
+  return (
+    <div className={`relative flex h-full w-full items-center justify-center ${s.bg} ${s.fg}`}>
+      <div className={`pointer-events-none absolute inset-0 ${s.pattern}`} />
+      <div className="relative text-center px-3">
+        <div className="text-[10px] font-mono uppercase tracking-widest opacity-80">{category}</div>
+        <div className="mt-1 line-clamp-2 text-sm font-semibold">{name}</div>
+      </div>
+    </div>
   );
 }
