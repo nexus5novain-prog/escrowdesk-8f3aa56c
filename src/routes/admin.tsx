@@ -660,9 +660,23 @@ function AdsPanel() {
           </div>
         </div>
         <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Creating…" : "Create banner"}</Button>
+
+        <div className="mt-6 border-t border-border/60 pt-4">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Live preview · how this ad will render on public pages</p>
+          <div className="mt-3 grid gap-4 md:grid-cols-3">
+            {(["banner", "card", "sidebar"] as const).map((v) => (
+              <div key={v}>
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{v}</p>
+                <AdDraftPreview form={form} variant={v} />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <AdAnalyticsPanel />
+
+
 
 
       <div className="surface p-5">
