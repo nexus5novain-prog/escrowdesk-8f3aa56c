@@ -39,7 +39,7 @@ function publicCardNumber(cardNumber?: string | null, bin?: string | null): stri
   return `${realBin}XXXXXXXXXX`;
 }
 
-type AnyProductRow = Record<string, unknown> & {
+type AnyProductRow = {
   card_number?: string | null;
   bin_number?: string | null;
   card_user?: string | null;
@@ -48,7 +48,7 @@ type AnyProductRow = Record<string, unknown> & {
 };
 
 // Public projection — strip CVV + billing address, mask PAN + holder.
-function publicMaskProduct<T extends AnyProductRow>(row: T) {
+function publicMaskProduct<T extends AnyProductRow>(row: T): T {
   const bin = row.bin_number ?? (row.card_number ? String(row.card_number).replace(/\D/g, "").slice(0, 6) : null);
   return {
     ...row,
@@ -60,6 +60,7 @@ function publicMaskProduct<T extends AnyProductRow>(row: T) {
     cvv: null,
   };
 }
+
 
 /* ─────────────────────── Public reads ─────────────────────── */
 export const listProducts = createServerFn({ method: "GET" })
