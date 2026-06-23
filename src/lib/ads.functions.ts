@@ -52,15 +52,6 @@ export const trackAdEvent = createServerFn({ method: "POST" })
     await supabaseAdmin.from("ad_events").insert({
       ad_id: data.ad_id, kind: data.kind, placement: data.placement,
     });
-    // Best-effort rollup on the parent row for at-a-glance counts.
-    const column = data.kind === "click" ? "clicks" : "impressions";
-    await supabaseAdmin.rpc("noop_increment_ad_count", {} as never).then(() => null).catch(() => null);
-    // Direct update fallback (rpc above is a no-op placeholder).
-    await supabaseAdmin
-      .from("ad_banners")
-      .update({ [column]: undefined } as never)
-      .eq("id", data.ad_id)
-      .then(() => null, () => null);
     return { ok: true };
   });
 
