@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AdBanner } from "@/components/AdBanner";
+import { RandomShout } from "@/components/RandomShout";
 
 function NotFoundComponent() {
   return (
@@ -77,9 +78,11 @@ function RootComponent() {
           <SiteHeader />
           <AdBanner placement="top" dismissable className="mx-auto w-full max-w-7xl px-4 pt-3" />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
+            <RandomShout className="mb-4" />
             <Outlet />
           </main>
           <AdBanner placement="bottom" className="mx-auto w-full max-w-7xl px-4 pb-4" />
+          <AdBanner placement="footer_banner" className="mx-auto w-full max-w-7xl px-4 pb-2" />
           <SiteFooter />
         </div>
         <Toaster theme="dark" />

@@ -5,12 +5,19 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type AdPlacement =
   | "top" | "center" | "bottom" | "footer"
-  | "marketplace_grid" | "order_book_sidebar" | "trades_escrow";
+  | "marketplace_grid" | "order_book_sidebar" | "trades_escrow"
+  // landing-page expanded slots
+  | "sidebar_resources" | "under_hero" | "sidebar_top" | "sidebar_mid"
+  | "sidebar_bottom" | "between_threads" | "between_sections"
+  | "footer_banner" | "floating_corner" | "inline_card";
 export type AdMediaType = "image" | "video" | "html";
 
 const PlacementSchema = z.enum([
   "top", "center", "bottom", "footer",
   "marketplace_grid", "order_book_sidebar", "trades_escrow",
+  "sidebar_resources", "under_hero", "sidebar_top", "sidebar_mid",
+  "sidebar_bottom", "between_threads", "between_sections",
+  "footer_banner", "floating_corner", "inline_card",
 ]);
 
 async function assertAdmin(userId: string) {
@@ -19,7 +26,6 @@ async function assertAdmin(userId: string) {
   if (!data) throw new Error("Admin only");
 }
 
-// Public: list active ads for a given placement
 export const listAdsForPlacement = createServerFn({ method: "GET" })
   .inputValidator(z.object({ placement: PlacementSchema }))
   .handler(async ({ data }) => {
@@ -31,22 +37,15 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
       .contains("placements", [data.placement])
       .order("priority", { ascending: false })
       .limit(20);
-    const active = (rows ?? []).filter((r) => {
-      // Filter time window if needed — schema fields exist but excluded from select for size
-      return true;
-    });
-    return { ads: active, fetched_at: now };
+    return { ads: rows ?? [], fetched_at: now };
   });
 
-// Admin: list all ads (any status)
 export const adminListAds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
     const { data, error } = await supabaseAdmin
-      .from("ad_banners")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .from("ad_banners").select("*").order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return { ads: data ?? [] };
   });

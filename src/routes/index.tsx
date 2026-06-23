@@ -13,7 +13,8 @@ import { AdBanner } from "@/components/AdBanner";
 import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
 import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
-import { listProducts } from "@/lib/products.functions";
+import { listApprovedShouts, type ShoutMsg as ShoutMessage } from "@/lib/shoutbox.functions";
+import { ShoutboxComposer } from "@/components/ShoutboxComposer";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ShieldCheck, Search, ArrowRight, Wallet, MessageSquare, Send, Lightbulb,
@@ -38,21 +39,30 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
+      <AdBanner placement="under_hero" variant="card" className="block" />
       <AnnouncementBanner />
       <UniversalSearch />
       <QuickCategories />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6 min-w-0">
           <LatestThreads />
+          <AdBanner placement="between_threads" variant="card" className="block" />
           <Shoutbox />
+          <AdBanner placement="between_sections" variant="card" className="block" />
           <TipsWidget />
+          <AdBanner placement="inline_card" variant="card" className="block" />
         </div>
         <aside className="space-y-6">
           <UserDashboard />
+          <AdBanner placement="sidebar_top" variant="sidebar" className="block" />
           <WalletCard />
-          <ResourcesFeed />
+          <AdBanner placement="sidebar_mid" variant="sidebar" className="block" />
+          <AdBanner placement="sidebar_resources" variant="sidebar" className="block" />
+          <AdBanner placement="sidebar_bottom" variant="sidebar" className="block" />
         </aside>
       </div>
+      <AdBanner placement="center" variant="card" className="block" />
+      <AdBanner placement="floating_corner" className="fixed bottom-4 right-4 z-40 w-64 hidden md:block" dismissable />
     </div>
   );
 }
@@ -295,53 +305,32 @@ function LatestThreads() {
   );
 }
 
-/* ───────────────── Shoutbox (realtime) ───────────────── */
-type ShoutMsg = { id: string; user_id: string; display_name: string; body: string; created_at: string };
-
+/* ───────────────── Shoutbox (paid posts, realtime, with poster details) ───────────────── */
 function Shoutbox() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const { data: messages = [] } = useQuery({
-    queryKey: ["shoutbox"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shoutbox_messages")
-        .select("id,user_id,display_name,body,created_at")
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (error) throw error;
-      return (data ?? []) as ShoutMsg[];
-    },
+  const fetchShouts = useServerFn(listApprovedShouts);
+  const { data: payload } = useQuery({
+    queryKey: ["shoutbox-approved"],
+    queryFn: () => fetchShouts({ data: { limit: 30 } }),
+    staleTime: 15_000,
   });
+  const messages: ShoutMessage[] = payload?.messages ?? [];
 
   useEffect(() => {
     const channel = supabase
       .channel("shoutbox-public")
       .on("postgres_changes", { event: "*", schema: "public", table: "shoutbox_messages" }, () => {
-        qc.invalidateQueries({ queryKey: ["shoutbox"] });
+        qc.invalidateQueries({ queryKey: ["shoutbox-approved"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [qc]);
 
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
   const displayName = useMemo(() => {
     const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
     return (meta.display_name as string) || user?.email?.split("@")[0] || "anon";
   }, [user]);
-
-  async function send() {
-    if (!user) return;
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    setSending(true);
-    const { error } = await supabase.from("shoutbox_messages").insert({
-      user_id: user.id, display_name: displayName, body: trimmed,
-    });
-    setSending(false);
-    if (!error) setBody("");
-  }
 
   return (
     <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60">
@@ -352,47 +341,60 @@ function Shoutbox() {
           <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-success">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> live
           </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-warning">
+            <Lock className="h-2.5 w-2.5" /> paid
+          </span>
         </div>
-        <span className="text-[10px] font-mono uppercase text-muted-foreground">{messages.length} recent</span>
+        <span className="text-[10px] font-mono uppercase text-muted-foreground">{messages.length} live</span>
       </header>
-
-      <ul className="max-h-72 space-y-2 overflow-y-auto p-3">
-        {messages.length === 0 && (
-          <li className="px-2 py-6 text-center text-xs text-muted-foreground">Be the first to post in the shoutbox.</li>
-        )}
-        {messages.map((m) => (
-          <li key={m.id} className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs">
-            <div className="mb-0.5 flex items-center gap-2">
-              <span className="font-semibold text-foreground">{m.display_name}</span>
-              <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</span>
-            </div>
-            <p className="break-words text-foreground/90">{m.body}</p>
-          </li>
-        ))}
-      </ul>
 
       <Separator />
       <div className="p-3">
         {user ? (
-          <div className="flex items-end gap-2">
-            <Textarea
-              value={body} onChange={(e) => setBody(e.target.value)}
-              placeholder={`Say something as ${displayName}…`}
-              maxLength={500} rows={2}
-              className="min-h-0 resize-none text-sm"
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            />
-            <Button onClick={send} disabled={sending || !body.trim()} size="sm" className="gap-1">
-              <Send className="h-3.5 w-3.5" /> Post
-            </Button>
-          </div>
+          <ShoutboxComposer
+            displayName={displayName}
+            onPosted={() => qc.invalidateQueries({ queryKey: ["shoutbox-approved"] })}
+          />
         ) : (
           <div className="flex items-center justify-between rounded-md border border-dashed border-border/70 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-            <span>Sign in to chat with the community.</span>
+            <span>Sign in to post a $5 shoutbox.</span>
             <Button asChild size="sm" variant="outline"><Link to="/auth">Sign in</Link></Button>
           </div>
         )}
       </div>
+      <Separator />
+
+      <ul className="max-h-96 space-y-2 overflow-y-auto p-3">
+        {messages.length === 0 ? (
+          <li className="px-2 py-6 text-center text-xs text-muted-foreground">No shoutbox posts yet. Be the first to go viral.</li>
+        ) : (
+          messages.map((m) => {
+            const tierBadge = m.is_premium ? "Premium" : m.is_trusted ? "Trusted" : null;
+            return (
+              <li key={m.id} className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs">
+                <div className="mb-1 flex items-center gap-2">
+                  {m.avatar_url ? (
+                    <img src={m.avatar_url} alt={m.display_name} className="h-5 w-5 shrink-0 rounded-full border border-border/60 object-cover" loading="lazy" />
+                  ) : (
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/10 text-[9px] font-semibold text-primary">
+                      {m.display_name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="font-semibold text-foreground">{m.display_name}</span>
+                  {tierBadge && (
+                    <span className={cn(
+                      "rounded-sm px-1 font-mono text-[9px] uppercase",
+                      m.is_premium ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400",
+                    )}>{tierBadge}</span>
+                  )}
+                  <span className="ml-auto text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</span>
+                </div>
+                <p className="break-words text-foreground/90">{m.body}</p>
+              </li>
+            );
+          })
+        )}
+      </ul>
     </section>
   );
 }
@@ -523,44 +525,4 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/* ───────────────── Resources feed (latest products by category) ───────────────── */
-function ResourcesFeed() {
-  const { data } = useQuery({
-    queryKey: ["landing", "resources"],
-    queryFn: () => listProducts({ data: {} as never }),
-    staleTime: 30_000,
-  });
-  const rows = (data?.products ?? []).slice(0, 6);
-  return (
-    <section className="rounded-xl border border-border/70 bg-card/60 p-4">
-      <header className="mb-3 flex items-center gap-2">
-        <Lock className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-semibold">New Resources</h3>
-      </header>
-      {rows.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nothing posted yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {rows.map((p) => {
-            const cat = MARKETPLACE_CATEGORIES.find((c) => c.value === p.category);
-            return (
-              <li key={p.id}>
-                <Link to="/product/$id" params={{ id: p.id }} className={cn(
-                  "block rounded-md border border-border/60 bg-background/40 px-3 py-2 text-xs transition-colors hover:border-primary/50 hover:bg-primary/5",
-                )}>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium">{p.name}</span>
-                    <span className="font-mono text-[10px] uppercase text-primary/80">{cat?.value ?? p.category}</span>
-                  </div>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    ${Number(p.price).toFixed(2)} · {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}
-                  </p>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
+// ResourcesFeed removed — replaced by `sidebar_resources` ad placement.
