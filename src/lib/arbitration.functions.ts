@@ -377,3 +377,112 @@ export const getEvidenceUrl = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { url: signed.signedUrl };
   });
+
+// ============ Fraud signals (staff only) ============
+export const getFraudSignals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertArbiter(supabase, userId);
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+
+    // Repeat openers in last 90d
+    const { data: recent } = await supabase
+      .from("arbitration_cases")
+      .select("id,opener_id,respondent_id,category,status,value_usd,opened_at")
+      .gte("opened_at", since)
+      .order("opened_at", { ascending: false })
+      .limit(1000);
+
+    const counts = new Map<string, number>();
+    for (const r of recent ?? []) counts.set(r.opener_id, (counts.get(r.opener_id) ?? 0) + 1);
+    const repeatOpeners = Array.from(counts.entries())
+      .filter(([, n]) => n >= 3)
+      .map(([user_id, count]) => ({ user_id, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Duplicate evidence hashes across cases
+    const { data: ev } = await supabase
+      .from("arbitration_evidence")
+      .select("sha256,case_id,uploader_id")
+      .limit(5000);
+    const hashMap = new Map<string, Set<string>>();
+    for (const e of ev ?? []) {
+      const s = hashMap.get(e.sha256) ?? new Set();
+      s.add(e.case_id);
+      hashMap.set(e.sha256, s);
+    }
+    const duplicateHashes = Array.from(hashMap.entries())
+      .filter(([, set]) => set.size > 1)
+      .map(([sha256, set]) => ({ sha256, case_count: set.size, case_ids: Array.from(set) }));
+
+    // High-value open cases
+    const highValue = (recent ?? [])
+      .filter((r) => Number(r.value_usd) >= 5000 && !["ruled", "closed"].includes(String(r.status)))
+      .slice(0, 50);
+
+    return {
+      repeatOpeners,
+      duplicateHashes,
+      highValue,
+      generatedAt: new Date().toISOString(),
+    };
+  });
+
+// ============ Export case report (JSON) ============
+export const exportCaseReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ case_id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: c, error } = await supabase
+      .from("arbitration_cases").select("*").eq("id", data.case_id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!c) throw new Error("Case not found");
+
+    // Allow staff or case party
+    const { data: roleRows } = await supabase
+      .from("user_roles").select("role").eq("user_id", userId);
+    const isArbiter = (roleRows ?? []).some((r: { role: string }) =>
+      (ARBITER_ROLES as readonly string[]).includes(r.role));
+    if (!isArbiter && c.opener_id !== userId && c.respondent_id !== userId) {
+      throw new Error("Forbidden");
+    }
+
+    const [evidence, timeline, messages, signoffs, audit, appeals] = await Promise.all([
+      supabase.from("arbitration_evidence").select("*").eq("case_id", data.case_id).order("created_at"),
+      supabase.from("arbitration_timeline").select("*").eq("case_id", data.case_id).order("created_at"),
+      supabase.from("arbitration_messages").select("*").eq("case_id", data.case_id).order("created_at"),
+      supabase.from("arbitration_signoffs").select("*").eq("case_id", data.case_id),
+      isArbiter
+        ? supabase.from("arbitration_audit_log").select("*").eq("case_id", data.case_id).order("created_at")
+        : Promise.resolve({ data: [] }),
+      supabase.from("arbitration_appeals").select("*").eq("case_id", data.case_id),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      case: c,
+      evidence: evidence.data ?? [],
+      timeline: timeline.data ?? [],
+      messages: (messages.data ?? []).filter((m: { staff_only: boolean }) => isArbiter || !m.staff_only),
+      signoffs: signoffs.data ?? [],
+      audit: audit.data ?? [],
+      appeals: appeals.data ?? [],
+    };
+  });
+
+// ============ List arbiters (for mediator assignment) ============
+export const listArbiters = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertArbiter(supabase, userId);
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("user_id,role")
+      .in("role", ARBITER_ROLES as unknown as ("admin"|"super_admin"|"senior_arbitrator"|"mediator"|"judge")[]);
+    if (error) throw new Error(error.message);
+    return { arbiters: data ?? [] };
+  });
+
