@@ -48,6 +48,10 @@ type Product = {
   card_type?: string | null;
   card_bank?: string | null;
   card_user?: string | null;
+  card_brand?: string | null;
+  card_country?: string | null;
+  expire_date?: string | null;
+  card_style?: number | null;
 };
 
 const PAGE_SIZE = 12;
