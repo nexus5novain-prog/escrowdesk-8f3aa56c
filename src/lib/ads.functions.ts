@@ -169,3 +169,23 @@ export const adminDeleteAd = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// Per-ad health rollup for the admin panel: counts of impressions, clicks
+// and client-side load errors in the last 24h. Used to badge broken assets.
+export const adminAdHealth = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const since = new Date(Date.now() - 86400_000).toISOString();
+    const { data: rows } = await supabaseAdmin
+      .from("ad_events").select("ad_id,kind").gte("created_at", since).limit(50000);
+    const map = new Map<string, { impressions: number; clicks: number; errors: number }>();
+    for (const r of rows ?? []) {
+      const cur = map.get(r.ad_id) ?? { impressions: 0, clicks: 0, errors: 0 };
+      if (r.kind === "click") cur.clicks++;
+      else if (r.kind === "error") cur.errors++;
+      else cur.impressions++;
+      map.set(r.ad_id, cur);
+    }
+    return { health: Object.fromEntries(map) };
+  });
