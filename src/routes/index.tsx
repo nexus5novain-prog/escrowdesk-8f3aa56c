@@ -411,6 +411,27 @@ function Shoutbox() {
   );
 }
 
+function ReportButton({ id }: { id: string }) {
+  const fn = useServerFn(reportShout);
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    const reason = window.prompt("Report this post — why?");
+    if (!reason?.trim()) return;
+    setBusy(true);
+    try { await fn({ data: { id, reason: reason.trim() } }); toast.success("Reported. Staff will review."); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <button
+      type="button" onClick={onClick} disabled={busy}
+      title="Report"
+      className="rounded-sm border border-border/60 bg-background/60 px-1 py-0.5 text-[9px] font-mono uppercase text-muted-foreground hover:border-destructive/60 hover:text-destructive"
+    >
+      ⚠
+    </button>
+  );
+
 /* ───────────────── Tips widget ───────────────── */
 const TIPS = [
   "Always release escrow only after fiat clears your account — not just an SMS confirmation.",
