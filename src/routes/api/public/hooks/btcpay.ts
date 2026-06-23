@@ -93,23 +93,41 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           payload: { confirmations, paid, type: evt.type },
         });
 
-        // On settle: advance trade via existing RPC if it's awaiting seller confirm
-        if (nextStatus === "settled") {
-          try {
-            const { data: trade } = await supabaseAdmin
-              .from("trades")
-              .select("id, seller_id, status")
-              .eq("id", row.trade_id)
-              .maybeSingle();
-            if (trade && trade.status === "awaiting_seller_confirm") {
+        // Notify trade participants
+        try {
+          const { notifyUser } = await import("@/lib/notify.server");
+          const { data: trade } = await supabaseAdmin
+            .from("trades").select("id, buyer_id, seller_id, status")
+            .eq("id", row.trade_id).maybeSingle();
+          if (trade) {
+            const link = `/trade/${trade.id}`;
+            const fire = async (kind: Parameters<typeof notifyUser>[0]["kind"], title: string, body: string) => {
+              await Promise.all([
+                notifyUser({ userId: trade.buyer_id, kind, title, body, link }),
+                notifyUser({ userId: trade.seller_id, kind, title, body, link }),
+              ]);
+            };
+            if (nextStatus === "new") {
+              await fire("escrow_invoice_created", "Escrow invoice ready",
+                "Payment destinations generated for your trade.");
+            } else if (nextStatus === "processing") {
+              await fire("escrow_payment_detected", "Payment detected",
+                `${confirmations}/3 confirmations · ${paid.toFixed(8)} BTC received.`);
+            } else if (nextStatus === "settled") {
+              await fire("escrow_settled", "Escrow funded ✓",
+                "Bitcoin payment has settled. Trade advancing.");
+            } else if (nextStatus === "expired") {
+              await fire("escrow_expired", "Escrow invoice expired",
+                "The payment window closed before funds arrived.");
+            }
+            if (nextStatus === "settled" && trade.status === "awaiting_seller_confirm") {
               await supabaseAdmin.rpc("confirm_buyer_deposit", {
-                _trade_id: row.trade_id,
-                _caller: trade.seller_id,
+                _trade_id: row.trade_id, _caller: trade.seller_id,
               });
             }
-          } catch (e) {
-            console.error("[btcpay-webhook] confirm_buyer_deposit failed", e);
           }
+        } catch (e) {
+          console.error("[btcpay-webhook] notify/confirm failed", e);
         }
 
         return Response.json({ ok: true });
