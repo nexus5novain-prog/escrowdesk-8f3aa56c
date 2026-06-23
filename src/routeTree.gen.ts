@@ -17,6 +17,7 @@ import { Route as PostOfferRouteImport } from './routes/post-offer'
 import { Route as PostListingRouteImport } from './routes/post-listing'
 import { Route as OrderBookRouteImport } from './routes/order-book'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as EscrowPortfolioRouteImport } from './routes/escrow-portfolio'
 import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -69,6 +70,11 @@ const OrderBookRoute = OrderBookRouteImport.update({
 const MarketplaceRoute = MarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EscrowPortfolioRoute = EscrowPortfolioRouteImport.update({
+  id: '/escrow-portfolio',
+  path: '/escrow-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DisputesRoute = DisputesRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
+  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
+  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
+  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
+    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
+    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
+    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   DisputesRoute: typeof DisputesRouteWithChildren
+  EscrowPortfolioRoute: typeof EscrowPortfolioRoute
   MarketplaceRoute: typeof MarketplaceRoute
   OrderBookRoute: typeof OrderBookRoute
   PostListingRoute: typeof PostListingRoute
@@ -360,6 +373,13 @@ declare module '@tanstack/react-router' {
       path: '/marketplace'
       fullPath: '/marketplace'
       preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/escrow-portfolio': {
+      id: '/escrow-portfolio'
+      path: '/escrow-portfolio'
+      fullPath: '/escrow-portfolio'
+      preLoaderRoute: typeof EscrowPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/disputes': {
@@ -473,6 +493,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   DisputesRoute: DisputesRouteWithChildren,
+  EscrowPortfolioRoute: EscrowPortfolioRoute,
   MarketplaceRoute: MarketplaceRoute,
   OrderBookRoute: OrderBookRoute,
   PostListingRoute: PostListingRoute,

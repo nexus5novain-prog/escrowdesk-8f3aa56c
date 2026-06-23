@@ -8,6 +8,7 @@ import { getMyRoles } from "@/lib/escrow.functions";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileNav } from "@/components/MobileNav";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function SiteHeader() {
   const { user, signOut } = useAuth();
@@ -53,6 +54,7 @@ export function SiteHeader() {
               <Link to="/trades" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Trades</Link>
               <Link to="/disputes" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Disputes</Link>
               <Link to="/escrow/new" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Escrow</Link>
+              <Link to="/escrow-portfolio" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Portfolio</Link>
               <Link to="/wallet" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Wallet</Link>
               <Link to="/transactions" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Transactions</Link>
               <Link to="/settings" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Settings</Link>
@@ -64,7 +66,8 @@ export function SiteHeader() {
         </nav>
 
         {/* Desktop Auth Button */}
-        <div className="hidden gap-2 sm:flex sm:flex-shrink-0">
+        <div className="hidden gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+          {user && <NotificationBell />}
           {user ? (
             <Button size="sm" variant="ghost" onClick={() => signOut()}>Sign out</Button>
           ) : (

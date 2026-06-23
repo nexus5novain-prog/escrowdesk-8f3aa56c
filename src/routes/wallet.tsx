@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { LivePortfolio } from "@/components/wallet/LivePortfolio";
 
 export const Route = createFileRoute("/wallet")({ component: () => (<AuthGate><Wallet /></AuthGate>) });
 
@@ -75,6 +76,9 @@ function Wallet() {
           <Link to="/post-offer" className="w-full sm:w-auto"><Button variant="outline" size="sm" className="w-full sm:w-auto">Post offer</Button></Link>
         </div>
       </div>
+
+      {/* Live BTC/LN portfolio */}
+      <LivePortfolio />
 
       {/* Earnings PnL */}
       <div className="surface p-4 sm:p-6">

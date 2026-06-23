@@ -31,7 +31,7 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
     const now = new Date().toISOString();
     const { data: rows } = await supabaseAdmin
       .from("ad_banners")
-      .select("id,title,media_type,media_url,html_content,link_url,cta_label,placements,priority,starts_at,ends_at")
+      .select("id,title,media_type,media_url,html_content,link_url,cta_label,placements,priority,starts_at,ends_at,size_preset,width,height")
       .eq("is_active", true)
       .contains("placements", [data.placement])
       .or(`starts_at.is.null,starts_at.lte.${now}`)
@@ -107,6 +107,9 @@ export const adminCreateAd = createServerFn({ method: "POST" })
     is_active: z.boolean().default(true),
     starts_at: z.string().datetime().nullable().optional(),
     ends_at: z.string().datetime().nullable().optional(),
+    size_preset: z.string().max(80).nullable().optional(),
+    width: z.number().int().positive().max(2000).nullable().optional(),
+    height: z.number().int().positive().max(2000).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
@@ -131,6 +134,9 @@ export const adminCreateAd = createServerFn({ method: "POST" })
       is_active: data.is_active,
       starts_at: data.starts_at ?? null,
       ends_at: data.ends_at ?? null,
+      size_preset: data.size_preset ?? null,
+      width: data.width ?? null,
+      height: data.height ?? null,
       created_by: context.userId,
     } as never).select("id").single();
     if (error) throw new Error(error.message);
@@ -151,6 +157,9 @@ export const adminUpdateAd = createServerFn({ method: "POST" })
     placements: z.array(PlacementSchema).min(1).optional(),
     starts_at: z.string().datetime().nullable().optional(),
     ends_at: z.string().datetime().nullable().optional(),
+    size_preset: z.string().max(80).nullable().optional(),
+    width: z.number().int().positive().max(2000).nullable().optional(),
+    height: z.number().int().positive().max(2000).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);

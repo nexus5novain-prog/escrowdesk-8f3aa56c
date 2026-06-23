@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
+import { AdSizePicker } from "@/components/admin/AdSizePicker";
 
 export const Route = createFileRoute("/admin")({ component: () => (<AuthGate><Admin /></AuthGate>) });
 
@@ -523,6 +524,9 @@ function AdsPanel() {
     media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0,
     placements: ["top"] as AdPlacement[], is_active: true,
     starts_at: "", ends_at: "",
+    size_preset: "leaderboard_728x90" as string,
+    width: 728 as number | null,
+    height: 90 as number | null,
   });
   const [busy, setBusy] = useState(false);
 
@@ -547,9 +551,12 @@ function AdsPanel() {
         is_active: form.is_active,
         starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
         ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
+        size_preset: form.size_preset || null,
+        width: form.width ?? null,
+        height: form.height ?? null,
       } });
       toast.success("Ad created");
-      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
+      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "", size_preset: "leaderboard_728x90", width: 728, height: 90 });
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
@@ -641,6 +648,14 @@ function AdsPanel() {
                 ))}
               </PopoverContent>
             </Popover>
+          </div>
+          <div className="md:col-span-2">
+            <AdSizePicker
+              presetKey={form.size_preset}
+              width={form.width}
+              height={form.height}
+              onChange={(p) => setForm((f) => ({ ...f, size_preset: p.size_preset, width: p.width, height: p.height }))}
+            />
           </div>
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Priority (0-100)</Label>

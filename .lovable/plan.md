@@ -1,142 +1,76 @@
-## Scope (you picked)
+# Phase 2 — Notifications, Live Wallet, Escrow Portfolio, Ads System
 
-Build **Phase 1: Bitcoin + Lightning escrow infrastructure** wired to a hosted BTCPay Server (Voltage / BTCPay Jungle / similar). Notifications and the wallet-portfolio redesign are **not** in this plan — we'll do those next once escrow infra is live.
-
-## What you provide (one-time, via secure secrets prompt)
-
-1. `BTCPAY_URL` — e.g. `https://mainnet.demo.btcpayserver.org`
-2. `BTCPAY_API_KEY` — Greenfield API key with **store-level** permissions:
-   `btcpay.store.canviewinvoices`, `btcpay.store.cancreateinvoice`, `btcpay.store.canmodifyinvoices`, `btcpay.store.canviewstoresettings`
-3. `BTCPAY_STORE_ID` — the store that owns the on-chain wallet + LN node
-4. `BTCPAY_WEBHOOK_SECRET` — generated automatically; you paste it into BTCPay → Store → Webhooks
-
-I never see your seed phrase, LND macaroon, or treasury xpub — those stay inside BTCPay.
+This is a large, multi-system request. I'll group it into 4 independent workstreams. Each is buildable on its own; please confirm the order or trim what you don't want before I start.
 
 ---
 
-## Architecture
+## 1. Real-time Notification System (in-app bell + Telegram)
 
-```text
- Buyer ──opens trade──▶ EscrowDesk
-                          │
-                          ├─ createServerFn: createEscrowInvoice(trade_id)
-                          │     POST {BTCPAY_URL}/api/v1/stores/{store}/invoices
-                          │     → unique BTC address + BOLT11 invoice
-                          │
-                          ▼
-                  escrow_invoices table
-                  (one row per trade, never reused)
-                          │
- Buyer pays ──▶ BTCPay/LND detects payment
-                          │
-                          ▼
- BTCPay webhook ──▶ POST /api/public/hooks/btcpay
-                    HMAC-SHA256 verify (BTCPAY_WEBHOOK_SECRET)
-                          │
-                          ▼
-              update escrow_invoices.status
-              update trades.status (paid → released flow)
-              insert wallet_transactions
-              insert escrow_events (audit log)
-```
+**DB migration:**
+- `notifications` — `user_id`, `kind` (enum: `escrow_invoice_created`, `escrow_payment_detected`, `escrow_settled`, `escrow_expired`, `trade_signed`, `trade_paid`, `trade_released`, `trade_cancelled`, `dispute_opened`, `dispute_resolved`, `arbitration_update`, `wallet_credit`, `wallet_debit`, `admin_warning`, `admin_ban`), `title`, `body`, `link` (e.g. `/trade/abc`), `payload jsonb`, `read_at`, `created_at`. RLS: user reads own. Realtime enabled.
+- `notification_preferences` — `user_id`, `kind`, `in_app boolean default true`, `telegram boolean default true`. Composite PK.
+- DB function `notify_user(_user, _kind, _title, _body, _link, _payload)` — inserts row + queues Telegram send if pref enabled and `telegram_user_id` set.
 
-**No treasury address ever leaves the server.** Frontend only ever receives `{ bitcoin_address, lightning_invoice, amount_btc, expires_at, status }` for the current trade.
+**Server:**
+- `src/lib/notifications.functions.ts` — `listMine`, `markRead`, `markAllRead`, `getPrefs`, `updatePref({kind, in_app, telegram})`.
+- Hook `notify_user` into BTCPay webhook (created/processing/settled/expired), `confirm_buyer_deposit`, `sign_terms`, `release_trade`, `cancel_trade`, `open_dispute`, `resolve_dispute`, `ban_user`, `warn_user`, escrow credit/debit.
+- Telegram delivery via existing `tgSendMessage` with HTML deep link to `https://escrowdesk.lovable.app{link}`.
+
+**UI:**
+- `<NotificationBell />` in `SiteHeader` — badge with unread count, dropdown panel listing latest 20, click marks read + navigates. Realtime subscription on `notifications` filtered by `user_id`.
+- `/settings` → new "Notifications" tab: grid of all kinds × (in-app | telegram) toggles + Telegram link status.
 
 ---
 
-## Database (one migration)
+## 2. Wallet Page Redesign — Live BTC/LN Portfolio
 
-```text
-escrow_invoices
-  id, trade_id (FK, unique), btcpay_invoice_id (unique),
-  bitcoin_address, lightning_invoice, amount_btc,
-  status (new|processing|settled|expired|invalid),
-  confirmations (int), paid_amount_btc,
-  expires_at, settled_at, created_at, updated_at
+**Server:** `src/lib/wallet-live.functions.ts`
+- `getLivePortfolio()` — returns `{ onchain: { confirmed, unconfirmed }, lightning: { local_balance, remote_balance }, internal: { available, escrow }, btc_usd_rate }` by calling BTCPay `/api/v1/stores/{id}/payment-methods/onchain/BTC/wallet` and `/lightning/BTC/balance`, plus internal `wallets` row, plus CoinGecko price.
 
-escrow_events  (audit log — append-only)
-  id, trade_id, invoice_id, kind (created|detected|confirmed|settled|released|refunded|expired|webhook_received),
-  payload (jsonb), created_at
-
-payouts        (release + refund queue)
-  id, trade_id, kind (release|refund), destination_address,
-  amount_btc, status (pending|approved|broadcast|confirmed|failed),
-  btcpay_payout_id, requested_by, approved_by, tx_hash, created_at, updated_at
-```
-
-All three: RLS on, GRANTs for `authenticated` (own rows via trade parties) + `service_role`, append-only policies on `escrow_events`. Admin-only read on `payouts`.
+**UI:** new `src/components/wallet/PortfolioHero.tsx`
+- Hero card: total USD value, animated count-up, 24h sparkline.
+- Three balance tiles: On-chain BTC, Lightning, Internal escrow — each with live indicator dot, last-updated timestamp.
+- React Query `refetchInterval: 15s` + realtime subscribe to `wallets` and `escrow_invoices` for instant updates on user-affecting changes.
+- Replaces current `wallet.tsx` body, keeps transactions list below.
 
 ---
 
-## Server functions (new file `src/lib/btcpay.functions.ts` + `btcpay.server.ts`)
+## 3. Escrow Portfolio Page — Animated Particle Background
 
-- `createEscrowInvoice({ tradeId })` — auth'd participant; creates BTCPay invoice with `metadata.tradeId`, persists row, returns payment destinations. Idempotent (returns existing row if status is `new|processing`).
-- `getEscrowInvoice({ tradeId })` — polls DB row (no BTCPay call); used by trade page.
-- `refreshEscrowInvoice({ tradeId })` — manual GET against BTCPay for reconciliation.
-- `requestPayout({ tradeId, kind, destination })` — admin/staff; creates `payouts` row, calls BTCPay Pull Payments API.
-- `approvePayout({ payoutId })` — admin only (`has_role admin`); broadcasts.
-
-All privileged calls use `requireSupabaseAuth` + `has_role` check. `btcpay.server.ts` holds the fetch wrapper, signs requests, never imported from client.
+New route `src/routes/escrow-portfolio.tsx` (or replace `escrow.$id` hero):
+- Full-bleed canvas-based **moving particle background** (lightweight, ~60 particles, drift + connecting lines, BTC-orange tint, prefers-reduced-motion respected).
+- Stat cards with **animated counters** (CountUp): total escrowed BTC, active invoices, settled this month, total volume.
+- Live list of recent escrow invoices with status pulse animation.
+- Sourced from `escrow_invoices`, `escrow_events`, `trades`.
 
 ---
 
-## Webhook endpoint
+## 4. Ads System Overhaul
 
-`src/routes/api/public/hooks/btcpay.ts` (POST, no auth header — verified by HMAC):
+**DB migration on `ad_banners`:**
+- Add `size_preset text` (IAB names: `leaderboard_728x90`, `medium_rectangle_300x250`, `wide_skyscraper_160x600`, `mobile_banner_320x50`, `large_rectangle_336x280`, `half_page_300x600`, `billboard_970x250`, `square_250x250`, `responsive_fluid`).
+- Add `width int`, `height int`.
 
-1. Read raw body, compute `HMAC-SHA256(body, BTCPAY_WEBHOOK_SECRET)`, timing-safe compare with `BTCPay-Sig` header.
-2. Parse event type: `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing` (1 conf), `InvoiceSettled` (fully paid), `InvoiceExpired`, `InvoiceInvalid`, `PayoutApproved`, `PayoutCompleted`.
-3. Look up `escrow_invoices` by `btcpay_invoice_id`, update status + confirmations.
-4. On `InvoiceSettled`: advance `trades.status` to `paid` (or `funded` for our awaiting_deposit flow), insert `escrow_events`, credit the existing `wallets.escrow` ledger.
-5. Reply `200 { ok: true }` quickly; all work in a single transaction.
+**Admin (`src/routes/admin.tsx` Ads tab):**
+- New "Size & Placement" section in ad editor: visual grid of size presets, each showing a scaled rectangle icon with WxH label. Selecting auto-fills width/height. Custom option allows manual entry.
+- Preview pane renders the ad at chosen size before saving.
 
----
-
-## Trade page UI changes (`src/routes/trade.$id.tsx`)
-
-When `status = awaiting_deposit` and buyer is viewing:
-
-- Tab switcher: **On-chain BTC** | **Lightning ⚡**
-- On-chain panel: QR code of `bitcoin:<addr>?amount=<btc>`, copy button, "0/3 confirmations" live progress, expires-in timer.
-- Lightning panel: QR of BOLT11, copy button, "Awaiting payment" → "Settled ✓".
-- Polls `getEscrowInvoice` every 5s + subscribes to `escrow_invoices` realtime channel for instant updates.
-- Auto-advances the trade view when webhook flips status.
-
-Add `qrcode.react` (small dep, ~6KB).
+**Display (`src/components/AdBanner.tsx` + new `<AdSlot />`):**
+- Reserve exact `width × height` via CSS `aspect-ratio` and min-height — **prevents layout shift** even before content loads.
+- Loading: skeleton at exact size.
+- Image: `<img>` with `loading="lazy"`, `decoding="async"`, fallback to placeholder if 404.
+- Video: `<video autoplay muted loop playsinline>` with poster fallback.
+- Link-only: rendered as card with og-fetched title/desc (server fn `fetchLinkPreview` with 24h cache table `link_previews`).
+- Rotation: if multiple ads match a placement, rotate every 8s with fade.
+- Add `<AdSlot placement="home_top" size="leaderboard_728x90" />` to: index, marketplace, order-book, wallet, trades, escrow, product pages (responsive: leaderboard → medium-rectangle on mobile).
 
 ---
 
-## Confirmation rules (matches your spec)
+## Scope check — confirm before I build
 
-- `InvoiceReceivedPayment` (0 conf) → trade row gets `payment_detected_at`, UI shows "Payment Detected"
-- `InvoiceProcessing` (1 conf) → "Payment Detected, 1/3 confirmations"
-- 3 confirmations (BTCPay default speed=medium) → `InvoiceSettled` → "Escrow Funded" → `trades.status = paid`
-- Lightning: `InvoiceSettled` fires immediately on HTLC settle → instant funded
+This is roughly 1 large migration + ~15 new/edited files per workstream. Options:
+1. **Build all 4 in order (1 → 2 → 3 → 4)** — large change, single review.
+2. **Just notifications + ads** (workstreams 1 & 4) — highest user-visible impact.
+3. **Pick a different subset.**
 
----
-
-## Out of scope (deferred)
-
-- Notifications (bell + Telegram push) — separate plan after this lands
-- Wallet portfolio redesign with live BTC balance — separate plan
-- USDT/USDC, multisig treasury, automated cold storage (your Phase 2-5)
-
----
-
-## Files touched
-
-**New:**
-`supabase/migrations/<ts>_btcpay_escrow.sql`,
-`src/lib/btcpay.server.ts`,
-`src/lib/btcpay.functions.ts`,
-`src/routes/api/public/hooks/btcpay.ts`,
-`src/components/EscrowPaymentPanel.tsx`
-
-**Edited:**
-`src/routes/trade.$id.tsx` (mount payment panel),
-`src/lib/escrow.functions.ts` (trigger invoice creation when trade reaches `awaiting_deposit`),
-`src/integrations/supabase/types.ts` (regen after migration)
-
-**Secrets requested:** `BTCPAY_URL`, `BTCPAY_API_KEY`, `BTCPAY_STORE_ID`, `BTCPAY_WEBHOOK_SECRET` (auto-generated, you paste into BTCPay UI).
-
-Once you approve, I'll run the migration first, then build server + webhook + UI, then give you the exact webhook URL + secret to paste into your BTCPay store.
+Which do you want?

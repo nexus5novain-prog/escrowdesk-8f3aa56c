@@ -5,14 +5,27 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { tgSendMessage } from "./telegram.server";
 
 // ---------- Notifications ----------
-async function notifyUser(userId: string, message: string) {
+// Sends Telegram (if linked) + inserts an in-app notification row.
+async function notifyUser(
+  userId: string,
+  message: string,
+  opts: { kind?: "trade_signed" | "trade_paid" | "trade_released" | "trade_cancelled" | "dispute_opened" | "dispute_resolved" | "arbitration_update" | "wallet_credit" | "wallet_debit" | "system"; title?: string; link?: string } = {},
+) {
+  const kind = opts.kind ?? "system";
+  // Strip HTML for in-app body
+  const plain = message.replace(/<[^>]+>/g, "");
+  const title = opts.title ?? plain.split(".")[0].slice(0, 80);
+  await supabaseAdmin.from("notifications").insert({
+    user_id: userId, kind, title, body: plain, link: opts.link ?? null, payload: {},
+  } as never);
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("telegram_user_id")
     .eq("user_id", userId)
     .maybeSingle();
   if (data?.telegram_user_id) {
-    await tgSendMessage(Number(data.telegram_user_id), message);
+    const tail = opts.link ? `\n\n<a href="https://escrowdesk.lovable.app${opts.link}">Open in EscrowDesk →</a>` : "";
+    await tgSendMessage(Number(data.telegram_user_id), message + tail, { disable_web_page_preview: true });
   }
 }
 
@@ -120,7 +133,7 @@ export const markPaid = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.rpc("mark_trade_paid", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
     const { data: t } = await supabaseAdmin.from("trades").select("seller_id").eq("id", data.trade_id).single();
-    if (t) await notifyUser(t.seller_id, `💸 Buyer marked trade <code>${data.trade_id.slice(0,8)}</code> as paid. Verify and release.`);
+    if (t) await notifyUser(t.seller_id, `💸 Buyer marked trade <code>${data.trade_id.slice(0,8)}</code> as paid. Verify and release.`, { kind: "trade_paid", link: `/trade/${data.trade_id}` });
     return { ok: true };
   });
 
@@ -133,7 +146,7 @@ export const releaseTrade = createServerFn({ method: "POST" })
     const { data: t } = await supabaseAdmin.from("trades").select("seller_id, asset, crypto_amount, fee_amount").eq("id", data.trade_id).single();
     if (t) {
       const net = Number(t.crypto_amount) - Number(t.fee_amount);
-      await notifyUser(t.seller_id, `🎉 Buyer released escrow! You received ${net.toFixed(4)} ${t.asset}.`);
+      await notifyUser(t.seller_id, `🎉 Buyer released escrow! You received ${net.toFixed(4)} ${t.asset}.`, { kind: "trade_released", link: `/trade/${data.trade_id}` });
     }
     return { ok: true };
   });
@@ -157,7 +170,7 @@ export const signTerms = createServerFn({ method: "POST" })
     const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id, status").eq("id", data.trade_id).single();
     if (t) {
       const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
-      await notifyUser(other, `✍️ Counterparty signed terms on trade <code>${data.trade_id.slice(0,8)}</code>. Status: ${t.status}.`);
+      await notifyUser(other, `✍️ Counterparty signed terms on trade <code>${data.trade_id.slice(0,8)}</code>. Status: ${t.status}.`, { kind: "trade_signed", link: `/trade/${data.trade_id}` });
     }
     return { ok: true };
   });
@@ -170,7 +183,7 @@ export const confirmBuyerDeposit = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.rpc("confirm_buyer_deposit", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
     const { data: t } = await supabaseAdmin.from("trades").select("buyer_id").eq("id", data.trade_id).single();
-    if (t) await notifyUser(t.buyer_id, `✅ Seller confirmed your deposit on trade <code>${data.trade_id.slice(0,8)}</code>. Settle fiat off-platform, then release.`);
+    if (t) await notifyUser(t.buyer_id, `✅ Seller confirmed your deposit on trade <code>${data.trade_id.slice(0,8)}</code>. Settle fiat off-platform, then release.`, { kind: "trade_paid", link: `/trade/${data.trade_id}` });
     return { ok: true };
   });
 
@@ -180,6 +193,11 @@ export const cancelTrade = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin.rpc("cancel_trade", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
+    const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).single();
+    if (t) {
+      const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
+      await notifyUser(other, `❌ Trade <code>${data.trade_id.slice(0,8)}</code> was cancelled.`, { kind: "trade_cancelled", link: `/trade/${data.trade_id}` });
+    }
     return { ok: true };
   });
 
@@ -189,6 +207,11 @@ export const openDispute = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin.rpc("open_dispute", { _trade_id: data.trade_id, _caller: context.userId, _reason: data.reason });
     if (error) throw new Error(error.message);
+    const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).single();
+    if (t) {
+      const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
+      await notifyUser(other, `⚖️ Dispute opened on trade <code>${data.trade_id.slice(0,8)}</code>: ${data.reason}`, { kind: "dispute_opened", link: `/trade/${data.trade_id}` });
+    }
     return { ok: true };
   });
 

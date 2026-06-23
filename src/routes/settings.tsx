@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Camera, Loader2, User } from "lucide-react";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 export const Route = createFileRoute("/settings")({ component: () => (<AuthGate><Settings /></AuthGate>) });
 
@@ -142,6 +143,10 @@ function Settings() {
             )}
           </div>
         )}
+      </div>
+
+      <div className="surface p-5">
+        <NotificationSettings />
       </div>
     </div>
   );
