@@ -784,8 +784,10 @@ type ProductRow = {
   card_bank?: string | null;
   card_country?: string | null;
   card_address?: string | null;
+  is_seeded?: boolean | null;
   created_at: string;
 };
+
 
 type ProductFormState = {
   name: string; description: string; price: string; currency: string;
