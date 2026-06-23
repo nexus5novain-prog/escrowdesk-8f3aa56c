@@ -39,21 +39,30 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
+      <AdBanner placement="under_hero" variant="card" className="block" />
       <AnnouncementBanner />
       <UniversalSearch />
       <QuickCategories />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6 min-w-0">
           <LatestThreads />
+          <AdBanner placement="between_threads" variant="card" className="block" />
           <Shoutbox />
+          <AdBanner placement="between_sections" variant="card" className="block" />
           <TipsWidget />
+          <AdBanner placement="inline_card" variant="card" className="block" />
         </div>
         <aside className="space-y-6">
           <UserDashboard />
+          <AdBanner placement="sidebar_top" variant="sidebar" className="block" />
           <WalletCard />
-          <ResourcesFeed />
+          <AdBanner placement="sidebar_mid" variant="sidebar" className="block" />
+          <AdBanner placement="sidebar_resources" variant="sidebar" className="block" />
+          <AdBanner placement="sidebar_bottom" variant="sidebar" className="block" />
         </aside>
       </div>
+      <AdBanner placement="center" variant="card" className="block" />
+      <AdBanner placement="floating_corner" className="fixed bottom-4 right-4 z-40 w-64 hidden md:block" dismissable />
     </div>
   );
 }
