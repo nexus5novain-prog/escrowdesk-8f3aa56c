@@ -134,6 +134,9 @@ export const adminCreateAd = createServerFn({ method: "POST" })
       is_active: data.is_active,
       starts_at: data.starts_at ?? null,
       ends_at: data.ends_at ?? null,
+      size_preset: data.size_preset ?? null,
+      width: data.width ?? null,
+      height: data.height ?? null,
       created_by: context.userId,
     } as never).select("id").single();
     if (error) throw new Error(error.message);
