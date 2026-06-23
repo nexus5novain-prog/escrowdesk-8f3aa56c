@@ -55,11 +55,11 @@ function publicMaskProduct<T extends AnyProductRow>(row: T): T {
     card_number: publicCardNumber(row.card_number ?? null, bin),
     bin_number: bin,
     card_user: maskHolder(row.card_user ?? null),
-    // Never expose full billing address or CVV in public reads
     card_address: null,
     cvv: null,
-  };
+  } as T;
 }
+
 
 
 /* ─────────────────────── Public reads ─────────────────────── */
