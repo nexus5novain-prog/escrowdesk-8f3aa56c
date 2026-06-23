@@ -1422,17 +1422,24 @@ export type Database = {
           bio: string | null
           btc_volume_usd: number
           created_at: string
+          default_withdrawal_method: string
           display_name: string
           distinct_partners: number
+          email_public: boolean
           five_star_count: number
           id: string
           is_banned: boolean
           is_premium: boolean
           is_trusted: boolean
+          locale: string
+          preferred_currency: string
           rating_count: number
           rating_sum: number
+          show_online_status: boolean
+          show_trade_history: boolean
           telegram_user_id: number | null
           telegram_username: string | null
+          timezone: string
           trades_completed: number
           updated_at: string
           user_id: string
@@ -1446,17 +1453,24 @@ export type Database = {
           bio?: string | null
           btc_volume_usd?: number
           created_at?: string
+          default_withdrawal_method?: string
           display_name: string
           distinct_partners?: number
+          email_public?: boolean
           five_star_count?: number
           id?: string
           is_banned?: boolean
           is_premium?: boolean
           is_trusted?: boolean
+          locale?: string
+          preferred_currency?: string
           rating_count?: number
           rating_sum?: number
+          show_online_status?: boolean
+          show_trade_history?: boolean
           telegram_user_id?: number | null
           telegram_username?: string | null
+          timezone?: string
           trades_completed?: number
           updated_at?: string
           user_id: string
@@ -1470,17 +1484,24 @@ export type Database = {
           bio?: string | null
           btc_volume_usd?: number
           created_at?: string
+          default_withdrawal_method?: string
           display_name?: string
           distinct_partners?: number
+          email_public?: boolean
           five_star_count?: number
           id?: string
           is_banned?: boolean
           is_premium?: boolean
           is_trusted?: boolean
+          locale?: string
+          preferred_currency?: string
           rating_count?: number
           rating_sum?: number
+          show_online_status?: boolean
+          show_trade_history?: boolean
           telegram_user_id?: number | null
           telegram_username?: string | null
+          timezone?: string
           trades_completed?: number
           updated_at?: string
           user_id?: string
@@ -1771,6 +1792,45 @@ export type Database = {
           },
         ]
       }
+      user_api_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          revoked_at: string | null
+          scopes: string[]
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          revoked_at?: string | null
+          scopes?: string[]
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          revoked_at?: string | null
+          scopes?: string[]
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1785,6 +1845,75 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_security_events: {
+        Row: {
+          created_at: string
+          id: string
+          ip: string | null
+          kind: string
+          metadata: Json
+          severity: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          kind: string
+          metadata?: Json
+          severity?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          kind?: string
+          metadata?: Json
+          severity?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_trusted_devices: {
+        Row: {
+          device_fingerprint: string
+          id: string
+          ip: string | null
+          label: string | null
+          last_seen_at: string
+          revoked_at: string | null
+          trusted_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          device_fingerprint: string
+          id?: string
+          ip?: string | null
+          label?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          trusted_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          device_fingerprint?: string
+          id?: string
+          ip?: string | null
+          label?: string | null
+          last_seen_at?: string
+          revoked_at?: string | null
+          trusted_at?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1846,6 +1975,48 @@ export type Database = {
           reason?: string
           severity?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_withdrawal_policy: {
+        Row: {
+          allowed_ip_cidrs: string[]
+          cooldown_hours: number
+          daily_limit_sats: number
+          notify_email: boolean
+          notify_telegram: boolean
+          per_tx_limit_sats: number
+          require_2fa_above_sats: number
+          updated_at: string
+          user_id: string
+          whitelist_addresses: string[]
+          whitelist_only: boolean
+        }
+        Insert: {
+          allowed_ip_cidrs?: string[]
+          cooldown_hours?: number
+          daily_limit_sats?: number
+          notify_email?: boolean
+          notify_telegram?: boolean
+          per_tx_limit_sats?: number
+          require_2fa_above_sats?: number
+          updated_at?: string
+          user_id: string
+          whitelist_addresses?: string[]
+          whitelist_only?: boolean
+        }
+        Update: {
+          allowed_ip_cidrs?: string[]
+          cooldown_hours?: number
+          daily_limit_sats?: number
+          notify_email?: boolean
+          notify_telegram?: boolean
+          per_tx_limit_sats?: number
+          require_2fa_above_sats?: number
+          updated_at?: string
+          user_id?: string
+          whitelist_addresses?: string[]
+          whitelist_only?: boolean
         }
         Relationships: []
       }
@@ -2260,6 +2431,17 @@ export type Database = {
           _to_user: string
         }
         Returns: undefined
+      }
+      log_security_event: {
+        Args: {
+          _ip?: string
+          _kind: string
+          _metadata?: Json
+          _severity?: string
+          _user_agent?: string
+          _user_id: string
+        }
+        Returns: string
       }
       mark_trade_paid: {
         Args: { _caller: string; _trade_id: string }
