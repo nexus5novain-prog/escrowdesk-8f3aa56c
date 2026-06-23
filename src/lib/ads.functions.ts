@@ -107,6 +107,9 @@ export const adminCreateAd = createServerFn({ method: "POST" })
     is_active: z.boolean().default(true),
     starts_at: z.string().datetime().nullable().optional(),
     ends_at: z.string().datetime().nullable().optional(),
+    size_preset: z.string().max(80).nullable().optional(),
+    width: z.number().int().positive().max(2000).nullable().optional(),
+    height: z.number().int().positive().max(2000).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
