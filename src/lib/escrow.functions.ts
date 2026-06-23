@@ -133,7 +133,7 @@ export const markPaid = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.rpc("mark_trade_paid", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
     const { data: t } = await supabaseAdmin.from("trades").select("seller_id").eq("id", data.trade_id).single();
-    if (t) await notifyUser(t.seller_id, `💸 Buyer marked trade <code>${data.trade_id.slice(0,8)}</code> as paid. Verify and release.`);
+    if (t) await notifyUser(t.seller_id, `💸 Buyer marked trade <code>${data.trade_id.slice(0,8)}</code> as paid. Verify and release.`, { kind: "trade_paid", link: `/trade/${data.trade_id}` });
     return { ok: true };
   });
 
@@ -146,7 +146,7 @@ export const releaseTrade = createServerFn({ method: "POST" })
     const { data: t } = await supabaseAdmin.from("trades").select("seller_id, asset, crypto_amount, fee_amount").eq("id", data.trade_id).single();
     if (t) {
       const net = Number(t.crypto_amount) - Number(t.fee_amount);
-      await notifyUser(t.seller_id, `🎉 Buyer released escrow! You received ${net.toFixed(4)} ${t.asset}.`);
+      await notifyUser(t.seller_id, `🎉 Buyer released escrow! You received ${net.toFixed(4)} ${t.asset}.`, { kind: "trade_released", link: `/trade/${data.trade_id}` });
     }
     return { ok: true };
   });
@@ -170,7 +170,7 @@ export const signTerms = createServerFn({ method: "POST" })
     const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id, status").eq("id", data.trade_id).single();
     if (t) {
       const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
-      await notifyUser(other, `✍️ Counterparty signed terms on trade <code>${data.trade_id.slice(0,8)}</code>. Status: ${t.status}.`);
+      await notifyUser(other, `✍️ Counterparty signed terms on trade <code>${data.trade_id.slice(0,8)}</code>. Status: ${t.status}.`, { kind: "trade_signed", link: `/trade/${data.trade_id}` });
     }
     return { ok: true };
   });
@@ -183,7 +183,7 @@ export const confirmBuyerDeposit = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.rpc("confirm_buyer_deposit", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
     const { data: t } = await supabaseAdmin.from("trades").select("buyer_id").eq("id", data.trade_id).single();
-    if (t) await notifyUser(t.buyer_id, `✅ Seller confirmed your deposit on trade <code>${data.trade_id.slice(0,8)}</code>. Settle fiat off-platform, then release.`);
+    if (t) await notifyUser(t.buyer_id, `✅ Seller confirmed your deposit on trade <code>${data.trade_id.slice(0,8)}</code>. Settle fiat off-platform, then release.`, { kind: "trade_paid", link: `/trade/${data.trade_id}` });
     return { ok: true };
   });
 
