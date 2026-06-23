@@ -41,11 +41,11 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
     return { ads: rows ?? [], fetched_at: now };
   });
 
-// Tracking — public (anonymous impressions/clicks allowed); ad_id must exist & be active
+// Tracking — public (anonymous impressions/clicks/errors allowed); ad_id must exist & be active
 export const trackAdEvent = createServerFn({ method: "POST" })
   .inputValidator(z.object({
     ad_id: z.string().uuid(),
-    kind: z.enum(["impression", "click"]),
+    kind: z.enum(["impression", "click", "error"]),
     placement: PlacementSchema,
   }))
   .handler(async ({ data }) => {
