@@ -53,7 +53,6 @@ const HELP_TOPICS: HelpTopic[] = [
       "<code>/balance</code>",
       "",
       "<b>Example output</b>",
-      "<code>USDT: 100.0000 (escrow 25.0000)</code>",
       "<code>BTC:  0.0050  (escrow 0.0000)</code>",
     ].join("\n"),
   },
@@ -69,7 +68,7 @@ const HELP_TOPICS: HelpTopic[] = [
       "<code>/trades</code>",
       "",
       "<b>Example row</b>",
-      "<code>• 1a2b3c4d USDT 50 ↔ 50 EUR · funded</code>",
+      "<code>• 1a2b3c4d BTC 0.001 ↔ 50 EUR · funded</code>",
     ].join("\n"),
   },
   // (release/dispute defined below with richer content)
