@@ -147,6 +147,7 @@ export const adminUpdateAd = createServerFn({ method: "POST" })
     media_url: z.string().trim().max(1000).nullable().optional(),
     html_content: z.string().trim().max(8000).nullable().optional(),
     link_url: z.string().trim().max(1000).nullable().optional(),
+    cta_label: z.string().trim().max(60).nullable().optional(),
     placements: z.array(PlacementSchema).min(1).optional(),
     starts_at: z.string().datetime().nullable().optional(),
     ends_at: z.string().datetime().nullable().optional(),
