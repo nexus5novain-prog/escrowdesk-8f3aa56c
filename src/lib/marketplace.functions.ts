@@ -18,6 +18,7 @@ export type ListingRow = {
   created_at: string;
   profile: {
     display_name: string;
+    avatar_url: string | null;
     telegram_username: string | null;
     is_premium: boolean;
     is_trusted: boolean;
@@ -63,7 +64,7 @@ export const listMarketplace = createServerFn({ method: "GET" })
       ? (
           await supabaseAdmin
             .from("profiles")
-            .select("user_id,display_name,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
+            .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
             .in("user_id", ids)
         ).data ?? []
       : [];

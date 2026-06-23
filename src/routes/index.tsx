@@ -11,7 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AdBanner } from "@/components/AdBanner";
 import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
+import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
+import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
 import { listProducts } from "@/lib/products.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ShieldCheck, Search, ArrowRight, Wallet, MessageSquare, Send, Lightbulb,
   Layers, CreditCard, Boxes, ScanLine, Megaphone, Lock, Activity, Trophy, Star, Coins, Users,
@@ -157,46 +160,135 @@ function QuickCategories() {
   );
 }
 
-/* ───────────────── Latest threads (marketplace_products) ───────────────── */
+/* ───────────────── Latest threads (listings, realtime) ───────────────── */
+const THREAD_TABS = ["All", ...THREAD_SECTIONS.map((s) => s.label)] as const;
+type ThreadTab = (typeof THREAD_TABS)[number];
+
 function LatestThreads() {
+  const qc = useQueryClient();
+  const fetchMarket = useServerFn(listMarketplace);
+  const [tab, setTab] = useState<ThreadTab>("All");
+
   const { data, isLoading } = useQuery({
-    queryKey: ["landing", "products"],
-    queryFn: () => listProducts({ data: {} as never }),
-    staleTime: 30_000,
+    queryKey: ["landing", "threads"],
+    queryFn: () => fetchMarket({ data: {} }),
+    staleTime: 15_000,
   });
-  const rows = (data?.products ?? []).slice(0, 12);
+
+  // Live sync: refetch on any listing change
+  useEffect(() => {
+    const channel = supabase
+      .channel("landing-threads")
+      .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => {
+        qc.invalidateQueries({ queryKey: ["landing", "threads"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
+  const allRows: ListingRow[] = useMemo(() => {
+    const g = data?.groups;
+    if (!g) return [];
+    return [
+      ...g.premium.selling, ...g.premium.seeking,
+      ...g.trusted.selling, ...g.trusted.seeking,
+      ...g.regular.selling, ...g.regular.seeking,
+    ].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }, [data]);
+
+  const rows = useMemo(
+    () => (tab === "All" ? allRows : allRows.filter((r) => sectionOf(r.category) === tab)).slice(0, 12),
+    [allRows, tab],
+  );
+
+  const countFor = (t: ThreadTab) =>
+    t === "All" ? allRows.length : allRows.filter((r) => sectionOf(r.category) === t).length;
+
   return (
     <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60">
       <header className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold tracking-tight">Latest Threads</h2>
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider text-success">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> live
+          </span>
         </div>
-        <Link to="/marketplace" className="text-xs text-muted-foreground hover:text-foreground">View all →</Link>
+        <Link to="/order-book" className="text-xs text-muted-foreground hover:text-foreground">View all →</Link>
       </header>
-      <div className="hidden grid-cols-[1fr_120px_70px_70px_140px] gap-3 border-b border-border/60 bg-background/40 px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground sm:grid">
-        <span>Thread</span><span>Category</span><span>Price</span><span>Status</span><span>Posted</span>
+
+      {/* Category tabs */}
+      <div className="flex gap-1.5 overflow-x-auto border-b border-border/60 bg-background/30 px-3 py-2">
+        {THREAD_TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors",
+              tab === t
+                ? "border-primary bg-primary/15 text-primary"
+                : "border-border/60 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            )}
+          >
+            {t} <span className="ml-1 font-mono text-[10px] opacity-70">{countFor(t)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden grid-cols-[160px_1fr_120px_70px_70px_120px] gap-3 border-b border-border/60 bg-background/40 px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground sm:grid">
+        <span>Poster</span><span>Thread</span><span>Category</span><span>Price</span><span>Status</span><span>Posted</span>
       </div>
       {isLoading ? (
         <div className="px-4 py-6 text-xs text-muted-foreground">Loading threads…</div>
       ) : rows.length === 0 ? (
-        <div className="px-4 py-6 text-xs text-muted-foreground">No active listings yet.</div>
+        <div className="px-4 py-6 text-xs text-muted-foreground">No threads in this category yet.</div>
       ) : (
         <ul className="divide-y divide-border/50">
-          {rows.map((p) => (
-            <li key={p.id} className="grid grid-cols-1 gap-1 px-4 py-2.5 text-xs transition-colors hover:bg-background/40 sm:grid-cols-[1fr_120px_70px_70px_140px] sm:items-center sm:gap-3">
-              <Link to="/product/$id" params={{ id: p.id }} className="flex items-center gap-2 truncate font-medium text-foreground hover:text-primary">
-                {p.is_featured && <Star className="h-3 w-3 shrink-0 fill-primary text-primary" />}
-                <span className="truncate">{p.name}</span>
-              </Link>
-              <span className="font-mono text-[10px] uppercase text-muted-foreground">{p.category}</span>
-              <span className="font-mono tabular-nums">${Number(p.price).toFixed(2)}</span>
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> active
-              </span>
-              <span className="text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</span>
-            </li>
-          ))}
+          {rows.map((r) => {
+            const p = r.profile;
+            const name = p?.display_name || "anon";
+            const avg = p && p.rating_count > 0 ? p.rating_sum / p.rating_count : 0;
+            const tierBadge = p?.is_premium ? "Premium" : p?.is_trusted ? "Trusted" : null;
+            return (
+              <li key={r.id} className="grid grid-cols-1 gap-1 px-4 py-2.5 text-xs transition-colors hover:bg-background/40 sm:grid-cols-[160px_1fr_120px_70px_70px_120px] sm:items-center sm:gap-3">
+                {/* Poster */}
+                <div className="flex items-center gap-2 min-w-0">
+                  {p?.avatar_url ? (
+                    <img src={p.avatar_url} alt={name} className="h-6 w-6 shrink-0 rounded-full border border-border/60 object-cover" />
+                  ) : (
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-primary/40 bg-primary/10 text-[10px] font-semibold text-primary">
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <div className="min-w-0 leading-tight">
+                    <div className="truncate font-medium text-foreground">{name}</div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Star className="h-2.5 w-2.5 fill-warning text-warning" />
+                      <span className="tabular-nums">{avg.toFixed(1)}</span>
+                      {tierBadge && (
+                        <span className={cn(
+                          "ml-1 rounded-sm px-1 font-mono text-[9px] uppercase",
+                          p?.is_premium ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400",
+                        )}>{tierBadge}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Thread */}
+                <Link to="/offer/$id" params={{ id: r.id }} className="truncate font-medium text-foreground hover:text-primary">
+                  {r.name}
+                </Link>
+                <span className="truncate font-mono text-[10px] uppercase text-muted-foreground">{sectionOf(r.category)}</span>
+                <span className="font-mono tabular-nums">
+                  {r.amount != null ? `${r.currency === "USD" || !r.currency ? "$" : ""}${Number(r.amount).toFixed(2)}` : "—"}
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" /> {r.status}
+                </span>
+                <span className="text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

@@ -109,8 +109,8 @@ function OrderBookPage() {
                 subtitle={t.subtitle}
                 icon={t.icon}
                 emptyHint={t.emptyHint}
-                selling={filterOther(group?.selling ?? [])}
-                seeking={filterOther(group?.seeking ?? [])}
+                selling={filterCat(group?.selling ?? [])}
+                seeking={filterCat(group?.seeking ?? [])}
                 loading={isLoading}
               />
             );
