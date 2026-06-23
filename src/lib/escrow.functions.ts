@@ -5,14 +5,27 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { tgSendMessage } from "./telegram.server";
 
 // ---------- Notifications ----------
-async function notifyUser(userId: string, message: string) {
+// Sends Telegram (if linked) + inserts an in-app notification row.
+async function notifyUser(
+  userId: string,
+  message: string,
+  opts: { kind?: "trade_signed" | "trade_paid" | "trade_released" | "trade_cancelled" | "dispute_opened" | "dispute_resolved" | "arbitration_update" | "wallet_credit" | "wallet_debit" | "system"; title?: string; link?: string } = {},
+) {
+  const kind = opts.kind ?? "system";
+  // Strip HTML for in-app body
+  const plain = message.replace(/<[^>]+>/g, "");
+  const title = opts.title ?? plain.split(".")[0].slice(0, 80);
+  await supabaseAdmin.from("notifications").insert({
+    user_id: userId, kind, title, body: plain, link: opts.link ?? null, payload: {},
+  } as never);
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("telegram_user_id")
     .eq("user_id", userId)
     .maybeSingle();
   if (data?.telegram_user_id) {
-    await tgSendMessage(Number(data.telegram_user_id), message);
+    const tail = opts.link ? `\n\n<a href="https://escrowdesk.lovable.app${opts.link}">Open in EscrowDesk →</a>` : "";
+    await tgSendMessage(Number(data.telegram_user_id), message + tail, { disable_web_page_preview: true });
   }
 }
 
