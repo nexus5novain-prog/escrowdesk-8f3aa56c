@@ -720,6 +720,91 @@ function AdsPanel() {
   );
 }
 
+// ============================== AD PREVIEW + HEALTH ==============================
+
+type AdDraft = {
+  title: string;
+  media_type: "image" | "video" | "html" | "link";
+  media_url: string;
+  html_content: string;
+  link_url: string;
+  cta_label: string;
+};
+
+function AdDraftPreview({ form, variant }: { form: AdDraft; variant: "banner" | "card" | "sidebar" }) {
+  const aspect = variant === "banner" ? "aspect-[6/1]" : variant === "card" ? "aspect-[16/9]" : "aspect-[4/5]";
+  const sizeBase = variant === "banner" ? "rounded-md" : "rounded-lg";
+  const ctaLabel = form.cta_label?.trim() || (form.link_url ? "Visit" : "Learn more");
+  const hasMedia = form.media_type === "image" && form.media_url
+    || form.media_type === "video" && form.media_url
+    || form.media_type === "html" && form.html_content;
+  const fallback = (
+    <div className={`flex h-full w-full items-center justify-between gap-3 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent px-4 py-3 ${variant === "sidebar" ? "flex-col items-start text-left" : ""}`}>
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Sponsored</p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-foreground sm:text-base">{form.title || "Untitled banner"}</p>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+        {ctaLabel} <ArrowUpRight className="h-3.5 w-3.5" />
+      </span>
+    </div>
+  );
+  return (
+    <div className={`relative overflow-hidden border border-border/60 bg-secondary/20 ${sizeBase}`}>
+      {!hasMedia || form.media_type === "link" ? (
+        <div className={form.media_type === "link" ? "" : aspect}>{fallback}</div>
+      ) : null}
+      {form.media_type === "image" && form.media_url && (
+        <img src={form.media_url} alt={form.title} className="block w-full object-cover" />
+      )}
+      {form.media_type === "video" && form.media_url && (
+        <video src={form.media_url} className="block w-full" autoPlay muted loop playsInline preload="metadata" />
+      )}
+      {form.media_type === "html" && form.html_content && (
+        <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: form.html_content }} />
+      )}
+    </div>
+  );
+}
+
+function AdHealthBadge({ h }: { h?: { impressions: number; clicks: number; errors: number } }) {
+  if (!h) {
+    return (
+      <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+        <CircleDashed className="h-3 w-3" /> Pending
+      </Badge>
+    );
+  }
+  if (h.errors > 0 && h.errors >= h.impressions) {
+    return (
+      <Badge variant="destructive" className="gap-1 text-[10px]">
+        <AlertTriangle className="h-3 w-3" /> Check URL · {h.errors} load errors
+      </Badge>
+    );
+  }
+  if (h.errors > 0) {
+    return (
+      <Badge variant="secondary" className="gap-1 text-[10px]">
+        <AlertTriangle className="h-3 w-3 text-amber-400" /> Partial · {h.errors} errors
+      </Badge>
+    );
+  }
+  if (h.impressions > 0) {
+    return (
+      <Badge variant="outline" className="gap-1 border-emerald-500/40 text-[10px] text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" /> OK
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+      <CircleDashed className="h-3 w-3" /> Pending
+    </Badge>
+  );
+}
+
+
+
 function AdAnalyticsPanel() {
   const fn = useServerFn(adminAdAnalytics);
   const [days, setDays] = useState(30);
