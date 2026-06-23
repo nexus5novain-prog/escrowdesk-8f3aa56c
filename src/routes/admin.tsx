@@ -60,6 +60,7 @@ function Admin() {
           <TabsTrigger value="disputes">Disputes</TabsTrigger>
           <TabsTrigger value="arbitration">Arbitration</TabsTrigger>
           <TabsTrigger value="offers">Offers</TabsTrigger>
+          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
           <TabsTrigger value="trades">Trades</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="warnings">Warnings</TabsTrigger>
