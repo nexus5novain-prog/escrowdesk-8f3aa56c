@@ -13,10 +13,17 @@ export type ShoutMsg = {
   payment_txid: string | null;
   paid_amount_usd: number | null;
   created_at: string;
+  is_pinned?: boolean;
+  is_hidden?: boolean;
+  report_count?: number;
   avatar_url?: string | null;
   is_premium?: boolean;
   is_trusted?: boolean;
 };
+
+// Rate limits (lenient — chosen by user)
+const COOLDOWN_SECONDS = 5 * 60;
+const DAILY_LIMIT = 20;
 
 async function isStaff(userId: string) {
   const { data } = await supabaseAdmin
@@ -33,6 +40,28 @@ async function getFeeUsd(): Promise<number> {
   return Number.isFinite(n) && n > 0 ? n : 5;
 }
 
+async function enforceRateLimit(userId: string) {
+  // Daily count
+  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count: dayCount } = await supabaseAdmin
+    .from("shoutbox_messages").select("id", { head: true, count: "exact" })
+    .eq("user_id", userId).gte("created_at", dayAgo);
+  if ((dayCount ?? 0) >= DAILY_LIMIT) {
+    throw new Error(`Daily limit reached (${DAILY_LIMIT} posts / 24h). Try again later.`);
+  }
+  // Cooldown
+  const { data: last } = await supabaseAdmin
+    .from("shoutbox_messages").select("created_at")
+    .eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (last?.created_at) {
+    const elapsed = (Date.now() - new Date(last.created_at).getTime()) / 1000;
+    if (elapsed < COOLDOWN_SECONDS) {
+      const wait = Math.ceil(COOLDOWN_SECONDS - elapsed);
+      throw new Error(`Please wait ${Math.ceil(wait / 60)} min before posting again.`);
+    }
+  }
+}
+
 export const getShoutboxConfig = createServerFn({ method: "GET" }).handler(async () => {
   const { data } = await supabaseAdmin
     .from("platform_settings").select("key,value").in("key", ["shoutbox_btc_address", "shoutbox_fee_usd"]);
@@ -41,7 +70,7 @@ export const getShoutboxConfig = createServerFn({ method: "GET" }).handler(async
   const feeRaw = rows.find((r) => r.key === "shoutbox_fee_usd")?.value;
   const btc_address = typeof addrRaw === "string" ? addrRaw : (addrRaw == null ? "" : String(addrRaw));
   const fee_usd = Number(feeRaw ?? 5) || 5;
-  return { btc_address, fee_usd };
+  return { btc_address, fee_usd, cooldown_seconds: COOLDOWN_SECONDS, daily_limit: DAILY_LIMIT };
 });
 
 export const listApprovedShouts = createServerFn({ method: "GET" })
@@ -49,8 +78,9 @@ export const listApprovedShouts = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: rows, error } = await supabaseAdmin
       .from("shoutbox_messages")
-      .select("id,user_id,display_name,body,status,payment_method,payment_txid,paid_amount_usd,created_at")
-      .eq("status", "approved")
+      .select("id,user_id,display_name,body,status,payment_method,payment_txid,paid_amount_usd,created_at,is_pinned,is_hidden,report_count")
+      .eq("status", "approved").eq("is_hidden", false)
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(data.limit);
     if (error) throw new Error(error.message);
@@ -73,11 +103,11 @@ export const postShoutWithWallet = createServerFn({ method: "POST" })
   .inputValidator(z.object({ body: z.string().trim().min(1).max(500) }))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    await enforceRateLimit(userId);
     const fee = await getFeeUsd();
     const { data: prof } = await supabaseAdmin
       .from("profiles").select("display_name,is_banned").eq("user_id", userId).maybeSingle();
     if (prof?.is_banned) throw new Error("Account banned");
-    // Debit 5 USDT (1 USD = 1 USDT) from wallet
     const { error: debitErr } = await supabaseAdmin.rpc("debit_wallet", {
       _user: userId, _asset: "USDT", _amount: fee, _note: "Shoutbox post fee",
     });
@@ -89,7 +119,6 @@ export const postShoutWithWallet = createServerFn({ method: "POST" })
       reviewed_at: new Date().toISOString(),
     }).select("id").single();
     if (error) {
-      // Refund on failure
       await supabaseAdmin.rpc("credit_wallet", { _user: userId, _asset: "USDT", _amount: fee, _note: "Shoutbox refund" });
       throw new Error(error.message);
     }
@@ -104,6 +133,7 @@ export const postShoutWithBTC = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    await enforceRateLimit(userId);
     const fee = await getFeeUsd();
     const { data: prof } = await supabaseAdmin
       .from("profiles").select("display_name,is_banned").eq("user_id", userId).maybeSingle();
@@ -117,6 +147,17 @@ export const postShoutWithBTC = createServerFn({ method: "POST" })
     return { id: row.id, status: "pending" as const };
   });
 
+export const reportShout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), reason: z.string().trim().min(1).max(500) }))
+  .handler(async ({ data, context }) => {
+    const { error } = await supabaseAdmin.from("shoutbox_reports").insert({
+      message_id: data.id, reporter_id: context.userId, reason: data.reason,
+    });
+    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const adminListShouts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ status: z.enum(["pending","approved","rejected","all"]).default("pending") }).optional().transform((v) => v ?? { status: "pending" as const }))
@@ -124,7 +165,8 @@ export const adminListShouts = createServerFn({ method: "GET" })
     if (!(await isStaff(context.userId))) throw new Error("Staff only");
     let q = supabaseAdmin
       .from("shoutbox_messages")
-      .select("id,user_id,display_name,body,status,payment_method,payment_txid,paid_amount_usd,created_at")
+      .select("id,user_id,display_name,body,status,payment_method,payment_txid,paid_amount_usd,created_at,is_pinned,is_hidden,report_count")
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false }).limit(200);
     if (data.status !== "all") q = q.eq("status", data.status);
     const { data: rows, error } = await q;
@@ -141,6 +183,28 @@ export const adminReviewShout = createServerFn({ method: "POST" })
       status: data.action === "approve" ? "approved" : "rejected",
       reviewed_by: context.userId, reviewed_at: new Date().toISOString(),
     }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminTogglePin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), pinned: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    if (!(await isStaff(context.userId))) throw new Error("Staff only");
+    const { error } = await supabaseAdmin.from("shoutbox_messages")
+      .update({ is_pinned: data.pinned }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminToggleHide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), hidden: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    if (!(await isStaff(context.userId))) throw new Error("Staff only");
+    const { error } = await supabaseAdmin.from("shoutbox_messages")
+      .update({ is_hidden: data.hidden }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
