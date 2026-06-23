@@ -77,7 +77,7 @@ export function NotificationSettings() {
           <div key={g.name}>
             <div className="bg-background/50 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{g.name}</div>
             {g.kinds.map((k) => {
-              const p = byKind.get(k);
+              const p = byKind.get(k as never);
               return (
                 <div key={k} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 border-t border-border/40 px-4 py-2.5 text-sm">
                   <span>{LABELS[k] ?? k}</span>
