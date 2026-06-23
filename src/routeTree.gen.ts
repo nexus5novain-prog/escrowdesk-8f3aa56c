@@ -26,6 +26,7 @@ import { Route as OfferIdRouteImport } from './routes/offer.$id'
 import { Route as EscrowNewRouteImport } from './routes/escrow.new'
 import { Route as EscrowIdRouteImport } from './routes/escrow.$id'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicHooksBtcConfirmPollRouteImport } from './routes/api/public/hooks/btc-confirm-poll'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
@@ -113,6 +114,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksBtcConfirmPollRoute =
+  ApiPublicHooksBtcConfirmPollRouteImport.update({
+    id: '/api/public/hooks/btc-confirm-poll',
+    path: '/api/public/hooks/btc-confirm-poll',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesById {
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRouteTypes {
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/telegram/webhook'
   id:
     | '__root__'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -249,6 +262,7 @@ export interface RootRouteChildren {
   OfferIdRoute: typeof OfferIdRoute
   ProductIdRoute: typeof ProductIdRoute
   TradeIdRoute: typeof TradeIdRoute
+  ApiPublicHooksBtcConfirmPollRoute: typeof ApiPublicHooksBtcConfirmPollRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
@@ -373,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/btc-confirm-poll': {
+      id: '/api/public/hooks/btc-confirm-poll'
+      path: '/api/public/hooks/btc-confirm-poll'
+      fullPath: '/api/public/hooks/btc-confirm-poll'
+      preLoaderRoute: typeof ApiPublicHooksBtcConfirmPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -393,6 +414,7 @@ const rootRouteChildren: RootRouteChildren = {
   OfferIdRoute: OfferIdRoute,
   ProductIdRoute: ProductIdRoute,
   TradeIdRoute: TradeIdRoute,
+  ApiPublicHooksBtcConfirmPollRoute: ApiPublicHooksBtcConfirmPollRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport

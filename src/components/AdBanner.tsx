@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { listAdsForPlacement, type AdPlacement } from "@/lib/ads.functions";
+import { listAdsForPlacement, trackAdEvent, type AdPlacement } from "@/lib/ads.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,12 @@ interface Props {
 
 export function AdBanner({ placement, className = "", dismissable = false, rotateMs = 12000, variant = "banner" }: Props) {
   const fn = useServerFn(listAdsForPlacement);
+  const trackFn = useServerFn(trackAdEvent);
   const instanceId = useId();
   const [dismissed, setDismissed] = useState(false);
   const [idx, setIdx] = useState(0);
+  const trackedRef = useRef<Set<string>>(new Set());
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const { data, refetch } = useQuery({
     queryKey: ["ads", placement],
@@ -39,9 +42,6 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   });
 
   useEffect(() => {
-    // Unique channel name per component instance — Supabase reuses channels
-    // by name, so a duplicate name throws "cannot add postgres_changes
-    // callbacks after subscribe()" when two AdBanners share a placement.
     const ch = supabase
       .channel(`ads-${placement}-${instanceId.replace(/[^a-zA-Z0-9]/g, "")}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => refetch())
@@ -57,15 +57,36 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
     return () => clearInterval(t);
   }, [ads.length, rotateMs]);
 
-  if (dismissed || ads.length === 0) return null;
   const ad = ads[idx % ads.length];
+
+  // Impression tracking via IntersectionObserver (de-duped per ad per mount)
+  useEffect(() => {
+    if (!ad || !rootRef.current) return;
+    const target = rootRef.current;
+    const obs = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting && !trackedRef.current.has(ad.id)) {
+          trackedRef.current.add(ad.id);
+          trackFn({ data: { ad_id: ad.id, kind: "impression", placement } }).catch(() => {});
+        }
+      }
+    }, { threshold: 0.4 });
+    obs.observe(target);
+    return () => obs.disconnect();
+  }, [ad, placement, trackFn]);
+
+  if (dismissed || ads.length === 0 || !ad) return null;
 
   const sizeBase =
     variant === "sidebar" ? "rounded-lg" :
     variant === "card" ? "rounded-lg" : "rounded-md";
 
+  const onClick = () => {
+    trackFn({ data: { ad_id: ad.id, kind: "click", placement } }).catch(() => {});
+  };
+
   const body = (
-    <div className={`relative overflow-hidden border border-border/60 bg-secondary/20 ${sizeBase}`}>
+    <div ref={rootRef} className={`relative overflow-hidden border border-border/60 bg-secondary/20 ${sizeBase}`}>
       {ad.media_type === "image" && ad.media_url && (
         <img src={ad.media_url} alt={ad.title} className="block w-full object-cover" loading="lazy" />
       )}
@@ -96,7 +117,7 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   const wrapperCls = `block ${className}`;
   if (ad.link_url) {
     return (
-      <a href={ad.link_url} target="_blank" rel="noreferrer sponsored" className={wrapperCls}>
+      <a href={ad.link_url} target="_blank" rel="noreferrer sponsored" className={wrapperCls} onClick={onClick}>
         {body}
       </a>
     );

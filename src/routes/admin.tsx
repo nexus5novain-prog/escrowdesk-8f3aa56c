@@ -11,8 +11,8 @@ import {
   adminListUsers, adminBanUser, adminUnbanUser, adminWarnUser,
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
 } from "@/lib/escrow.functions";
-import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, type AdPlacement } from "@/lib/ads.functions";
-import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
+import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, type AdPlacement } from "@/lib/ads.functions";
+import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
@@ -468,6 +468,8 @@ type AdRow = {
   impressions: number;
   clicks: number;
   created_at: string;
+  starts_at: string | null;
+  ends_at: string | null;
 };
 
 const ALL_PLACEMENTS: { value: AdPlacement; label: string; group: "Site-wide" | "Landing extras" | "Page-specific" }[] = [
@@ -509,6 +511,7 @@ function AdsPanel() {
     title: "", media_type: "image" as "image"|"video"|"html",
     media_url: "", html_content: "", link_url: "", priority: 0,
     placements: ["top"] as AdPlacement[], is_active: true,
+    starts_at: "", ends_at: "",
   });
   const [busy, setBusy] = useState(false);
 
@@ -529,9 +532,11 @@ function AdsPanel() {
         placements: form.placements,
         priority: form.priority,
         is_active: form.is_active,
+        starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+        ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       } });
       toast.success("Ad created");
-      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true });
+      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
@@ -625,9 +630,20 @@ function AdsPanel() {
             <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
             <span className="text-sm">Active</span>
           </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Starts at (optional)</Label>
+            <Input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} />
+          </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Ends at (optional)</Label>
+            <Input type="datetime-local" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
+          </div>
         </div>
         <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Creating…" : "Create banner"}</Button>
       </div>
+
+      <AdAnalyticsPanel />
+
 
       <div className="surface p-5">
         <h2 className="font-semibold">All banners ({ads.length})</h2>
@@ -648,6 +664,11 @@ function AdsPanel() {
                   <div className="mt-1 text-[11px] text-muted-foreground font-mono">
                     {a.impressions} impressions · {a.clicks} clicks · {new Date(a.created_at).toLocaleDateString()}
                   </div>
+                  {(a.starts_at || a.ends_at) && (
+                    <div className="mt-1 text-[11px] font-mono text-muted-foreground">
+                      Schedule: {a.starts_at ? new Date(a.starts_at).toLocaleString() : "—"} → {a.ends_at ? new Date(a.ends_at).toLocaleString() : "—"}
+                    </div>
+                  )}
                   {a.media_url && <div className="mt-1 truncate text-[11px] text-muted-foreground font-mono">{a.media_url}</div>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -663,6 +684,79 @@ function AdsPanel() {
     </div>
   );
 }
+
+function AdAnalyticsPanel() {
+  const fn = useServerFn(adminAdAnalytics);
+  const [days, setDays] = useState(30);
+  const { data } = useQuery({ queryKey: ["ad-analytics", days], queryFn: () => fn({ data: { days } }) });
+  type Row = { ad_id: string; title: string; placements: string[]; impressions: number; clicks: number; ctr: number };
+  type PRow = { placement: string; impressions: number; clicks: number; ctr: number };
+  const ads = ((data as { ads: Row[] } | undefined)?.ads ?? []);
+  const placements = ((data as { placements: PRow[] } | undefined)?.placements ?? []);
+  return (
+    <div className="surface p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">Ad performance (last {days} days)</h2>
+        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">24 hours</SelectItem>
+            <SelectItem value="7">7 days</SelectItem>
+            <SelectItem value="30">30 days</SelectItem>
+            <SelectItem value="90">90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <h3 className="mb-2 text-xs font-mono uppercase text-muted-foreground">By ad</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr><th className="text-left py-2">Title</th><th className="text-right">Impr.</th><th className="text-right">Clicks</th><th className="text-right">CTR</th></tr>
+              </thead>
+              <tbody>
+                {ads.map((r) => (
+                  <tr key={r.ad_id} className="border-t border-border/40">
+                    <td className="py-1.5 pr-2 truncate max-w-[180px]">{r.title}</td>
+                    <td className="text-right font-mono">{Number(r.impressions).toLocaleString()}</td>
+                    <td className="text-right font-mono">{Number(r.clicks).toLocaleString()}</td>
+                    <td className="text-right font-mono">{Number(r.ctr).toFixed(2)}%</td>
+                  </tr>
+                ))}
+                {ads.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No events yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-2 text-xs font-mono uppercase text-muted-foreground">By placement</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr><th className="text-left py-2">Placement</th><th className="text-right">Impr.</th><th className="text-right">Clicks</th><th className="text-right">CTR</th></tr>
+              </thead>
+              <tbody>
+                {placements.map((p) => (
+                  <tr key={p.placement} className="border-t border-border/40">
+                    <td className="py-1.5 font-mono text-xs">{p.placement}</td>
+                    <td className="text-right font-mono">{p.impressions.toLocaleString()}</td>
+                    <td className="text-right font-mono">{p.clicks.toLocaleString()}</td>
+                    <td className="text-right font-mono">{p.ctr.toFixed(2)}%</td>
+                  </tr>
+                ))}
+                {placements.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">No events yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ============================ PRODUCTS PANEL ===========================
 
@@ -1123,6 +1217,8 @@ function AdMediaUploader({ accept, onUploaded }: { accept: string; onUploaded: (
 function ShoutboxPanel() {
   const listFn = useServerFn(adminListShouts);
   const reviewFn = useServerFn(adminReviewShout);
+  const pinFn = useServerFn(adminTogglePin);
+  const hideFn = useServerFn(adminToggleHide);
   const cfgFn = useServerFn(getShoutboxConfig);
   const setCfg = useServerFn(adminSetShoutboxBtc);
   const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
@@ -1191,17 +1287,28 @@ function ShoutboxPanel() {
                   <Badge variant={m.status === "approved" ? "default" : m.status === "rejected" ? "destructive" : "secondary"}>{m.status}</Badge>
                   <Badge variant="outline" className="font-mono text-[10px] uppercase">{m.payment_method ?? "—"}</Badge>
                   {m.paid_amount_usd != null && <span className="font-mono text-[11px]">${Number(m.paid_amount_usd).toFixed(2)}</span>}
+                  {m.is_pinned && <Badge className="bg-amber-500 text-white">📌 Pinned</Badge>}
+                  {m.is_hidden && <Badge variant="destructive">Hidden</Badge>}
+                  {(m.report_count ?? 0) > 0 && <Badge variant="destructive">⚠ {m.report_count} reports</Badge>}
                 </div>
                 <span>{new Date(m.created_at).toLocaleString()}</span>
               </div>
               <p className="mt-1 text-sm text-foreground">{m.body}</p>
               {m.payment_txid && <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">txid: {m.payment_txid}</div>}
-              {m.status === "pending" && (
-                <div className="mt-2 flex gap-2">
-                  <Button size="sm" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "approve" } }); toast.success("Approved"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Approve</Button>
-                  <Button size="sm" variant="outline" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "reject" } }); toast.success("Rejected"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Reject</Button>
-                </div>
-              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {m.status === "pending" && (
+                  <>
+                    <Button size="sm" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "approve" } }); toast.success("Approved"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Approve</Button>
+                    <Button size="sm" variant="outline" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "reject" } }); toast.success("Rejected"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Reject</Button>
+                  </>
+                )}
+                <Button size="sm" variant="outline" onClick={async () => { try { await pinFn({ data: { id: m.id, pinned: !m.is_pinned } }); toast.success(m.is_pinned ? "Unpinned" : "Pinned"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>
+                  {m.is_pinned ? "Unpin" : "Pin"}
+                </Button>
+                <Button size="sm" variant={m.is_hidden ? "default" : "outline"} onClick={async () => { try { await hideFn({ data: { id: m.id, hidden: !m.is_hidden } }); toast.success(m.is_hidden ? "Unhidden" : "Hidden"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>
+                  {m.is_hidden ? "Unhide" : "Hide"}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

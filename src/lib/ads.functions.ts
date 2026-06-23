@@ -6,7 +6,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 export type AdPlacement =
   | "top" | "center" | "bottom" | "footer"
   | "marketplace_grid" | "order_book_sidebar" | "trades_escrow"
-  // landing-page expanded slots
   | "sidebar_resources" | "under_hero" | "sidebar_top" | "sidebar_mid"
   | "sidebar_bottom" | "between_threads" | "between_sections"
   | "footer_banner" | "floating_corner" | "inline_card";
@@ -32,12 +31,28 @@ export const listAdsForPlacement = createServerFn({ method: "GET" })
     const now = new Date().toISOString();
     const { data: rows } = await supabaseAdmin
       .from("ad_banners")
-      .select("id,title,media_type,media_url,html_content,link_url,placements,priority")
+      .select("id,title,media_type,media_url,html_content,link_url,placements,priority,starts_at,ends_at")
       .eq("is_active", true)
       .contains("placements", [data.placement])
+      .or(`starts_at.is.null,starts_at.lte.${now}`)
+      .or(`ends_at.is.null,ends_at.gte.${now}`)
       .order("priority", { ascending: false })
       .limit(20);
     return { ads: rows ?? [], fetched_at: now };
+  });
+
+// Public tracking — anyone can record an impression/click
+export const trackAdEvent = createServerFn({ method: "POST" })
+  .inputValidator(z.object({
+    ad_id: z.string().uuid(),
+    kind: z.enum(["impression", "click"]),
+    placement: PlacementSchema,
+  }))
+  .handler(async ({ data }) => {
+    await supabaseAdmin.from("ad_events").insert({
+      ad_id: data.ad_id, kind: data.kind, placement: data.placement,
+    });
+    return { ok: true };
   });
 
 export const adminListAds = createServerFn({ method: "GET" })
@@ -48,6 +63,30 @@ export const adminListAds = createServerFn({ method: "GET" })
       .from("ad_banners").select("*").order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return { ads: data ?? [] };
+  });
+
+export const adminAdAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ days: z.number().int().min(1).max(365).default(30) }).optional().transform((v) => v ?? { days: 30 }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const since = new Date(Date.now() - data.days * 86400_000).toISOString();
+    const { data: rows, error } = await supabaseAdmin.rpc("ad_analytics", { _since: since });
+    if (error) throw new Error(error.message);
+    // Placement breakdown
+    const { data: placements } = await supabaseAdmin
+      .from("ad_events").select("placement,kind").gte("created_at", since).limit(50000);
+    const byPlacement = new Map<string, { impressions: number; clicks: number }>();
+    for (const r of placements ?? []) {
+      const cur = byPlacement.get(r.placement) ?? { impressions: 0, clicks: 0 };
+      if (r.kind === "click") cur.clicks++; else cur.impressions++;
+      byPlacement.set(r.placement, cur);
+    }
+    const placementsArr = Array.from(byPlacement.entries()).map(([placement, v]) => ({
+      placement, ...v,
+      ctr: v.impressions ? Math.round((v.clicks / v.impressions) * 10000) / 100 : 0,
+    })).sort((a, b) => b.impressions - a.impressions);
+    return { ads: rows ?? [], placements: placementsArr };
   });
 
 export const adminCreateAd = createServerFn({ method: "POST" })
@@ -61,6 +100,8 @@ export const adminCreateAd = createServerFn({ method: "POST" })
     placements: z.array(PlacementSchema).min(1),
     priority: z.number().int().min(0).max(100).default(0),
     is_active: z.boolean().default(true),
+    starts_at: z.string().datetime().nullable().optional(),
+    ends_at: z.string().datetime().nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
@@ -79,6 +120,8 @@ export const adminCreateAd = createServerFn({ method: "POST" })
       placements: data.placements,
       priority: data.priority,
       is_active: data.is_active,
+      starts_at: data.starts_at ?? null,
+      ends_at: data.ends_at ?? null,
       created_by: context.userId,
     } as never).select("id").single();
     if (error) throw new Error(error.message);
@@ -96,6 +139,8 @@ export const adminUpdateAd = createServerFn({ method: "POST" })
     html_content: z.string().trim().max(8000).nullable().optional(),
     link_url: z.string().trim().max(1000).nullable().optional(),
     placements: z.array(PlacementSchema).min(1).optional(),
+    starts_at: z.string().datetime().nullable().optional(),
+    ends_at: z.string().datetime().nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);

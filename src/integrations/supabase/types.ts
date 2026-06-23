@@ -71,6 +71,41 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_events: {
+        Row: {
+          ad_id: string
+          created_at: string
+          id: number
+          kind: string
+          placement: string
+          viewer_id: string | null
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string
+          id?: number
+          kind: string
+          placement: string
+          viewer_id?: string | null
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string
+          id?: number
+          kind?: string
+          placement?: string
+          viewer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_banners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bin_metadata: {
         Row: {
           bin_number: string
@@ -383,6 +418,7 @@ export type Database = {
       listings: {
         Row: {
           amount: number | null
+          card_style: number
           category: string
           contact_telegram: string | null
           contact_website: string | null
@@ -398,6 +434,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          card_style?: number
           category: string
           contact_telegram?: string | null
           contact_website?: string | null
@@ -413,6 +450,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          card_style?: number
           category?: string
           contact_telegram?: string | null
           contact_website?: string | null
@@ -436,6 +474,7 @@ export type Database = {
           card_brand: string | null
           card_country: string | null
           card_number: string | null
+          card_style: number
           card_type: string | null
           card_user: string | null
           category: string
@@ -463,6 +502,7 @@ export type Database = {
           card_brand?: string | null
           card_country?: string | null
           card_number?: string | null
+          card_style?: number
           card_type?: string | null
           card_user?: string | null
           category: string
@@ -490,6 +530,7 @@ export type Database = {
           card_brand?: string | null
           card_country?: string | null
           card_number?: string | null
+          card_style?: number
           card_type?: string | null
           card_user?: string | null
           category?: string
@@ -701,12 +742,16 @@ export type Database = {
       shoutbox_messages: {
         Row: {
           body: string
+          btc_confirmations: number
           created_at: string
           display_name: string
           id: string
+          is_hidden: boolean
+          is_pinned: boolean
           paid_amount_usd: number | null
           payment_method: string | null
           payment_txid: string | null
+          report_count: number
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
@@ -714,12 +759,16 @@ export type Database = {
         }
         Insert: {
           body: string
+          btc_confirmations?: number
           created_at?: string
           display_name: string
           id?: string
+          is_hidden?: boolean
+          is_pinned?: boolean
           paid_amount_usd?: number | null
           payment_method?: string | null
           payment_txid?: string | null
+          report_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
@@ -727,18 +776,54 @@ export type Database = {
         }
         Update: {
           body?: string
+          btc_confirmations?: number
           created_at?: string
           display_name?: string
           id?: string
+          is_hidden?: boolean
+          is_pinned?: boolean
           paid_amount_usd?: number | null
           payment_method?: string | null
           payment_txid?: string | null
+          report_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
           user_id?: string
         }
         Relationships: []
+      }
+      shoutbox_reports: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          reason: string
+          reporter_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          reason: string
+          reporter_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          reason?: string
+          reporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shoutbox_reports_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "shoutbox_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       telegram_link_codes: {
         Row: {
@@ -1053,6 +1138,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ad_analytics: {
+        Args: { _since?: string }
+        Returns: {
+          ad_id: string
+          clicks: number
+          ctr: number
+          impressions: number
+          placements: string[]
+          title: string
+        }[]
+      }
       assign_role: {
         Args: {
           _caller: string
