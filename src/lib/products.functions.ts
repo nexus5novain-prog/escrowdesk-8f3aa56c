@@ -82,7 +82,7 @@ export const listProducts = createServerFn({ method: "GET" })
     if (data.category) q = q.eq("category", data.category);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const products = (rows ?? []).map((r) => publicMaskProduct(r as AnyProductRow));
+    const products = (rows ?? []).map((r) => maskProductRow(r));
     return { products };
   });
 
