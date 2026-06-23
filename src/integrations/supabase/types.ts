@@ -1969,6 +1969,41 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_approvals: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          id: string
+          note: string | null
+          withdrawal_id: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          withdrawal_id: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_approvals_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       withdrawal_requests: {
         Row: {
           amount_sats: number
@@ -2093,6 +2128,23 @@ export type Database = {
           placements: string[]
           title: string
         }[]
+      }
+      admin_approve_withdrawal: {
+        Args: { _admin: string; _note?: string; _withdrawal_id: string }
+        Returns: undefined
+      }
+      admin_mark_withdrawal_paid: {
+        Args: {
+          _admin: string
+          _payment_hash?: string
+          _tx_hash?: string
+          _withdrawal_id: string
+        }
+        Returns: undefined
+      }
+      admin_reject_withdrawal: {
+        Args: { _admin: string; _reason: string; _withdrawal_id: string }
+        Returns: undefined
       }
       assign_role: {
         Args: {

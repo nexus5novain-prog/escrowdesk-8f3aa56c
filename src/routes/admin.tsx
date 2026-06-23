@@ -16,6 +16,7 @@ import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin,
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
+import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
 import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ function Admin() {
           <TabsTrigger value="disputes">Disputes</TabsTrigger>
           <TabsTrigger value="arbitration">Arbitration</TabsTrigger>
           <TabsTrigger value="offers">Offers</TabsTrigger>
+          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
           <TabsTrigger value="trades">Trades</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="warnings">Warnings</TabsTrigger>
@@ -72,6 +74,7 @@ function Admin() {
         <TabsContent value="disputes" className="mt-4"><DisputesPanel /></TabsContent>
         <TabsContent value="arbitration" className="mt-4"><ArbitrationPanel /></TabsContent>
         <TabsContent value="offers" className="mt-4"><OffersPanel /></TabsContent>
+        <TabsContent value="withdrawals" className="mt-4"><WithdrawalsPanel /></TabsContent>
         <TabsContent value="trades" className="mt-4"><TradesPanel /></TabsContent>
         <TabsContent value="users" className="mt-4"><UsersPanel /></TabsContent>
         <TabsContent value="warnings" className="mt-4"><WarningsPanel /></TabsContent>
