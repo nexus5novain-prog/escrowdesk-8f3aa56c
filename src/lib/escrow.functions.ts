@@ -196,25 +196,31 @@ export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ trade_id: z.string().uuid(), body: z.string().min(1).max(2000) }))
   .handler(async ({ data, context }) => {
+    // SECURITY: verify caller is a trade participant before inserting (supabaseAdmin bypasses RLS).
+    const { data: t, error: tErr } = await supabaseAdmin
+      .from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).maybeSingle();
+    if (tErr) throw new Error(tErr.message);
+    if (!t || (t.buyer_id !== context.userId && t.seller_id !== context.userId)) {
+      throw new Error("Forbidden");
+    }
     const { error } = await supabaseAdmin.from("trade_messages").insert({
       trade_id: data.trade_id, sender_id: context.userId, body: data.body,
     });
     if (error) throw new Error(error.message);
-    const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).single();
-    if (t) {
-      const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
-      await notifyUser(other, `💬 New message on trade <code>${data.trade_id.slice(0,8)}</code>:\n${data.body.slice(0,300)}`);
-    }
+    const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
+    await notifyUser(other, `💬 New message on trade <code>${data.trade_id.slice(0,8)}</code>:\n${data.body.slice(0,300)}`);
     return { ok: true };
   });
 
 // ---------- Wallet (simulated deposit/withdraw) ----------
+// SECURITY: admin-only. Previously allowed any authenticated user to mint balances.
 export const depositSimulated = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ asset: z.enum(["USDT","BTC"]), amount: z.number().positive().max(1_000_000) }))
   .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
     const { error } = await supabaseAdmin.rpc("credit_wallet", {
-      _user: context.userId, _asset: data.asset, _amount: data.amount, _note: "Test deposit",
+      _user: context.userId, _asset: data.asset, _amount: data.amount, _note: "Admin test deposit",
     });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -258,7 +264,8 @@ export const deletePaymentMethod = createServerFn({ method: "POST" })
 export const generateTelegramLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const code = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const { randomBytes } = await import("crypto");
+    const code = randomBytes(6).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toUpperCase();
     const { error } = await supabaseAdmin.from("telegram_link_codes").insert({
       code, user_id: context.userId,
     });
