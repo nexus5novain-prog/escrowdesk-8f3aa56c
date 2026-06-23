@@ -216,7 +216,7 @@ export const sendMessage = createServerFn({ method: "POST" })
 // SECURITY: admin-only. Previously allowed any authenticated user to mint balances.
 export const depositSimulated = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ asset: z.enum(["USDT","BTC"]), amount: z.number().positive().max(1_000_000) }))
+  .inputValidator(z.object({ asset: z.enum(["BTC"]), amount: z.number().positive().max(1_000_000) }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { error } = await supabaseAdmin.rpc("credit_wallet", {
@@ -469,7 +469,7 @@ export const adminUnlinkTelegram = createServerFn({ method: "POST" })
 
 export const adminCreditWallet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ user_id: z.string().uuid(), asset: z.enum(["USDT","BTC"]), amount: z.number() }))
+  .inputValidator(z.object({ user_id: z.string().uuid(), asset: z.enum(["BTC"]), amount: z.number() }))
   .handler(async ({ data, context }) => {
     const { isAdmin } = await assertAdmin(context.userId);
     if (!isAdmin) throw new Error("Admin only");

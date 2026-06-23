@@ -23,7 +23,7 @@ function NewEscrow() {
   const { listing } = Route.useSearch();
   const create = useServerFn(createEscrowGroup);
   const [mode, setMode] = useState<"site"|"telegram">("site");
-  const [asset, setAsset] = useState<"BTC"|"USDT"|"USDC"|"ETH">("USDT");
+  const asset = "BTC" as const;
   const [amount, setAmount] = useState("");
   const [fiat, setFiat] = useState("");
   const [username, setUsername] = useState("");
@@ -101,18 +101,10 @@ function NewEscrow() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Asset</Label>
-            <Select value={asset} onValueChange={(v) => setAsset(v as typeof asset)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BTC">BTC</SelectItem>
-                <SelectItem value="USDT">USDT (TRC20)</SelectItem>
-                <SelectItem value="USDC">USDC</SelectItem>
-                <SelectItem value="ETH">ETH</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="mt-1 inline-flex h-10 w-full items-center rounded-md border border-input bg-secondary/30 px-3 text-sm font-medium">BTC</div>
           </div>
           <div>
-            <Label className="text-xs uppercase text-muted-foreground">Crypto amount</Label>
+            <Label className="text-xs uppercase text-muted-foreground">BTC amount</Label>
             <Input type="number" step="0.00000001" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.05" />
           </div>
           <div>

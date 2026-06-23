@@ -14,7 +14,7 @@ export const Route = createFileRoute("/post-offer")({ component: () => (<AuthGat
 function Page() {
   const fn = useServerFn(createOffer);
   const nav = useNavigate();
-  const [f, setF] = useState({ side: "sell" as "buy"|"sell", asset: "USDT" as "USDT"|"BTC", fiat_currency: "USD", price: "1.00", min_amount: "10", max_amount: "1000", available_crypto: "100", payment_method_types: "bank", terms: "" });
+  const [f, setF] = useState({ side: "sell" as "buy"|"sell", asset: "BTC" as const, fiat_currency: "USD", price: "1.00", min_amount: "10", max_amount: "1000", available_crypto: "100", payment_method_types: "bank", terms: "" });
   const submit = async (e: React.FormEvent) => { e.preventDefault();
     try {
       await fn({ data: {

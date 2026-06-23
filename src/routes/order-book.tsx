@@ -208,7 +208,7 @@ function ListingCard({ row }: { row: ListingRow }) {
     try {
       const fiat = row.amount != null ? Number(row.amount) : 0;
       const res = await createGroup({ data: {
-        asset: "USDT",
+        asset: "BTC",
         amount: fiat > 0 ? fiat : 1,
         fiat_amount: fiat > 0 ? fiat : undefined,
         fiat_currency: row.currency || "USD",
