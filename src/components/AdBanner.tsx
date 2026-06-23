@@ -5,6 +5,7 @@ import { listAdsForPlacement, trackAdEvent, type AdPlacement } from "@/lib/ads.f
 import { supabase } from "@/integrations/supabase/client";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DOMPurify from "dompurify";
 
 type Ad = {
   id: string;
