@@ -1091,3 +1091,121 @@ function ThreadsPanel() {
     </div>
   );
 }
+
+/* ─────────────────── Ad media uploader (uploads to `ads` storage bucket) ─────────────────── */
+function AdMediaUploader({ accept, onUploaded }: { accept: string; onUploaded: (url: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const onPick = async (file: File | null) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("ads").upload(path, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type,
+      });
+      if (error) throw error;
+      const { data } = supabase.storage.from("ads").getPublicUrl(path);
+      onUploaded(data.publicUrl);
+      toast.success("Uploaded");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Input type="file" accept={accept} disabled={busy} onChange={(e) => onPick(e.target.files?.[0] ?? null)} className="h-8 file:mr-2 file:rounded file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:text-primary-foreground" />
+      {busy && <span className="text-xs text-muted-foreground">Uploading…</span>}
+    </div>
+  );
+}
+
+/* ─────────────────── Shoutbox moderation + BTC settings ─────────────────── */
+function ShoutboxPanel() {
+  const listFn = useServerFn(adminListShouts);
+  const reviewFn = useServerFn(adminReviewShout);
+  const cfgFn = useServerFn(getShoutboxConfig);
+  const setCfg = useServerFn(adminSetShoutboxBtc);
+  const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const { data, refetch } = useQuery({ queryKey: ["admin-shouts", status], queryFn: () => listFn({ data: { status } }) });
+  const { data: cfg, refetch: refetchCfg } = useQuery({ queryKey: ["admin-shoutbox-cfg"], queryFn: () => cfgFn() });
+  const rows = ((data as { messages: ShoutMsg[] } | undefined)?.messages ?? []);
+
+  const [btc, setBtc] = useState("");
+  const [fee, setFee] = useState("5");
+  useEffect(() => {
+    if (cfg) { setBtc(cfg.btc_address || ""); setFee(String(cfg.fee_usd ?? 5)); }
+  }, [cfg]);
+
+  useEffect(() => {
+    const ch = supabase.channel("admin-shouts-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shoutbox_messages" }, () => refetch())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [refetch]);
+
+  const save = async () => {
+    try {
+      await setCfg({ data: { btc_address: btc.trim(), fee_usd: Number(fee) || 5 } });
+      toast.success("Saved"); refetchCfg();
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="surface p-5">
+        <h2 className="font-semibold">Shoutbox payments</h2>
+        <p className="text-xs text-muted-foreground">Users pay this fee to publish a shoutbox. Wallet payments auto-approve; BTC payments wait for your manual review.</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_120px_auto]">
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Admin company BTC address</Label>
+            <Input value={btc} onChange={(e) => setBtc(e.target.value)} placeholder="bc1q…" className="font-mono text-xs" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Fee (USD)</Label>
+            <Input type="number" min="0.01" step="0.01" value={fee} onChange={(e) => setFee(e.target.value)} />
+          </div>
+          <div className="flex items-end"><Button onClick={save}>Save</Button></div>
+        </div>
+      </div>
+
+      <div className="surface p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Shoutbox posts</h2>
+          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending review</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="mt-3 space-y-2">
+          {rows.length === 0 && <p className="text-sm text-muted-foreground">No shouts in this view.</p>}
+          {rows.map((m) => (
+            <div key={m.id} className="rounded-md border border-border/60 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">{m.display_name}</span>
+                  <Badge variant={m.status === "approved" ? "default" : m.status === "rejected" ? "destructive" : "secondary"}>{m.status}</Badge>
+                  <Badge variant="outline" className="font-mono text-[10px] uppercase">{m.payment_method ?? "—"}</Badge>
+                  {m.paid_amount_usd != null && <span className="font-mono text-[11px]">${Number(m.paid_amount_usd).toFixed(2)}</span>}
+                </div>
+                <span>{new Date(m.created_at).toLocaleString()}</span>
+              </div>
+              <p className="mt-1 text-sm text-foreground">{m.body}</p>
+              {m.payment_txid && <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">txid: {m.payment_txid}</div>}
+              {m.status === "pending" && (
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "approve" } }); toast.success("Approved"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Approve</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { try { await reviewFn({ data: { id: m.id, action: "reject" } }); toast.success("Rejected"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Reject</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
