@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { LivePortfolio } from "@/components/wallet/LivePortfolio";
+import { MyBalanceStrip } from "@/components/wallet/MyBalanceStrip";
 
 export const Route = createFileRoute("/wallet")({ component: () => (<AuthGate><Wallet /></AuthGate>) });
 
@@ -77,8 +77,14 @@ function Wallet() {
         </div>
       </div>
 
-      {/* Live BTC/LN portfolio */}
-      <LivePortfolio />
+      {/* User-scoped balance strip (internal ledger; never treasury) */}
+      <div className="surface p-4 sm:p-5">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">My balances</p>
+          <Link to="/escrow-portfolio" className="text-xs text-primary hover:underline">How escrow works →</Link>
+        </div>
+        <MyBalanceStrip />
+      </div>
 
       {/* Earnings PnL */}
       <div className="surface p-4 sm:p-6">

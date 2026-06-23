@@ -1,168 +1,96 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AuthGate } from "@/components/AuthGate";
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { useQueryClient } from "@tanstack/react-query";
 import { ParticleBackground } from "@/components/ParticleBackground";
-import { getLivePortfolio } from "@/lib/wallet-live.functions";
+import { MediatorBot } from "@/components/MediatorBot";
+import { MyBalanceStrip } from "@/components/wallet/MyBalanceStrip";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bitcoin, Zap, Lock, ShieldCheck, ArrowRight, Activity } from "lucide-react";
-import { fmtFiat } from "@/lib/format";
+import { ShieldCheck, Lock, Zap, Scale, FileSignature, Handshake, ArrowRight, Bitcoin, Bot } from "lucide-react";
 
 export const Route = createFileRoute("/escrow-portfolio")({
-  component: () => (<AuthGate><EscrowPortfolio /></AuthGate>),
+  component: () => (<AuthGate><EscrowAbout /></AuthGate>),
 });
 
-function useCountUp(value: number, duration = 900) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const from = v;
-    const start = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setV(from + (value - from) * eased);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-  return v;
-}
-
-function EscrowPortfolio() {
-  const { user } = useAuth();
-  const qc = useQueryClient();
-  const fn = useServerFn(getLivePortfolio);
-  const { data: live } = useQuery({
-    queryKey: ["live-portfolio"], queryFn: () => fn(), refetchInterval: 20_000,
-  });
-
-  // User's escrow invoices
-  const { data: invoices } = useQuery({
-    queryKey: ["my-escrow-invoices", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("escrow_invoices")
-        .select("id, trade_id, status, amount_btc, paid_amount_btc, confirmations, created_at, expires_at")
-        .order("created_at", { ascending: false })
-        .limit(12);
-      return data ?? [];
-    },
-    refetchInterval: 15_000,
-  });
-
-  useEffect(() => {
-    if (!user) return;
-    const ch = supabase
-      .channel(`escrow-portfolio-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_invoices" },
-        () => qc.invalidateQueries({ queryKey: ["my-escrow-invoices", user.id] }))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [user, qc]);
-
-  const totalUsd = useCountUp(live?.open_escrow_usd ?? 0);
-  const activeCount = (invoices ?? []).filter((i) => i.status === "new" || i.status === "processing").length;
-  const settledCount = (invoices ?? []).filter((i) => i.status === "settled").length;
-  const totalVolBtc = (invoices ?? []).reduce((s, i) => s + Number(i.amount_btc ?? 0), 0);
-
+function EscrowAbout() {
   return (
     <div className="space-y-6">
-      {/* Hero with particle bg */}
+      {/* Hero with animated mediator bot */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-background p-6 sm:p-10">
-        <ParticleBackground color="#f7931a" density={70} linkDistance={140} />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-            <Activity className="h-3.5 w-3.5 text-emerald-500" /> Escrow Portfolio · Live
+        <ParticleBackground color="#f7931a" density={60} linkDistance={130} />
+        <div className="relative z-10 grid gap-8 lg:grid-cols-2 lg:items-center">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-primary">
+              <Bot className="h-3.5 w-3.5" /> EscrowDesk · Mediated Trust
+            </div>
+            <h1 className="mt-3 text-3xl font-bold sm:text-5xl">
+              Trade with anyone.<br />
+              <span className="text-primary">Trust the machine.</span>
+            </h1>
+            <p className="mt-3 max-w-lg text-sm text-muted-foreground sm:text-base">
+              EscrowDesk holds funds in a custodial vault until both parties confirm the deal.
+              If something goes wrong, our arbitration bot and human judges step in.
+              No private keys to manage. No counterparty risk.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link to="/escrow/new"><Button size="sm">Start new escrow <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button></Link>
+              <Link to="/trades"><Button size="sm" variant="outline">My trades</Button></Link>
+              <Link to="/wallet"><Button size="sm" variant="outline">Wallet</Button></Link>
+            </div>
           </div>
-          <h1 className="mt-3 font-mono text-4xl font-bold sm:text-5xl">
-            {fmtFiat(totalUsd, "USD")}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Total value locked across your active escrow trades, updated in real-time from BTCPay & LND.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link to="/escrow/new"><Button size="sm">New escrow group <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button></Link>
-            <Link to="/trades"><Button size="sm" variant="outline">View trades</Button></Link>
-            <Link to="/wallet"><Button size="sm" variant="outline">Wallet</Button></Link>
-          </div>
+          <MediatorBot className="hidden lg:block" />
         </div>
       </div>
 
-      {/* Stat grid */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard icon={<Lock className="h-4 w-4 text-primary" />} label="In escrow" value={(live?.open_escrow_btc ?? 0).toFixed(8)} suffix="BTC" />
-        <StatCard icon={<Activity className="h-4 w-4 text-emerald-500" />} label="Active invoices" value={String(activeCount)} />
-        <StatCard icon={<ShieldCheck className="h-4 w-4 text-blue-500" />} label="Settled" value={String(settledCount)} />
-        <StatCard icon={<Bitcoin className="h-4 w-4 text-orange-500" />} label="Volume" value={totalVolBtc.toFixed(8)} suffix="BTC" />
-      </div>
-
-      {/* Recent invoices */}
-      <Card className="p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <Zap className="h-3.5 w-3.5" /> Recent escrow activity
-        </h2>
-        {(invoices ?? []).length === 0 ? (
-          <p className="rounded-md border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-            No escrow invoices yet. Open a trade to generate Bitcoin payment destinations.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border/40">
-            {(invoices ?? []).map((i) => (
-              <li key={i.id} className="flex items-center justify-between py-2.5">
-                <Link to="/trade/$id" params={{ id: i.trade_id }} className="flex items-center gap-3 hover:underline">
-                  <StatusDot status={i.status} />
-                  <div>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      #{i.trade_id.slice(0, 8)}
-                    </p>
-                    <p className="font-mono text-sm">{Number(i.amount_btc).toFixed(8)} BTC</p>
-                  </div>
-                </Link>
-                <div className="text-right">
-                  <Badge variant="secondary" className="text-[10px] uppercase">{i.status}</Badge>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {i.confirmations}/3 conf
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* Small live balance strip (user-scoped) */}
+      <Card className="p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Your live balances</p>
+          <Link to="/wallet" className="text-xs text-primary hover:underline">Open wallet →</Link>
+        </div>
+        <MyBalanceStrip />
       </Card>
+
+      {/* How it works */}
+      <Card className="p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">How EscrowDesk works</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Four steps — fully internal, no on-chain transfers between parties.</p>
+        <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Step n={1} icon={<Handshake className="h-5 w-5" />} title="Agree terms" body="Both parties sign exact terms inside the trade chat — legally meaningful, audit-logged." />
+          <Step n={2} icon={<Lock className="h-5 w-5" />} title="Lock funds" body="Buyer funds escrow from their wallet balance. Crypto moves to a locked bucket, instantly." />
+          <Step n={3} icon={<FileSignature className="h-5 w-5" />} title="Deliver & confirm" body="Seller delivers off-platform. Buyer confirms receipt; arbitration available 24/7 if not." />
+          <Step n={4} icon={<Zap className="h-5 w-5" />} title="Release" body="Funds move to seller's available balance — withdrawable as Bitcoin, Lightning, or Flutterwave." />
+        </ol>
+      </Card>
+
+      {/* Why it's safe */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Why icon={<ShieldCheck className="h-5 w-5 text-emerald-500" />} title="Custodial vault" body="Private keys live with EscrowDesk's hardened BTCPay + LND treasury. You never sign a transaction." />
+        <Why icon={<Scale className="h-5 w-5 text-blue-500" />} title="Arbitration first" body="Disputes go to a panel — bot triage, then mediator, judge, and appeal. Decisions are signed and on-record." />
+        <Why icon={<Bitcoin className="h-5 w-5 text-orange-500" />} title="Bitcoin native" body="Deposit on-chain or via Lightning. Withdraw the same. Fiat rails (Flutterwave) coming online." />
+      </div>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, suffix }: { icon: React.ReactNode; label: string; value: string; suffix?: string }) {
+function Step({ n, icon, title, body }: { n: number; icon: React.ReactNode; title: string; body: string }) {
   return (
-    <Card className="relative overflow-hidden p-4">
-      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-        {icon} {label}
+    <li className="relative rounded-xl border border-border/60 bg-background/40 p-4">
+      <div className="flex items-center gap-2 text-primary">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15 font-mono text-xs">{n}</span>
+        {icon}
       </div>
-      <p className="mt-2 font-mono text-2xl font-semibold tabular-nums">
-        {value} {suffix && <span className="text-xs font-normal text-muted-foreground">{suffix}</span>}
-      </p>
-    </Card>
+      <h3 className="mt-2 font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+    </li>
   );
 }
 
-function StatusDot({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    new: "bg-muted-foreground",
-    processing: "bg-yellow-500 animate-pulse",
-    settled: "bg-emerald-500",
-    expired: "bg-red-500",
-    invalid: "bg-red-600",
-  };
-  return <span className={`h-2.5 w-2.5 rounded-full ${map[status] ?? "bg-muted"}`} />;
+function Why({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <Card className="p-5">
+      <div>{icon}</div>
+      <h3 className="mt-2 font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+    </Card>
+  );
 }
