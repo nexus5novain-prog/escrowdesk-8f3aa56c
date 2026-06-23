@@ -21,6 +21,7 @@ export type Database = {
           created_by: string
           cta_label: string | null
           ends_at: string | null
+          height: number | null
           html_content: string | null
           id: string
           impressions: number
@@ -30,9 +31,11 @@ export type Database = {
           media_url: string | null
           placements: string[]
           priority: number
+          size_preset: string | null
           starts_at: string | null
           title: string
           updated_at: string
+          width: number | null
         }
         Insert: {
           clicks?: number
@@ -40,6 +43,7 @@ export type Database = {
           created_by: string
           cta_label?: string | null
           ends_at?: string | null
+          height?: number | null
           html_content?: string | null
           id?: string
           impressions?: number
@@ -49,9 +53,11 @@ export type Database = {
           media_url?: string | null
           placements?: string[]
           priority?: number
+          size_preset?: string | null
           starts_at?: string | null
           title: string
           updated_at?: string
+          width?: number | null
         }
         Update: {
           clicks?: number
@@ -59,6 +65,7 @@ export type Database = {
           created_by?: string
           cta_label?: string | null
           ends_at?: string | null
+          height?: number | null
           html_content?: string | null
           id?: string
           impressions?: number
@@ -68,9 +75,11 @@ export type Database = {
           media_url?: string | null
           placements?: string[]
           priority?: number
+          size_preset?: string | null
           starts_at?: string | null
           title?: string
           updated_at?: string
+          width?: number | null
         }
         Relationships: []
       }
@@ -848,6 +857,33 @@ export type Database = {
           },
         ]
       }
+      link_previews: {
+        Row: {
+          description: string | null
+          fetched_at: string
+          image_url: string | null
+          site_name: string | null
+          title: string | null
+          url: string
+        }
+        Insert: {
+          description?: string | null
+          fetched_at?: string
+          image_url?: string | null
+          site_name?: string | null
+          title?: string | null
+          url: string
+        }
+        Update: {
+          description?: string | null
+          fetched_at?: string
+          image_url?: string | null
+          site_name?: string | null
+          title?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           amount: number | null
@@ -986,6 +1022,66 @@ export type Database = {
           status?: string
           stock?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          in_app: boolean
+          kind: Database["public"]["Enums"]["notification_kind"]
+          telegram: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          in_app?: boolean
+          kind: Database["public"]["Enums"]["notification_kind"]
+          telegram?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          in_app?: boolean
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          telegram?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          link: string | null
+          payload: Json
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          link?: string | null
+          payload?: Json
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          link?: string | null
+          payload?: Json
+          read_at?: string | null
+          title?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1697,6 +1793,17 @@ export type Database = {
         Args: { _caller: string; _trade_id: string }
         Returns: undefined
       }
+      notify_user: {
+        Args: {
+          _body?: string
+          _kind: Database["public"]["Enums"]["notification_kind"]
+          _link?: string
+          _payload?: Json
+          _title: string
+          _user: string
+        }
+        Returns: string
+      }
       open_dispute: {
         Args: { _caller: string; _reason: string; _trade_id: string }
         Returns: string
@@ -1778,6 +1885,23 @@ export type Database = {
       escrow_member_role: "buyer" | "seller" | "moderator"
       listing_kind: "selling" | "seeking"
       listing_status: "active" | "inactive" | "sold"
+      notification_kind:
+        | "escrow_invoice_created"
+        | "escrow_payment_detected"
+        | "escrow_settled"
+        | "escrow_expired"
+        | "trade_signed"
+        | "trade_paid"
+        | "trade_released"
+        | "trade_cancelled"
+        | "dispute_opened"
+        | "dispute_resolved"
+        | "arbitration_update"
+        | "wallet_credit"
+        | "wallet_debit"
+        | "admin_warning"
+        | "admin_ban"
+        | "system"
       offer_side: "buy" | "sell"
       offer_status: "active" | "paused" | "closed"
       trade_status:
@@ -1948,6 +2072,24 @@ export const Constants = {
       escrow_member_role: ["buyer", "seller", "moderator"],
       listing_kind: ["selling", "seeking"],
       listing_status: ["active", "inactive", "sold"],
+      notification_kind: [
+        "escrow_invoice_created",
+        "escrow_payment_detected",
+        "escrow_settled",
+        "escrow_expired",
+        "trade_signed",
+        "trade_paid",
+        "trade_released",
+        "trade_cancelled",
+        "dispute_opened",
+        "dispute_resolved",
+        "arbitration_update",
+        "wallet_credit",
+        "wallet_debit",
+        "admin_warning",
+        "admin_ban",
+        "system",
+      ],
       offer_side: ["buy", "sell"],
       offer_status: ["active", "paused", "closed"],
       trade_status: [
