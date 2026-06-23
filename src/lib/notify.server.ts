@@ -58,7 +58,7 @@ export async function notifyUser(args: {
       title: args.title,
       body: args.body ?? null,
       link: args.link ?? null,
-      payload: args.payload ?? {},
+      payload: (args.payload ?? {}) as never,
     });
   }
 
