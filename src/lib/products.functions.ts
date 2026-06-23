@@ -39,26 +39,18 @@ function publicCardNumber(cardNumber?: string | null, bin?: string | null): stri
   return `${realBin}XXXXXXXXXX`;
 }
 
-type AnyProductRow = {
-  card_number?: string | null;
-  bin_number?: string | null;
-  card_user?: string | null;
-  card_address?: string | null;
-  cvv?: string | null;
-};
-
-// Public projection — strip CVV + billing address, mask PAN + holder.
-function publicMaskProduct<T extends AnyProductRow>(row: T): T {
+// Apply masking to a single product row in-place style (returns the same row shape).
+function maskProductRow<T extends { card_number?: string | null; bin_number?: string | null; card_user?: string | null }>(row: T): T {
   const bin = row.bin_number ?? (row.card_number ? String(row.card_number).replace(/\D/g, "").slice(0, 6) : null);
-  return {
-    ...row,
-    card_number: publicCardNumber(row.card_number ?? null, bin),
-    bin_number: bin,
-    card_user: maskHolder(row.card_user ?? null),
-    card_address: null,
-    cvv: null,
-  } as T;
+  const out = { ...row } as T & Record<string, unknown>;
+  out.card_number = publicCardNumber(row.card_number ?? null, bin);
+  out.bin_number = bin;
+  out.card_user = maskHolder(row.card_user ?? null);
+  out.card_address = null;
+  out.cvv = null;
+  return out;
 }
+
 
 
 
