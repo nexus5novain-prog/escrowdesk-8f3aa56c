@@ -13,7 +13,7 @@ import { AdBanner } from "@/components/AdBanner";
 import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
 import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
-import { listApprovedShouts, type ShoutMsg as ShoutMessage } from "@/lib/shoutbox.functions";
+import { listApprovedShouts, reportShout, type ShoutMsg as ShoutMessage } from "@/lib/shoutbox.functions";
 import { ShoutboxComposer } from "@/components/ShoutboxComposer";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -371,7 +371,15 @@ function Shoutbox() {
           messages.map((m) => {
             const tierBadge = m.is_premium ? "Premium" : m.is_trusted ? "Trusted" : null;
             return (
-              <li key={m.id} className="rounded-md border border-border/50 bg-background/40 px-3 py-2 text-xs">
+              <li
+                key={m.id}
+                className={cn(
+                  "rounded-md border px-3 py-2 text-xs",
+                  m.is_pinned
+                    ? "border-amber-500/40 bg-amber-500/10"
+                    : "border-border/50 bg-background/40",
+                )}
+              >
                 <div className="mb-1 flex items-center gap-2">
                   {m.avatar_url ? (
                     <img src={m.avatar_url} alt={m.display_name} className="h-5 w-5 shrink-0 rounded-full border border-border/60 object-cover" loading="lazy" />
@@ -387,7 +395,11 @@ function Shoutbox() {
                       m.is_premium ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400",
                     )}>{tierBadge}</span>
                   )}
+                  {m.is_pinned && (
+                    <span className="rounded-sm bg-amber-500/20 px-1 font-mono text-[9px] uppercase text-amber-300">📌 Pinned</span>
+                  )}
                   <span className="ml-auto text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}</span>
+                  {user && user.id !== m.user_id && <ReportButton id={m.id} />}
                 </div>
                 <p className="break-words text-foreground/90">{m.body}</p>
               </li>
