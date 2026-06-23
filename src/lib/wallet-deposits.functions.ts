@@ -66,9 +66,6 @@ export const createBtcDeposit = createServerFn({ method: "POST" })
     if (!wallet) throw new Error("Wallet missing");
 
     const amountBtc = data.amount_sats ? data.amount_sats / SATS_PER_BTC : 0.0001; // default min
-    const btcpay = await import("@/lib/btcpay.server");
-    const { url, store } = (btcpay as unknown as { default?: never }) as never as { url: string; store: string };
-    // Use the helper but force on-chain only and tag metadata for the webhook
     const inv = await createUserInvoice(amountBtc, ["BTC-CHAIN"], {
       depositType: "btc_onchain",
       userId: context.userId,
