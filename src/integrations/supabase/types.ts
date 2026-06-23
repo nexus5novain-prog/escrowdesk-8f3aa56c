@@ -569,6 +569,48 @@ export type Database = {
           },
         ]
       }
+      escrow_events: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string | null
+          kind: string
+          payload: Json
+          trade_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          kind: string
+          payload?: Json
+          trade_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          kind?: string
+          payload?: Json
+          trade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_events_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escrow_group_members: {
         Row: {
           accepted_at: string | null
@@ -749,6 +791,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      escrow_invoices: {
+        Row: {
+          amount_btc: number
+          bitcoin_address: string | null
+          btcpay_invoice_id: string
+          confirmations: number
+          created_at: string
+          expires_at: string | null
+          id: string
+          lightning_invoice: string | null
+          paid_amount_btc: number
+          settled_at: string | null
+          status: string
+          trade_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_btc: number
+          bitcoin_address?: string | null
+          btcpay_invoice_id: string
+          confirmations?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lightning_invoice?: string | null
+          paid_amount_btc?: number
+          settled_at?: string | null
+          status?: string
+          trade_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_btc?: number
+          bitcoin_address?: string | null
+          btcpay_invoice_id?: string
+          confirmations?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lightning_invoice?: string | null
+          paid_amount_btc?: number
+          settled_at?: string | null
+          status?: string
+          trade_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_invoices_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: true
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       listings: {
         Row: {
@@ -971,6 +1069,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      payouts: {
+        Row: {
+          amount_btc: number
+          approved_by: string | null
+          btcpay_payout_id: string | null
+          created_at: string
+          destination_address: string
+          id: string
+          kind: string
+          note: string | null
+          requested_by: string | null
+          status: string
+          trade_id: string
+          tx_hash: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_btc: number
+          approved_by?: string | null
+          btcpay_payout_id?: string | null
+          created_at?: string
+          destination_address: string
+          id?: string
+          kind: string
+          note?: string | null
+          requested_by?: string | null
+          status?: string
+          trade_id: string
+          tx_hash?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_btc?: number
+          approved_by?: string | null
+          btcpay_payout_id?: string | null
+          created_at?: string
+          destination_address?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          requested_by?: string | null
+          status?: string
+          trade_id?: string
+          tx_hash?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_settings: {
         Row: {

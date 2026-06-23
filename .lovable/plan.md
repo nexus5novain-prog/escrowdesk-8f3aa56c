@@ -1,79 +1,142 @@
-# Reliable ad rendering across every page
+## Scope (you picked)
 
-## Goal
+Build **Phase 1: Bitcoin + Lightning escrow infrastructure** wired to a hosted BTCPay Server (Voltage / BTCPay Jungle / similar). Notifications and the wallet-portfolio redesign are **not** in this plan — we'll do those next once escrow infra is live.
 
-An ad that an admin creates must always be visible on the pages where its placement appears — whether the asset is an image, a video, an HTML embed, or just a click-through link — and it must keep displaying without losing the slot while the page refetches, rotates, or while a media URL is slow to load.
+## What you provide (one-time, via secure secrets prompt)
 
-## What's wrong today
+1. `BTCPAY_URL` — e.g. `https://mainnet.demo.btcpayserver.org`
+2. `BTCPAY_API_KEY` — Greenfield API key with **store-level** permissions:
+   `btcpay.store.canviewinvoices`, `btcpay.store.cancreateinvoice`, `btcpay.store.canmodifyinvoices`, `btcpay.store.canviewstoresettings`
+3. `BTCPAY_STORE_ID` — the store that owns the on-chain wallet + LN node
+4. `BTCPAY_WEBHOOK_SECRET` — generated automatically; you paste it into BTCPay → Store → Webhooks
 
-1. **Link-only ads render as an empty box.** `AdBanner` only outputs a body when `media_url` or `html_content` exists. A banner whose only payload is `link_url` shows nothing.
-2. **No media error fallback.** A broken image URL, a blocked CORS host, or a failing video produces a broken icon, a 0 px tall element, or a blank black box. The click-through link goes with it.
-3. **Ad flickers on every refetch.** The query lacks `placeholderData: keepPreviousData`, so the 120 s background refetch and every realtime `ad_banners` event briefly unmount the current ad.
-4. **Rotation tears down mid-play videos** every 12 s with no transition, causing a visible flash and lost playback.
-5. **Nested anchors in HTML ads.** If an HTML ad already contains an `<a>`, wrapping the body in another `<a href={link_url}>` produces invalid markup; browsers split it and click tracking stops working.
-6. **No admin-side reality check.** The admin form has an image preview only; you can't see what the banner will actually look like in a `banner` / `card` / `sidebar` slot before it ships.
+I never see your seed phrase, LND macaroon, or treasury xpub — those stay inside BTCPay.
 
-## What to build
+---
 
-### 1. `AdBanner` — always render something
+## Architecture
 
-- Track per-asset state: `idle | loading | loaded | error`. Use `onLoad`/`onError` on `<img>`, `loadeddata`/`error` on `<video>`.
-- If `media_type` is image or video and the asset errors **or** stays in `loading` after a 6 s timeout, swap to the **CTA fallback card**: title + short description + a "Visit" arrow, styled per `variant`. This keeps the slot occupied and the link clickable.
-- If the ad has neither media nor html (link-only), render the CTA fallback card as the primary body — never an empty div.
-- Images: add `loading="eager"` for `sidebar`/`banner` variants and `decoding="async"`, and a fixed aspect ratio per variant so the slot doesn't collapse before load.
-- Videos: add `preload="metadata"`, `playsInline`, `muted`, `loop`, and a `poster` derived from `media_url` (or fall back to CTA card on error).
-- Never wrap an HTML ad in an outer `<a>` if its sanitized content already contains an `<a>` — render the click target as an overlay button instead so tracking still fires.
+```text
+ Buyer ──opens trade──▶ EscrowDesk
+                          │
+                          ├─ createServerFn: createEscrowInvoice(trade_id)
+                          │     POST {BTCPAY_URL}/api/v1/stores/{store}/invoices
+                          │     → unique BTC address + BOLT11 invoice
+                          │
+                          ▼
+                  escrow_invoices table
+                  (one row per trade, never reused)
+                          │
+ Buyer pays ──▶ BTCPay/LND detects payment
+                          │
+                          ▼
+ BTCPay webhook ──▶ POST /api/public/hooks/btcpay
+                    HMAC-SHA256 verify (BTCPAY_WEBHOOK_SECRET)
+                          │
+                          ▼
+              update escrow_invoices.status
+              update trades.status (paid → released flow)
+              insert wallet_transactions
+              insert escrow_events (audit log)
+```
 
-### 2. No flicker on refetch or realtime updates
+**No treasury address ever leaves the server.** Frontend only ever receives `{ bitcoin_address, lightning_invoice, amount_btc, expires_at, status }` for the current trade.
 
-- Add `placeholderData: keepPreviousData` and lift `staleTime` to 5 min on the `listAdsForPlacement` query.
-- When the realtime channel fires, invalidate but keep showing the current ad until the next payload resolves.
-- Debounce realtime invalidations to 1 s so a burst of admin edits doesn't thrash every slot on the page.
+---
 
-### 3. Smooth rotation
+## Database (one migration)
 
-- Only advance the rotation index when the **next** ad's media has preloaded (preload it in a hidden `<img>`/`<link rel="preload">` ahead of the swap).
-- Pause rotation while a video ad is actively playing; resume on `ended`.
-- Crossfade between ads with a 250 ms opacity transition so the swap is never a blink.
-- Pause rotation when the slot is off-screen (reuse the existing `IntersectionObserver`).
+```text
+escrow_invoices
+  id, trade_id (FK, unique), btcpay_invoice_id (unique),
+  bitcoin_address, lightning_invoice, amount_btc,
+  status (new|processing|settled|expired|invalid),
+  confirmations (int), paid_amount_btc,
+  expires_at, settled_at, created_at, updated_at
 
-### 4. Real "Link / CTA" media type
+escrow_events  (audit log — append-only)
+  id, trade_id, invoice_id, kind (created|detected|confirmed|settled|released|refunded|expired|webhook_received),
+  payload (jsonb), created_at
 
-- Add `"link"` to `AdMediaType`, the Zod enum, and the admin form's media-type select.
-- Admin form fields when `media_type === "link"`: required `link_url`, optional `cta_label` (default "Learn more"), optional short `description` (already covered by `title`).
-- Server validation: for `"link"`, require `link_url`; ignore `media_url`/`html_content`.
-- `AdBanner` renders link-type ads with the CTA fallback card (same component used for media-failure fallback) so behavior is consistent.
+payouts        (release + refund queue)
+  id, trade_id, kind (release|refund), destination_address,
+  amount_btc, status (pending|approved|broadcast|confirmed|failed),
+  btcpay_payout_id, requested_by, approved_by, tx_hash, created_at, updated_at
+```
 
-### 5. Admin: live preview + health check
+All three: RLS on, GRANTs for `authenticated` (own rows via trade parties) + `service_role`, append-only policies on `escrow_events`. Admin-only read on `payouts`.
 
-- In `AdsPanel`, render an inline `<AdBanner>` mock for the form's current values across all three variants (`banner`, `card`, `sidebar`) so the admin sees exactly what every page will show.
-- In the "All banners" list, badge each ad with media health:
-  - `OK` once an impression has been recorded in the last 24 h,
-  - `Check URL` if the most recent client load reported an error (write the error to `ad_events` with `kind: "error"`),
-  - `Pending` otherwise.
-- This makes broken links obvious from `/admin` without opening every page.
+---
 
-### 6. Click + impression tracking stays correct
+## Server functions (new file `src/lib/btcpay.functions.ts` + `btcpay.server.ts`)
 
-- Impression: fire once per ad per mount once it actually paints (current `IntersectionObserver` is fine, gate on `state === "loaded"` or fallback rendered).
-- Click: fire from the wrapper button or anchor regardless of which body variant rendered (media, html, or CTA fallback).
-- New `kind: "error"` event written client-side when media fails to load, used by the admin health badge.
+- `createEscrowInvoice({ tradeId })` — auth'd participant; creates BTCPay invoice with `metadata.tradeId`, persists row, returns payment destinations. Idempotent (returns existing row if status is `new|processing`).
+- `getEscrowInvoice({ tradeId })` — polls DB row (no BTCPay call); used by trade page.
+- `refreshEscrowInvoice({ tradeId })` — manual GET against BTCPay for reconciliation.
+- `requestPayout({ tradeId, kind, destination })` — admin/staff; creates `payouts` row, calls BTCPay Pull Payments API.
+- `approvePayout({ payoutId })` — admin only (`has_role admin`); broadcasts.
 
-## Technical notes
+All privileged calls use `requireSupabaseAuth` + `has_role` check. `btcpay.server.ts` holds the fetch wrapper, signs requests, never imported from client.
 
-- Files touched:
-  - `src/components/AdBanner.tsx` — state machine, fallback card, preload, crossfade, anchor-safety for HTML ads, `keepPreviousData`, error event tracking.
-  - `src/lib/ads.functions.ts` — add `"link"` to `AdMediaType` + `PlacementSchema`-adjacent enum, add optional `cta_label` column handling, accept `kind: "error"` in `trackAdEvent`, add a `recentAdHealth` server fn for the admin badge.
-  - `src/routes/admin.tsx` (`AdsPanel`) — add `"link"` media type, `cta_label` input, live `<AdBanner>` preview block, health badges in the banners list.
-  - DB migration:
-    - `ALTER TABLE public.ad_banners ADD COLUMN cta_label TEXT;`
-    - Extend the `ad_events.kind` check constraint to allow `"error"` (or drop and recreate it).
-    - Regenerate types after the migration runs.
-- Behavior contract: `AdBanner` returns `null` only if the placement truly has zero active ads. As long as the placement has at least one active ad, the slot always renders **something** clickable.
-- No change to placement ids, layout breakpoints, or the order-book "show sidebar only when an ad exists" logic — that conditional still works because we keep returning `null` when there are no ads at all.
+---
 
-## Out of scope
+## Webhook endpoint
 
-- No changes to other pages' layouts.
-- No new placements.
-- No analytics dashboard changes beyond surfacing the new `error` event in the health badge.
+`src/routes/api/public/hooks/btcpay.ts` (POST, no auth header — verified by HMAC):
+
+1. Read raw body, compute `HMAC-SHA256(body, BTCPAY_WEBHOOK_SECRET)`, timing-safe compare with `BTCPay-Sig` header.
+2. Parse event type: `InvoiceCreated`, `InvoiceReceivedPayment`, `InvoiceProcessing` (1 conf), `InvoiceSettled` (fully paid), `InvoiceExpired`, `InvoiceInvalid`, `PayoutApproved`, `PayoutCompleted`.
+3. Look up `escrow_invoices` by `btcpay_invoice_id`, update status + confirmations.
+4. On `InvoiceSettled`: advance `trades.status` to `paid` (or `funded` for our awaiting_deposit flow), insert `escrow_events`, credit the existing `wallets.escrow` ledger.
+5. Reply `200 { ok: true }` quickly; all work in a single transaction.
+
+---
+
+## Trade page UI changes (`src/routes/trade.$id.tsx`)
+
+When `status = awaiting_deposit` and buyer is viewing:
+
+- Tab switcher: **On-chain BTC** | **Lightning ⚡**
+- On-chain panel: QR code of `bitcoin:<addr>?amount=<btc>`, copy button, "0/3 confirmations" live progress, expires-in timer.
+- Lightning panel: QR of BOLT11, copy button, "Awaiting payment" → "Settled ✓".
+- Polls `getEscrowInvoice` every 5s + subscribes to `escrow_invoices` realtime channel for instant updates.
+- Auto-advances the trade view when webhook flips status.
+
+Add `qrcode.react` (small dep, ~6KB).
+
+---
+
+## Confirmation rules (matches your spec)
+
+- `InvoiceReceivedPayment` (0 conf) → trade row gets `payment_detected_at`, UI shows "Payment Detected"
+- `InvoiceProcessing` (1 conf) → "Payment Detected, 1/3 confirmations"
+- 3 confirmations (BTCPay default speed=medium) → `InvoiceSettled` → "Escrow Funded" → `trades.status = paid`
+- Lightning: `InvoiceSettled` fires immediately on HTLC settle → instant funded
+
+---
+
+## Out of scope (deferred)
+
+- Notifications (bell + Telegram push) — separate plan after this lands
+- Wallet portfolio redesign with live BTC balance — separate plan
+- USDT/USDC, multisig treasury, automated cold storage (your Phase 2-5)
+
+---
+
+## Files touched
+
+**New:**
+`supabase/migrations/<ts>_btcpay_escrow.sql`,
+`src/lib/btcpay.server.ts`,
+`src/lib/btcpay.functions.ts`,
+`src/routes/api/public/hooks/btcpay.ts`,
+`src/components/EscrowPaymentPanel.tsx`
+
+**Edited:**
+`src/routes/trade.$id.tsx` (mount payment panel),
+`src/lib/escrow.functions.ts` (trigger invoice creation when trade reaches `awaiting_deposit`),
+`src/integrations/supabase/types.ts` (regen after migration)
+
+**Secrets requested:** `BTCPAY_URL`, `BTCPAY_API_KEY`, `BTCPAY_STORE_ID`, `BTCPAY_WEBHOOK_SECRET` (auto-generated, you paste into BTCPay UI).
+
+Once you approve, I'll run the migration first, then build server + webhook + UI, then give you the exact webhook URL + secret to paste into your BTCPay store.
