@@ -65,7 +65,8 @@ export function SiteHeader() {
         </nav>
 
         {/* Desktop Auth Button */}
-        <div className="hidden gap-2 sm:flex sm:flex-shrink-0">
+        <div className="hidden gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+          {user && <NotificationBell />}
           {user ? (
             <Button size="sm" variant="ghost" onClick={() => signOut()}>Sign out</Button>
           ) : (
