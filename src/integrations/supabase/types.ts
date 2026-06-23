@@ -819,6 +819,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_featured: boolean
+          is_seeded: boolean
           name: string
           price: number
           seller_wallet_address: string | null
@@ -847,6 +848,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean
+          is_seeded?: boolean
           name: string
           price: number
           seller_wallet_address?: string | null
@@ -875,6 +877,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean
+          is_seeded?: boolean
           name?: string
           price?: number
           seller_wallet_address?: string | null
