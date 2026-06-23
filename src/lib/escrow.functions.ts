@@ -193,6 +193,11 @@ export const cancelTrade = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin.rpc("cancel_trade", { _trade_id: data.trade_id, _caller: context.userId });
     if (error) throw new Error(error.message);
+    const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).single();
+    if (t) {
+      const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
+      await notifyUser(other, `❌ Trade <code>${data.trade_id.slice(0,8)}</code> was cancelled.`, { kind: "trade_cancelled", link: `/trade/${data.trade_id}` });
+    }
     return { ok: true };
   });
 
@@ -202,6 +207,11 @@ export const openDispute = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin.rpc("open_dispute", { _trade_id: data.trade_id, _caller: context.userId, _reason: data.reason });
     if (error) throw new Error(error.message);
+    const { data: t } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", data.trade_id).single();
+    if (t) {
+      const other = t.buyer_id === context.userId ? t.seller_id : t.buyer_id;
+      await notifyUser(other, `⚖️ Dispute opened on trade <code>${data.trade_id.slice(0,8)}</code>: ${data.reason}`, { kind: "dispute_opened", link: `/trade/${data.trade_id}` });
+    }
     return { ok: true };
   });
 
