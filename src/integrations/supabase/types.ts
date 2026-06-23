@@ -19,6 +19,7 @@ export type Database = {
           clicks: number
           created_at: string
           created_by: string
+          cta_label: string | null
           ends_at: string | null
           html_content: string | null
           id: string
@@ -37,6 +38,7 @@ export type Database = {
           clicks?: number
           created_at?: string
           created_by: string
+          cta_label?: string | null
           ends_at?: string | null
           html_content?: string | null
           id?: string
@@ -55,6 +57,7 @@ export type Database = {
           clicks?: number
           created_at?: string
           created_by?: string
+          cta_label?: string | null
           ends_at?: string | null
           html_content?: string | null
           id?: string

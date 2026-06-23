@@ -11,7 +11,7 @@ import {
   adminListUsers, adminBanUser, adminUnbanUser, adminWarnUser,
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
 } from "@/lib/escrow.functions";
-import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, type AdPlacement } from "@/lib/ads.functions";
+import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({ component: () => (<AuthGate><Admin /></AuthGate>) });
@@ -461,10 +461,11 @@ function WarningsPanel() {
 type AdRow = {
   id: string;
   title: string;
-  media_type: "image" | "video" | "html";
+  media_type: "image" | "video" | "html" | "link";
   media_url: string | null;
   html_content: string | null;
   link_url: string | null;
+  cta_label: string | null;
   placements: AdPlacement[];
   is_active: boolean;
   priority: number;
@@ -500,19 +501,26 @@ function AdsPanel() {
   const create = useServerFn(adminCreateAd);
   const update = useServerFn(adminUpdateAd);
   const del = useServerFn(adminDeleteAd);
+  const healthFn = useServerFn(adminAdHealth);
   const { data, refetch } = useQuery({ queryKey: ["admin-ads"], queryFn: () => list() });
   const ads = ((data as { ads: AdRow[] } | undefined)?.ads ?? []);
+  const { data: healthData, refetch: refetchHealth } = useQuery({
+    queryKey: ["admin-ad-health"],
+    queryFn: () => healthFn(),
+    refetchInterval: 60_000,
+  });
+  const health = ((healthData as { health: Record<string, { impressions: number; clicks: number; errors: number }> } | undefined)?.health ?? {});
 
   useEffect(() => {
     const ch = supabase.channel("admin-ads-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => refetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ad_banners" }, () => { refetch(); refetchHealth(); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [refetch]);
+  }, [refetch, refetchHealth]);
 
   const [form, setForm] = useState({
-    title: "", media_type: "image" as "image"|"video"|"html",
-    media_url: "", html_content: "", link_url: "", priority: 0,
+    title: "", media_type: "image" as "image"|"video"|"html"|"link",
+    media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0,
     placements: ["top"] as AdPlacement[], is_active: true,
     starts_at: "", ends_at: "",
   });
@@ -524,6 +532,7 @@ function AdsPanel() {
   const submit = async () => {
     if (!form.title.trim()) return toast.error("Title required");
     if (form.placements.length === 0) return toast.error("Pick at least one placement");
+    if (form.media_type === "link" && !form.link_url.trim()) return toast.error("Click-through URL required for link/CTA ads");
     setBusy(true);
     try {
       await create({ data: {
@@ -532,6 +541,7 @@ function AdsPanel() {
         media_url: form.media_url || undefined,
         html_content: form.html_content || undefined,
         link_url: form.link_url || undefined,
+        cta_label: form.cta_label || undefined,
         placements: form.placements,
         priority: form.priority,
         is_active: form.is_active,
@@ -539,7 +549,7 @@ function AdsPanel() {
         ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       } });
       toast.success("Ad created");
-      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
+      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", cta_label: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
@@ -556,16 +566,17 @@ function AdsPanel() {
           </div>
           <div>
             <Label className="text-xs uppercase text-muted-foreground">Media type</Label>
-            <Select value={form.media_type} onValueChange={(v) => setForm({ ...form, media_type: v as "image"|"video"|"html" })}>
+            <Select value={form.media_type} onValueChange={(v) => setForm({ ...form, media_type: v as "image"|"video"|"html"|"link" })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="image">Image (URL)</SelectItem>
                 <SelectItem value="video">Video (URL)</SelectItem>
                 <SelectItem value="html">HTML embed</SelectItem>
+                <SelectItem value="link">Link / CTA only</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {form.media_type !== "html" && (
+          {(form.media_type === "image" || form.media_type === "video") && (
             <div className="md:col-span-2 space-y-2">
               <Label className="text-xs uppercase text-muted-foreground">{form.media_type === "image" ? "Image" : "Video"} URL or upload</Label>
               <Input value={form.media_url} onChange={(e) => setForm({ ...form, media_url: e.target.value })} placeholder="https://… or upload below" />
@@ -585,8 +596,14 @@ function AdsPanel() {
             </div>
           )}
           <div className="md:col-span-2">
-            <Label className="text-xs uppercase text-muted-foreground">Click-through URL (optional)</Label>
+            <Label className="text-xs uppercase text-muted-foreground">
+              Click-through URL {form.media_type === "link" ? "(required)" : "(optional)"}
+            </Label>
             <Input value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })} placeholder="https://…" />
+          </div>
+          <div className="md:col-span-2">
+            <Label className="text-xs uppercase text-muted-foreground">CTA button label (optional, defaults to "Visit")</Label>
+            <Input value={form.cta_label} onChange={(e) => setForm({ ...form, cta_label: e.target.value })} placeholder="Shop now" maxLength={60} />
           </div>
           <div className="md:col-span-2">
             <Label className="text-xs uppercase text-muted-foreground">Placements</Label>
@@ -643,9 +660,23 @@ function AdsPanel() {
           </div>
         </div>
         <Button onClick={submit} disabled={busy} className="mt-4">{busy ? "Creating…" : "Create banner"}</Button>
+
+        <div className="mt-6 border-t border-border/60 pt-4">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Live preview · how this ad will render on public pages</p>
+          <div className="mt-3 grid gap-4 md:grid-cols-3">
+            {(["banner", "card", "sidebar"] as const).map((v) => (
+              <div key={v}>
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{v}</p>
+                <AdDraftPreview form={form} variant={v} />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <AdAnalyticsPanel />
+
+
 
 
       <div className="surface p-5">
@@ -660,6 +691,7 @@ function AdsPanel() {
                     <Badge variant={a.is_active ? "default" : "secondary"}>{a.is_active ? "Active" : "Paused"}</Badge>
                     <Badge variant="outline" className="uppercase">{a.media_type}</Badge>
                     <span className="text-[11px] font-mono text-muted-foreground">P{a.priority}</span>
+                    <AdHealthBadge h={health[a.id]} />
                   </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {a.placements.map((p) => <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>)}
@@ -687,6 +719,91 @@ function AdsPanel() {
     </div>
   );
 }
+
+// ============================== AD PREVIEW + HEALTH ==============================
+
+type AdDraft = {
+  title: string;
+  media_type: "image" | "video" | "html" | "link";
+  media_url: string;
+  html_content: string;
+  link_url: string;
+  cta_label: string;
+};
+
+function AdDraftPreview({ form, variant }: { form: AdDraft; variant: "banner" | "card" | "sidebar" }) {
+  const aspect = variant === "banner" ? "aspect-[6/1]" : variant === "card" ? "aspect-[16/9]" : "aspect-[4/5]";
+  const sizeBase = variant === "banner" ? "rounded-md" : "rounded-lg";
+  const ctaLabel = form.cta_label?.trim() || (form.link_url ? "Visit" : "Learn more");
+  const hasMedia = form.media_type === "image" && form.media_url
+    || form.media_type === "video" && form.media_url
+    || form.media_type === "html" && form.html_content;
+  const fallback = (
+    <div className={`flex h-full w-full items-center justify-between gap-3 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent px-4 py-3 ${variant === "sidebar" ? "flex-col items-start text-left" : ""}`}>
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Sponsored</p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-foreground sm:text-base">{form.title || "Untitled banner"}</p>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+        {ctaLabel} <ArrowUpRight className="h-3.5 w-3.5" />
+      </span>
+    </div>
+  );
+  return (
+    <div className={`relative overflow-hidden border border-border/60 bg-secondary/20 ${sizeBase}`}>
+      {!hasMedia || form.media_type === "link" ? (
+        <div className={form.media_type === "link" ? "" : aspect}>{fallback}</div>
+      ) : null}
+      {form.media_type === "image" && form.media_url && (
+        <img src={form.media_url} alt={form.title} className="block w-full object-cover" />
+      )}
+      {form.media_type === "video" && form.media_url && (
+        <video src={form.media_url} className="block w-full" autoPlay muted loop playsInline preload="metadata" />
+      )}
+      {form.media_type === "html" && form.html_content && (
+        <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: form.html_content }} />
+      )}
+    </div>
+  );
+}
+
+function AdHealthBadge({ h }: { h?: { impressions: number; clicks: number; errors: number } }) {
+  if (!h) {
+    return (
+      <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+        <CircleDashed className="h-3 w-3" /> Pending
+      </Badge>
+    );
+  }
+  if (h.errors > 0 && h.errors >= h.impressions) {
+    return (
+      <Badge variant="destructive" className="gap-1 text-[10px]">
+        <AlertTriangle className="h-3 w-3" /> Check URL · {h.errors} load errors
+      </Badge>
+    );
+  }
+  if (h.errors > 0) {
+    return (
+      <Badge variant="secondary" className="gap-1 text-[10px]">
+        <AlertTriangle className="h-3 w-3 text-amber-400" /> Partial · {h.errors} errors
+      </Badge>
+    );
+  }
+  if (h.impressions > 0) {
+    return (
+      <Badge variant="outline" className="gap-1 border-emerald-500/40 text-[10px] text-emerald-400">
+        <CheckCircle2 className="h-3 w-3" /> OK
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+      <CircleDashed className="h-3 w-3" /> Pending
+    </Badge>
+  );
+}
+
+
 
 function AdAnalyticsPanel() {
   const fn = useServerFn(adminAdAnalytics);
