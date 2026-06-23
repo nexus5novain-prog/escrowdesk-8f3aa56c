@@ -509,6 +509,7 @@ function AdsPanel() {
     title: "", media_type: "image" as "image"|"video"|"html",
     media_url: "", html_content: "", link_url: "", priority: 0,
     placements: ["top"] as AdPlacement[], is_active: true,
+    starts_at: "", ends_at: "",
   });
   const [busy, setBusy] = useState(false);
 
@@ -529,9 +530,11 @@ function AdsPanel() {
         placements: form.placements,
         priority: form.priority,
         is_active: form.is_active,
+        starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+        ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
       } });
       toast.success("Ad created");
-      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true });
+      setForm({ title: "", media_type: "image", media_url: "", html_content: "", link_url: "", priority: 0, placements: ["top"], is_active: true, starts_at: "", ends_at: "" });
       refetch();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
