@@ -37,7 +37,7 @@ function OrderBookPage() {
   const nav = useNavigate();
   const fetchMarket = useServerFn(listMarketplace);
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<CatTab>("All");
+  const [cat, setCat] = useState<CatTab>("Top Authors");
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["order-book", q],
     queryFn: () => fetchMarket({ data: { q: q || undefined } }),
