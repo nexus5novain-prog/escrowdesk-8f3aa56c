@@ -106,6 +106,338 @@ export type Database = {
           },
         ]
       }
+      arbitration_appeals: {
+        Row: {
+          appellant_id: string
+          case_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          reason: string
+          status: string
+        }
+        Insert: {
+          appellant_id: string
+          case_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason: string
+          status?: string
+        }
+        Update: {
+          appellant_id?: string
+          case_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_appeals_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          case_id: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          case_id?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_audit_log_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_cases: {
+        Row: {
+          category: string
+          closed_at: string | null
+          created_at: string
+          escrow_group_id: string | null
+          id: string
+          mediator_id: string | null
+          opened_at: string
+          opener_id: string
+          outcome: string | null
+          outcome_note: string | null
+          respondent_id: string | null
+          ruled_at: string | null
+          status: string
+          summary: string
+          trade_id: string | null
+          updated_at: string
+          value_usd: number
+        }
+        Insert: {
+          category: string
+          closed_at?: string | null
+          created_at?: string
+          escrow_group_id?: string | null
+          id?: string
+          mediator_id?: string | null
+          opened_at?: string
+          opener_id: string
+          outcome?: string | null
+          outcome_note?: string | null
+          respondent_id?: string | null
+          ruled_at?: string | null
+          status?: string
+          summary: string
+          trade_id?: string | null
+          updated_at?: string
+          value_usd?: number
+        }
+        Update: {
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          escrow_group_id?: string | null
+          id?: string
+          mediator_id?: string | null
+          opened_at?: string
+          opener_id?: string
+          outcome?: string | null
+          outcome_note?: string | null
+          respondent_id?: string | null
+          ruled_at?: string | null
+          status?: string
+          summary?: string
+          trade_id?: string | null
+          updated_at?: string
+          value_usd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_cases_escrow_group_id_fkey"
+            columns: ["escrow_group_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arbitration_cases_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_evidence: {
+        Row: {
+          case_id: string
+          created_at: string
+          file_path: string
+          id: string
+          mime: string | null
+          note: string | null
+          sha256: string
+          size_bytes: number | null
+          uploader_id: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          file_path: string
+          id?: string
+          mime?: string | null
+          note?: string | null
+          sha256: string
+          size_bytes?: number | null
+          uploader_id: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          file_path?: string
+          id?: string
+          mime?: string | null
+          note?: string | null
+          sha256?: string
+          size_bytes?: number | null
+          uploader_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_evidence_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_messages: {
+        Row: {
+          body: string
+          case_id: string
+          created_at: string
+          id: string
+          sender_id: string
+          staff_only: boolean
+        }
+        Insert: {
+          body: string
+          case_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          staff_only?: boolean
+        }
+        Update: {
+          body?: string
+          case_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          staff_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_notes: {
+        Row: {
+          author_id: string
+          body: string
+          case_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          case_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          case_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_notes_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_signoffs: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          signer_id: string
+          signer_role: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          signer_id: string
+          signer_role: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          signer_id?: string
+          signer_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_signoffs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbitration_timeline: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          case_id: string
+          created_at: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          case_id: string
+          created_at?: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          case_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbitration_timeline_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "arbitration_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bin_metadata: {
         Row: {
           bin_number: string
@@ -1189,6 +1521,11 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_arbiter: { Args: { _user_id: string }; Returns: boolean }
+      is_case_party: {
+        Args: { _case_id: string; _user_id: string }
         Returns: boolean
       }
       is_group_member: {
