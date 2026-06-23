@@ -13,7 +13,7 @@ import { AdBanner } from "@/components/AdBanner";
 import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
 import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
 import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
-import { listApprovedShouts, type ShoutMsg } from "@/lib/shoutbox.functions";
+import { listApprovedShouts, type ShoutMsg as ShoutMessage } from "@/lib/shoutbox.functions";
 import { ShoutboxComposer } from "@/components/ShoutboxComposer";
 import { useServerFn } from "@tanstack/react-start";
 import {
