@@ -8,6 +8,7 @@ import { getMyRoles } from "@/lib/escrow.functions";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileNav } from "@/components/MobileNav";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function SiteHeader() {
   const { user, signOut } = useAuth();
