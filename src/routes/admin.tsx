@@ -461,10 +461,11 @@ function WarningsPanel() {
 type AdRow = {
   id: string;
   title: string;
-  media_type: "image" | "video" | "html";
+  media_type: "image" | "video" | "html" | "link";
   media_url: string | null;
   html_content: string | null;
   link_url: string | null;
+  cta_label: string | null;
   placements: AdPlacement[];
   is_active: boolean;
   priority: number;
