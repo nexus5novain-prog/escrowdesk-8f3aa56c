@@ -42,6 +42,142 @@ export function computeThreadRank(p: ListingRow["profile"], createdAt: string): 
   return tierBoost + ratingScore + tradesScore + freshness;
 }
 
+export type TopAuthor = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  telegram_username: string | null;
+  is_premium: boolean;
+  is_trusted: boolean;
+  trades_completed: number;
+  rating_sum: number;
+  rating_count: number;
+  btc_volume_usd: number;
+  active_threads: number;
+  selling_count: number;
+  seeking_count: number;
+  latest_at: string;
+  rank: number;
+};
+
+export const listTopAuthors = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { data: rows, error } = await supabaseAdmin
+      .from("listings")
+      .select("user_id,kind,created_at")
+      .eq("status", "active")
+      .limit(2000);
+    if (error) throw new Error(error.message);
+    const byUser = new Map<string, { selling: number; seeking: number; latest: string }>();
+    for (const r of rows ?? []) {
+      const cur = byUser.get(r.user_id) ?? { selling: 0, seeking: 0, latest: r.created_at };
+      if (r.kind === "selling") cur.selling++; else cur.seeking++;
+      if (r.created_at > cur.latest) cur.latest = r.created_at;
+      byUser.set(r.user_id, cur);
+    }
+    const ids = Array.from(byUser.keys());
+    if (!ids.length) return { authors: [] as TopAuthor[] };
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count,btc_volume_usd")
+      .in("user_id", ids);
+    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
+    const authors: TopAuthor[] = ids.map((uid) => {
+      const counts = byUser.get(uid)!;
+      const p = pm.get(uid);
+      const profile = p
+        ? {
+            display_name: p.display_name ?? "Anon",
+            avatar_url: p.avatar_url,
+            telegram_username: p.telegram_username,
+            is_premium: !!p.is_premium,
+            is_trusted: !!p.is_trusted,
+            trades_completed: p.trades_completed ?? 0,
+            rating_sum: p.rating_sum ?? 0,
+            rating_count: p.rating_count ?? 0,
+          }
+        : null;
+      return {
+        user_id: uid,
+        display_name: p?.display_name ?? "Anon",
+        avatar_url: p?.avatar_url ?? null,
+        telegram_username: p?.telegram_username ?? null,
+        is_premium: !!p?.is_premium,
+        is_trusted: !!p?.is_trusted,
+        trades_completed: p?.trades_completed ?? 0,
+        rating_sum: p?.rating_sum ?? 0,
+        rating_count: p?.rating_count ?? 0,
+        btc_volume_usd: Number(p?.btc_volume_usd ?? 0),
+        active_threads: counts.selling + counts.seeking,
+        selling_count: counts.selling,
+        seeking_count: counts.seeking,
+        latest_at: counts.latest,
+        rank: computeThreadRank(profile, counts.latest) + counts.selling + counts.seeking,
+      };
+    });
+    authors.sort((a, b) => b.rank - a.rank);
+    return { authors: authors.slice(0, 100) };
+  });
+
+export type CategoryThread = {
+  id: string;
+  user_id: string;
+  kind: "selling" | "seeking";
+  name: string;
+  category: string;
+  amount: number | null;
+  currency: string | null;
+  status: "active" | "inactive" | "sold";
+  created_at: string;
+  author: string;
+  is_premium: boolean;
+  is_trusted: boolean;
+};
+
+export const listCategoryThreads = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ section: z.string().min(1).max(60) }))
+  .handler(async ({ data }) => {
+    const { data: rows, error } = await supabaseAdmin
+      .from("listings")
+      .select("id,user_id,kind,name,category,amount,currency,status,created_at")
+      .eq("status", "active")
+      .ilike("category", `${data.section}%`)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    const ids = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
+    const { data: profs } = ids.length
+      ? await supabaseAdmin.from("profiles")
+          .select("user_id,display_name,is_premium,is_trusted")
+          .in("user_id", ids)
+      : { data: [] as Array<{ user_id: string; display_name: string; is_premium: boolean; is_trusted: boolean }> };
+    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
+    const threads: CategoryThread[] = (rows ?? []).map((r) => {
+      const p = pm.get(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        kind: r.kind as "selling" | "seeking",
+        name: r.name,
+        category: r.category,
+        amount: r.amount as number | null,
+        currency: r.currency as string | null,
+        status: r.status as "active" | "inactive" | "sold",
+        created_at: r.created_at,
+        author: p?.display_name ?? "Anon",
+        is_premium: !!p?.is_premium,
+        is_trusted: !!p?.is_trusted,
+      };
+    });
+    // Sort by author tier first (premium > trusted > regular), then recency
+    threads.sort((a, b) => {
+      const tier = (t: CategoryThread) => (t.is_premium ? 2 : t.is_trusted ? 1 : 0);
+      const d = tier(b) - tier(a);
+      return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
+    });
+    return { threads };
+  });
+
 export const listMarketplace = createServerFn({ method: "GET" })
   .inputValidator(
     z.object({ q: z.string().max(120).optional(), category: z.string().max(60).optional() })
