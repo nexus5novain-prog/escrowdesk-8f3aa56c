@@ -90,7 +90,7 @@ function OrderBookPage() {
       <div className="hidden md:block"><MediatorBot /></div>
 
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className={`grid gap-6 ${hasSidebarAd ? "lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]" : "grid-cols-1"}`}>
         <div className="space-y-6 md:space-y-8">
           {/* Search + category tabs */}
           <section className="surface p-4 space-y-3">
