@@ -17,6 +17,9 @@ type Ad = {
   cta_label: string | null;
   placements: string[];
   priority: number;
+  size_preset?: string | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 interface Props {
