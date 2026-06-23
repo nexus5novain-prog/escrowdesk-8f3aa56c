@@ -89,7 +89,11 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
   // image so the rotation crossfade swaps to something ready.
   useEffect(() => {
     if (!ad) return;
-    setMediaState(ad.media_type === "image" || ad.media_type === "video" ? "loading" : "loaded");
+    const linkMediaKind = (linkPreview as { media_kind?: string | null } | undefined)?.media_kind;
+    const linkHasMedia = ad.media_type === "link" && (linkMediaKind === "image" || linkMediaKind === "video");
+    setMediaState(
+      ad.media_type === "image" || ad.media_type === "video" || linkHasMedia ? "loading" : "loaded"
+    );
     if (ads.length > 1) {
       const next = ads[(idx + 1) % ads.length];
       if (next?.media_type === "image" && next.media_url) {
@@ -97,7 +101,8 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
         img.src = next.media_url;
       }
     }
-  }, [ad, ads, idx]);
+  }, [ad, ads, idx, linkPreview]);
+
 
   // 6s media timeout → fall back to CTA card if the asset is still loading.
   useEffect(() => {
