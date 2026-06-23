@@ -11,7 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AdBanner } from "@/components/AdBanner";
 import { MARKETPLACE_CATEGORIES } from "@/lib/marketplace-categories";
+import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
+import { listMarketplace, type ListingRow } from "@/lib/marketplace.functions";
 import { listProducts } from "@/lib/products.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ShieldCheck, Search, ArrowRight, Wallet, MessageSquare, Send, Lightbulb,
   Layers, CreditCard, Boxes, ScanLine, Megaphone, Lock, Activity, Trophy, Star, Coins, Users,
