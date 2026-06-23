@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Crown, ShieldCheck, Send, Globe, Plus, Search, Sparkles, ArrowLeftRight, Handshake, Loader2 } from "lucide-react";
 import { PortfolioHero } from "@/components/PortfolioHero";
 import { THREAD_SECTIONS, sectionOf } from "@/lib/thread-categories";
+import { TopAuthors } from "@/components/TopAuthors";
+import { CategoryFeed } from "@/components/CategoryFeed";
 
 export const Route = createFileRoute("/order-book")({
   head: () => ({
