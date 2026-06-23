@@ -12,6 +12,7 @@ import {
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
 } from "@/lib/escrow.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, type AdPlacement } from "@/lib/ads.functions";
+import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
@@ -61,6 +62,7 @@ function Admin() {
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="threads">Threads</TabsTrigger>
           <TabsTrigger value="ads">Ads</TabsTrigger>
+          <TabsTrigger value="shoutbox">Shoutbox</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -72,6 +74,7 @@ function Admin() {
         <TabsContent value="products" className="mt-4"><ProductsPanel /></TabsContent>
         <TabsContent value="threads" className="mt-4"><ThreadsPanel /></TabsContent>
         <TabsContent value="ads" className="mt-4"><AdsPanel /></TabsContent>
+        <TabsContent value="shoutbox" className="mt-4"><ShoutboxPanel /></TabsContent>
         <TabsContent value="telegram" className="mt-4"><TelegramPanel /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel /></TabsContent>
       </Tabs>
@@ -467,14 +470,24 @@ type AdRow = {
   created_at: string;
 };
 
-const ALL_PLACEMENTS: { value: AdPlacement; label: string; group: "Site-wide" | "Page-specific" }[] = [
+const ALL_PLACEMENTS: { value: AdPlacement; label: string; group: "Site-wide" | "Landing extras" | "Page-specific" }[] = [
   { value: "top",                label: "Top — above every page",          group: "Site-wide" },
-  { value: "center",             label: "Center — mid-content slot",        group: "Site-wide" },
-  { value: "bottom",             label: "Bottom — above the footer",        group: "Site-wide" },
-  { value: "footer",             label: "Footer — inside the footer",       group: "Site-wide" },
-  { value: "marketplace_grid",   label: "Marketplace grid banner",          group: "Page-specific" },
-  { value: "order_book_sidebar", label: "Order Book sidebar",               group: "Page-specific" },
-  { value: "trades_escrow",      label: "Trades dashboard",                 group: "Page-specific" },
+  { value: "center",             label: "Center — mid-content slot",       group: "Site-wide" },
+  { value: "bottom",             label: "Bottom — above the footer",       group: "Site-wide" },
+  { value: "footer",             label: "Footer — inside the footer",      group: "Site-wide" },
+  { value: "footer_banner",      label: "Footer banner (above SiteFooter)",group: "Site-wide" },
+  { value: "under_hero",         label: "Under hero banner",               group: "Landing extras" },
+  { value: "between_threads",    label: "Between Latest Threads & Shoutbox", group: "Landing extras" },
+  { value: "between_sections",   label: "Between Shoutbox & Tips",         group: "Landing extras" },
+  { value: "inline_card",        label: "Inline card (bottom main column)",group: "Landing extras" },
+  { value: "sidebar_top",        label: "Sidebar — top",                   group: "Landing extras" },
+  { value: "sidebar_mid",        label: "Sidebar — middle",                group: "Landing extras" },
+  { value: "sidebar_resources",  label: "Sidebar — replaces New Resources",group: "Landing extras" },
+  { value: "sidebar_bottom",     label: "Sidebar — bottom",                group: "Landing extras" },
+  { value: "floating_corner",    label: "Floating bottom-right corner",    group: "Landing extras" },
+  { value: "marketplace_grid",   label: "Marketplace grid banner",         group: "Page-specific" },
+  { value: "order_book_sidebar", label: "Order Book sidebar",              group: "Page-specific" },
+  { value: "trades_escrow",      label: "Trades dashboard",                group: "Page-specific" },
 ];
 
 function AdsPanel() {
