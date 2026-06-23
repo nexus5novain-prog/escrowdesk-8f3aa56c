@@ -51,6 +51,7 @@ export function SiteHeader() {
           {user && (
             <>
               <Link to="/trades" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Trades</Link>
+              <Link to="/disputes" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Disputes</Link>
               <Link to="/escrow/new" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Escrow</Link>
               <Link to="/wallet" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Wallet</Link>
               <Link to="/transactions" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Transactions</Link>

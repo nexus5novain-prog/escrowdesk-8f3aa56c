@@ -17,6 +17,7 @@ import { Route as PostOfferRouteImport } from './routes/post-offer'
 import { Route as PostListingRouteImport } from './routes/post-listing'
 import { Route as OrderBookRouteImport } from './routes/order-book'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -25,6 +26,7 @@ import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as OfferIdRouteImport } from './routes/offer.$id'
 import { Route as EscrowNewRouteImport } from './routes/escrow.new'
 import { Route as EscrowIdRouteImport } from './routes/escrow.$id'
+import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicHooksBtcConfirmPollRouteImport } from './routes/api/public/hooks/btc-confirm-poll'
 
@@ -68,6 +70,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DisputesRoute = DisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -108,6 +115,11 @@ const EscrowIdRoute = EscrowIdRouteImport.update({
   path: '/escrow/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DisputesIdRoute = DisputesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DisputesRoute,
+} as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
@@ -125,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/disputes': typeof DisputesRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -133,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/disputes/$id': typeof DisputesIdRoute
   '/escrow/$id': typeof EscrowIdRoute
   '/escrow/new': typeof EscrowNewRoute
   '/offer/$id': typeof OfferIdRoute
@@ -145,6 +159,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/disputes': typeof DisputesRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -153,6 +168,7 @@ export interface FileRoutesByTo {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/disputes/$id': typeof DisputesIdRoute
   '/escrow/$id': typeof EscrowIdRoute
   '/escrow/new': typeof EscrowNewRoute
   '/offer/$id': typeof OfferIdRoute
@@ -166,6 +182,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/disputes': typeof DisputesRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
@@ -174,6 +191,7 @@ export interface FileRoutesById {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/disputes/$id': typeof DisputesIdRoute
   '/escrow/$id': typeof EscrowIdRoute
   '/escrow/new': typeof EscrowNewRoute
   '/offer/$id': typeof OfferIdRoute
@@ -188,6 +206,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/disputes'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -196,6 +215,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/disputes/$id'
     | '/escrow/$id'
     | '/escrow/new'
     | '/offer/$id'
@@ -208,6 +228,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/disputes'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -216,6 +237,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/disputes/$id'
     | '/escrow/$id'
     | '/escrow/new'
     | '/offer/$id'
@@ -228,6 +250,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/disputes'
     | '/marketplace'
     | '/order-book'
     | '/post-listing'
@@ -236,6 +259,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/disputes/$id'
     | '/escrow/$id'
     | '/escrow/new'
     | '/offer/$id'
@@ -249,6 +273,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  DisputesRoute: typeof DisputesRouteWithChildren
   MarketplaceRoute: typeof MarketplaceRoute
   OrderBookRoute: typeof OrderBookRoute
   PostListingRoute: typeof PostListingRoute
@@ -324,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/disputes': {
+      id: '/disputes'
+      path: '/disputes'
+      fullPath: '/disputes'
+      preLoaderRoute: typeof DisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -380,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EscrowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/disputes/$id': {
+      id: '/disputes/$id'
+      path: '/$id'
+      fullPath: '/disputes/$id'
+      preLoaderRoute: typeof DisputesIdRouteImport
+      parentRoute: typeof DisputesRoute
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
@@ -397,10 +436,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DisputesRouteChildren {
+  DisputesIdRoute: typeof DisputesIdRoute
+}
+
+const DisputesRouteChildren: DisputesRouteChildren = {
+  DisputesIdRoute: DisputesIdRoute,
+}
+
+const DisputesRouteWithChildren = DisputesRoute._addFileChildren(
+  DisputesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  DisputesRoute: DisputesRouteWithChildren,
   MarketplaceRoute: MarketplaceRoute,
   OrderBookRoute: OrderBookRoute,
   PostListingRoute: PostListingRoute,
