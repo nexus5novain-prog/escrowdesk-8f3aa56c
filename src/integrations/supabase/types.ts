@@ -534,6 +534,81 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_requests: {
+        Row: {
+          amount_sats: number | null
+          btcpay_invoice_id: string | null
+          confirmations: number
+          confirmations_required: number
+          created_at: string
+          destination: string
+          detected_at: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json
+          method: Database["public"]["Enums"]["deposit_method"]
+          payment_hash: string | null
+          settled_at: string | null
+          status: Database["public"]["Enums"]["deposit_status"]
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_sats?: number | null
+          btcpay_invoice_id?: string | null
+          confirmations?: number
+          confirmations_required?: number
+          created_at?: string
+          destination: string
+          detected_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          method: Database["public"]["Enums"]["deposit_method"]
+          payment_hash?: string | null
+          settled_at?: string | null
+          status?: Database["public"]["Enums"]["deposit_status"]
+          updated_at?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_sats?: number | null
+          btcpay_invoice_id?: string | null
+          confirmations?: number
+          confirmations_required?: number
+          created_at?: string
+          destination?: string
+          detected_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          method?: Database["public"]["Enums"]["deposit_method"]
+          payment_hash?: string | null
+          settled_at?: string | null
+          status?: Database["public"]["Enums"]["deposit_status"]
+          updated_at?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_requests_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "user_wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_requests_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "v_wallet_balances"
+            referencedColumns: ["wallet_id"]
+          },
+        ]
+      }
       disputes: {
         Row: {
           created_at: string
@@ -854,6 +929,63 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "trades"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          amount_sats: number
+          bucket: Database["public"]["Enums"]["ledger_bucket"]
+          created_at: string
+          direction: Database["public"]["Enums"]["ledger_direction"]
+          id: string
+          kind: Database["public"]["Enums"]["ledger_kind"]
+          metadata: Json
+          ref_id: string | null
+          ref_type: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_sats: number
+          bucket: Database["public"]["Enums"]["ledger_bucket"]
+          created_at?: string
+          direction: Database["public"]["Enums"]["ledger_direction"]
+          id?: string
+          kind: Database["public"]["Enums"]["ledger_kind"]
+          metadata?: Json
+          ref_id?: string | null
+          ref_type?: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_sats?: number
+          bucket?: Database["public"]["Enums"]["ledger_bucket"]
+          created_at?: string
+          direction?: Database["public"]["Enums"]["ledger_direction"]
+          id?: string
+          kind?: Database["public"]["Enums"]["ledger_kind"]
+          metadata?: Json
+          ref_id?: string | null
+          ref_type?: string | null
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "user_wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "v_wallet_balances"
+            referencedColumns: ["wallet_id"]
           },
         ]
       }
@@ -1622,6 +1754,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_wallets: {
+        Row: {
+          created_at: string
+          freeze_reason: string | null
+          id: string
+          is_frozen: boolean
+          updated_at: string
+          user_id: string
+          wallet_code: string
+        }
+        Insert: {
+          created_at?: string
+          freeze_reason?: string | null
+          id?: string
+          is_frozen?: boolean
+          updated_at?: string
+          user_id: string
+          wallet_code?: string
+        }
+        Update: {
+          created_at?: string
+          freeze_reason?: string | null
+          id?: string
+          is_frozen?: boolean
+          updated_at?: string
+          user_id?: string
+          wallet_code?: string
+        }
+        Relationships: []
+      }
       user_warnings: {
         Row: {
           acknowledged_at: string | null
@@ -1651,6 +1813,63 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wallet_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip: unknown
+          payload: Json
+          ref_id: string | null
+          ref_type: string | null
+          risk_score: number
+          user_agent: string | null
+          user_id: string | null
+          wallet_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip?: unknown
+          payload?: Json
+          ref_id?: string | null
+          ref_type?: string | null
+          risk_score?: number
+          user_agent?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip?: unknown
+          payload?: Json
+          ref_id?: string | null
+          ref_type?: string | null
+          risk_score?: number
+          user_agent?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_audit_log_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "user_wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_audit_log_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "v_wallet_balances"
+            referencedColumns: ["wallet_id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -1715,11 +1934,120 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_requests: {
+        Row: {
+          amount_sats: number
+          approved_at: string | null
+          approved_by: string | null
+          btcpay_payout_id: string | null
+          created_at: string
+          destination: string
+          fee_sats: number
+          id: string
+          metadata: Json
+          method: Database["public"]["Enums"]["withdrawal_method"]
+          payment_hash: string | null
+          rejected_reason: string | null
+          requires_2fa: boolean
+          risk_score: number
+          status: Database["public"]["Enums"]["withdrawal_status"]
+          two_fa_verified_at: string | null
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_sats: number
+          approved_at?: string | null
+          approved_by?: string | null
+          btcpay_payout_id?: string | null
+          created_at?: string
+          destination: string
+          fee_sats?: number
+          id?: string
+          metadata?: Json
+          method: Database["public"]["Enums"]["withdrawal_method"]
+          payment_hash?: string | null
+          rejected_reason?: string | null
+          requires_2fa?: boolean
+          risk_score?: number
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          two_fa_verified_at?: string | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_sats?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          btcpay_payout_id?: string | null
+          created_at?: string
+          destination?: string
+          fee_sats?: number
+          id?: string
+          metadata?: Json
+          method?: Database["public"]["Enums"]["withdrawal_method"]
+          payment_hash?: string | null
+          rejected_reason?: string | null
+          requires_2fa?: boolean
+          risk_score?: number
+          status?: Database["public"]["Enums"]["withdrawal_status"]
+          two_fa_verified_at?: string | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "user_wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawal_requests_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "v_wallet_balances"
+            referencedColumns: ["wallet_id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      v_wallet_balances: {
+        Row: {
+          available_sats: number | null
+          locked_escrow_sats: number | null
+          pending_deposit_sats: number | null
+          pending_withdrawal_sats: number | null
+          user_id: string | null
+          wallet_code: string | null
+          wallet_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      _ledger_insert: {
+        Args: {
+          _amount_sats: number
+          _bucket: Database["public"]["Enums"]["ledger_bucket"]
+          _direction: Database["public"]["Enums"]["ledger_direction"]
+          _kind: Database["public"]["Enums"]["ledger_kind"]
+          _metadata: Json
+          _ref_id: string
+          _ref_type: string
+          _user_id: string
+          _wallet_id: string
+        }
+        Returns: string
+      }
       ad_analytics: {
         Args: { _since?: string }
         Returns: {
@@ -1795,6 +2123,57 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      ledger_credit: {
+        Args: {
+          _amount_sats: number
+          _bucket: Database["public"]["Enums"]["ledger_bucket"]
+          _kind: Database["public"]["Enums"]["ledger_kind"]
+          _metadata?: Json
+          _ref_id: string
+          _ref_type: string
+          _user_id: string
+        }
+        Returns: string
+      }
+      ledger_debit: {
+        Args: {
+          _amount_sats: number
+          _bucket: Database["public"]["Enums"]["ledger_bucket"]
+          _kind: Database["public"]["Enums"]["ledger_kind"]
+          _metadata?: Json
+          _ref_id: string
+          _ref_type: string
+          _user_id: string
+        }
+        Returns: string
+      }
+      ledger_transfer_bucket: {
+        Args: {
+          _amount_sats: number
+          _from: Database["public"]["Enums"]["ledger_bucket"]
+          _kind: Database["public"]["Enums"]["ledger_kind"]
+          _metadata?: Json
+          _ref_id: string
+          _ref_type: string
+          _to: Database["public"]["Enums"]["ledger_bucket"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      ledger_transfer_user: {
+        Args: {
+          _amount_sats: number
+          _from_bucket: Database["public"]["Enums"]["ledger_bucket"]
+          _from_user: string
+          _kind: Database["public"]["Enums"]["ledger_kind"]
+          _metadata?: Json
+          _ref_id: string
+          _ref_type: string
+          _to_bucket: Database["public"]["Enums"]["ledger_bucket"]
+          _to_user: string
+        }
+        Returns: undefined
+      }
       mark_trade_paid: {
         Args: { _caller: string; _trade_id: string }
         Returns: undefined
@@ -1858,6 +2237,19 @@ export type Database = {
         Args: { _caller: string; _target: string }
         Returns: undefined
       }
+      wallet_audit: {
+        Args: {
+          _action: string
+          _ip?: unknown
+          _payload?: Json
+          _ref_id?: string
+          _ref_type?: string
+          _risk_score?: number
+          _user_agent?: string
+          _user_id: string
+        }
+        Returns: string
+      }
       warn_user: {
         Args: {
           _caller: string
@@ -1880,6 +2272,14 @@ export type Database = {
         | "senior_arbitrator"
         | "super_admin"
       asset_type: "BTC"
+      deposit_method: "btc_onchain" | "lightning" | "flutterwave"
+      deposit_status:
+        | "new"
+        | "detected"
+        | "confirming"
+        | "settled"
+        | "expired"
+        | "invalid"
       dispute_status: "open" | "resolved_buyer" | "resolved_seller"
       escrow_group_status:
         | "awaiting_counterparty"
@@ -1889,6 +2289,24 @@ export type Database = {
         | "cancelled"
         | "disputed"
       escrow_member_role: "buyer" | "seller" | "moderator"
+      ledger_bucket:
+        | "available"
+        | "locked_escrow"
+        | "pending_deposit"
+        | "pending_withdrawal"
+      ledger_direction: "credit" | "debit"
+      ledger_kind:
+        | "deposit"
+        | "withdrawal"
+        | "escrow_funding"
+        | "escrow_release"
+        | "refund"
+        | "marketplace_purchase"
+        | "marketplace_sale"
+        | "fee"
+        | "bonus"
+        | "admin_adjustment"
+        | "bucket_transfer"
       listing_kind: "selling" | "seeking"
       listing_status: "active" | "inactive" | "sold"
       notification_kind:
@@ -1927,6 +2345,15 @@ export type Database = {
         | "escrow_refund"
         | "fee"
         | "adjustment"
+      withdrawal_method: "btc_onchain" | "lightning" | "flutterwave"
+      withdrawal_status:
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "processing"
+        | "sent"
+        | "failed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2066,6 +2493,15 @@ export const Constants = {
         "super_admin",
       ],
       asset_type: ["BTC"],
+      deposit_method: ["btc_onchain", "lightning", "flutterwave"],
+      deposit_status: [
+        "new",
+        "detected",
+        "confirming",
+        "settled",
+        "expired",
+        "invalid",
+      ],
       dispute_status: ["open", "resolved_buyer", "resolved_seller"],
       escrow_group_status: [
         "awaiting_counterparty",
@@ -2076,6 +2512,26 @@ export const Constants = {
         "disputed",
       ],
       escrow_member_role: ["buyer", "seller", "moderator"],
+      ledger_bucket: [
+        "available",
+        "locked_escrow",
+        "pending_deposit",
+        "pending_withdrawal",
+      ],
+      ledger_direction: ["credit", "debit"],
+      ledger_kind: [
+        "deposit",
+        "withdrawal",
+        "escrow_funding",
+        "escrow_release",
+        "refund",
+        "marketplace_purchase",
+        "marketplace_sale",
+        "fee",
+        "bonus",
+        "admin_adjustment",
+        "bucket_transfer",
+      ],
       listing_kind: ["selling", "seeking"],
       listing_status: ["active", "inactive", "sold"],
       notification_kind: [
@@ -2116,6 +2572,16 @@ export const Constants = {
         "escrow_refund",
         "fee",
         "adjustment",
+      ],
+      withdrawal_method: ["btc_onchain", "lightning", "flutterwave"],
+      withdrawal_status: [
+        "pending_review",
+        "approved",
+        "rejected",
+        "processing",
+        "sent",
+        "failed",
+        "cancelled",
       ],
     },
   },
