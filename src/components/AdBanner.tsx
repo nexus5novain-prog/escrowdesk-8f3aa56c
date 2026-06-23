@@ -260,10 +260,38 @@ export function AdBanner({ placement, className = "", dismissable = false, rotat
         <div className="ad-html prose-sm max-w-none p-3 text-sm [&_a]:text-primary [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
       )}
 
+      {/* Link ad → embed the actual image/video discovered at the target URL */}
+      {ad.media_type === "link" && embedLinkMedia && previewVideo && mediaState !== "error" && (
+        <video
+          key={`${ad.id}-link-video`}
+          src={previewVideo}
+          className={`block h-full w-full object-cover transition-opacity duration-300 ${mediaState === "loaded" ? "opacity-100" : "opacity-0"}`}
+          autoPlay muted loop playsInline preload="metadata"
+          onLoadedData={() => setMediaState("loaded")}
+          onPlay={() => { videoPlayingRef.current = true; }}
+          onPause={() => { videoPlayingRef.current = false; }}
+          onEnded={() => { videoPlayingRef.current = false; }}
+          onError={handleMediaError}
+        />
+      )}
+      {ad.media_type === "link" && embedLinkMedia && !previewVideo && previewImage && mediaState !== "error" && (
+        <img
+          key={`${ad.id}-link-img`}
+          src={previewImage}
+          alt={ad.title}
+          loading="lazy"
+          decoding="async"
+          className={`block h-full w-full object-cover transition-opacity duration-300 ${mediaState === "loaded" ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setMediaState("loaded")}
+          onError={handleMediaError}
+        />
+      )}
+
       {/* Loading shimmer for media types that are still resolving */}
-      {(ad.media_type === "image" || ad.media_type === "video") && mediaState === "loading" && (
+      {(ad.media_type === "image" || ad.media_type === "video" || (ad.media_type === "link" && embedLinkMedia)) && mediaState === "loading" && (
         <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-secondary/40 via-secondary/10 to-secondary/40" />
       )}
+
 
       {/* "Ad · title" overlay for non-card variants when real media is showing */}
       {variant !== "card" && showMedia && ad.media_type !== "link" && ad.media_type !== "html" && (
