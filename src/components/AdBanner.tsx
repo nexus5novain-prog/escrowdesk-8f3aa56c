@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { listAdsForPlacement, trackAdEvent, type AdPlacement } from "@/lib/ads.functions";
+import { fetchLinkPreview } from "@/lib/link-preview.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { X, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
