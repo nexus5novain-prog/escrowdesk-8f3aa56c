@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EscrowPaymentPanel } from "@/components/EscrowPaymentPanel";
+
 
 export const Route = createFileRoute("/trade/$id")({ component: () => (<AuthGate><TradePage /></AuthGate>) });
 
