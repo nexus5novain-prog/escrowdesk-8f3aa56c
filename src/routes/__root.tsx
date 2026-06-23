@@ -76,13 +76,13 @@ function RootComponent() {
       <AuthProvider>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <AdBanner placement="top" dismissable className="mx-auto w-full max-w-7xl px-4 pt-3" />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
+          <AdBanner placement="top" dismissable className="mx-auto w-full max-w-[1600px] px-3 pt-3 sm:px-6 lg:px-8" />
+          <main className="mx-auto w-full max-w-[1600px] flex-1 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
             <RandomShout className="mb-4" />
             <Outlet />
           </main>
-          <AdBanner placement="bottom" className="mx-auto w-full max-w-7xl px-4 pb-4" />
-          <AdBanner placement="footer_banner" className="mx-auto w-full max-w-7xl px-4 pb-2" />
+          <AdBanner placement="bottom" className="mx-auto w-full max-w-[1600px] px-3 pb-4 sm:px-6 lg:px-8" />
+          <AdBanner placement="footer_banner" className="mx-auto w-full max-w-[1600px] px-3 pb-2 sm:px-6 lg:px-8" />
           <SiteFooter />
         </div>
         <Toaster theme="dark" />
