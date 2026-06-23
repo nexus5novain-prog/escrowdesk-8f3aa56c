@@ -9,7 +9,7 @@ export type AdPlacement =
   | "sidebar_resources" | "under_hero" | "sidebar_top" | "sidebar_mid"
   | "sidebar_bottom" | "between_threads" | "between_sections"
   | "footer_banner" | "floating_corner" | "inline_card";
-export type AdMediaType = "image" | "video" | "html";
+export type AdMediaType = "image" | "video" | "html" | "link";
 
 const PlacementSchema = z.enum([
   "top", "center", "bottom", "footer",
