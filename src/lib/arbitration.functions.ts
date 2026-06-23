@@ -22,7 +22,7 @@ async function assertArbiter(supabase: any, userId: string) {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .in("role", ARBITER_ROLES as unknown as string[]);
+    .in("role", ARBITER_ROLES as unknown as ("admin"|"super_admin"|"senior_arbitrator"|"mediator"|"judge")[]);
   if (!data || data.length === 0) throw new Error("Forbidden: arbiter role required");
   return (data[0].role as string);
 }
@@ -111,7 +111,7 @@ export const getCase = createServerFn({ method: "GET" })
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .in("role", ARBITER_ROLES as unknown as string[]);
+      .in("role", ARBITER_ROLES as unknown as ("admin"|"super_admin"|"senior_arbitrator"|"mediator"|"judge")[]);
     const isArbiter = (roleRows?.length ?? 0) > 0;
 
     const [evidence, timeline, messages, signoffs, notes] = await Promise.all([
