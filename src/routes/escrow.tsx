@@ -201,6 +201,8 @@ function EscrowPage() {
         Need a counter-party? Browse open offers on the{" "}
         <Link to="/order-book" className="text-primary hover:underline">Order Book</Link>.
       </div>
+
+      <SupportForm />
     </div>
   );
 }

@@ -80,6 +80,7 @@ function Settings() {
         <TabsContent value="devices"        className="mt-6"><DevicesTab devices={data.devices} /></TabsContent>
         <TabsContent value="activity"       className="mt-6"><ActivityTab events={data.events} /></TabsContent>
       </Tabs>
+      <SupportForm defaultEmail={data.email ?? ""} />
     </div>
   );
 }
