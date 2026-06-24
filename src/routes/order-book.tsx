@@ -248,7 +248,7 @@ function ListingCard({ row }: { row: ListingRow }) {
   const startTrade = async () => {
     if (!user) return nav({ to: "/auth" });
     if (row.kind !== "selling") {
-      return nav({ to: "/escrow/new", search: { listing: row.id } });
+      return nav({ to: "/post-offer", search: { listing: row.id } });
     }
     setBusy(true);
     try {
