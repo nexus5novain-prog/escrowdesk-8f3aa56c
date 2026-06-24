@@ -28,6 +28,7 @@ import {
   createApiToken, revokeApiToken, revokeTrustedDevice, changePassword,
 } from "@/lib/settings.functions";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { SupportForm } from "@/components/SupportForm";
 
 export const Route = createFileRoute("/settings")({
   component: () => (<AuthGate><Settings /></AuthGate>),

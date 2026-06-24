@@ -26,6 +26,7 @@ import {
   Handshake, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Search,
   ShieldCheck, Zap, FileSignature, Bitcoin, Bot, Eye, Gavel, Server, KeyRound, Activity,
 } from "lucide-react";
+import { SupportForm } from "@/components/SupportForm";
 
 export const Route = createFileRoute("/escrow")({
   head: () => ({
