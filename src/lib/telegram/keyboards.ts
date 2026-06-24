@@ -1,46 +1,56 @@
 // Telegram inline-keyboard helpers + signed callback data.
 //
-// Callback payload format:  v1|<action>|<short>|<sig>
+// Callback payload format:  v2|<action>|<short>|<ts36>|<sig>
 //   action  — paid|release|confirm|dispute|reply|approve|reject|resolve_b|resolve_s|case|wd_cancel
 //   short   — entity short id (first 8 hex of uuid, or other compact ref)
-//   sig     — first 8 chars of base64url(hmac_sha256(TELEGRAM_API_KEY, action|short|tgUserId))
+//   ts36    — unix seconds (base36) when the button was minted
+//   sig     — first 8 chars of base64url(hmac_sha256(TELEGRAM_API_KEY, action|short|tgUserId|ts36))
 //
 // Binding to `tgUserId` prevents a forwarded message's buttons from being
-// pressed by another user. Telegram caps callback_data at 64 bytes — this
-// format fits comfortably under that.
+// pressed by another user. The timestamp + MAX_AGE_SEC bound limits replay
+// to a fixed window even if old chat history is later exposed. Telegram
+// caps callback_data at 64 bytes — this format fits comfortably under that.
 
 import { createHmac } from "crypto";
 
 const SIG_LEN = 8;
 const APP_URL = "https://escrowdesk.lovable.app";
+// Buttons expire 24h after being minted.
+const MAX_AGE_SEC = 24 * 60 * 60;
 
 function key() {
   return process.env.TELEGRAM_API_KEY || "";
 }
 
-export function signCb(action: string, short: string, tgUserId: number | string): string {
-  const mac = createHmac("sha256", key())
-    .update(`${action}|${short}|${tgUserId}`)
+function mac(action: string, short: string, tgUserId: number | string, ts36: string): string {
+  return createHmac("sha256", key())
+    .update(`${action}|${short}|${tgUserId}|${ts36}`)
     .digest("base64url")
     .slice(0, SIG_LEN);
-  return `v1|${action}|${short}|${mac}`;
+}
+
+export function signCb(action: string, short: string, tgUserId: number | string): string {
+  const ts36 = Math.floor(Date.now() / 1000).toString(36);
+  return `v2|${action}|${short}|${ts36}|${mac(action, short, tgUserId, ts36)}`;
 }
 
 export function verifyCb(
   data: string,
   tgUserId: number | string,
-): { action: string; short: string } | null {
+): { action: string; short: string } | { expired: true } | null {
   const parts = data.split("|");
-  if (parts.length !== 4 || parts[0] !== "v1") return null;
-  const [, action, short, sig] = parts;
-  const expected = createHmac("sha256", key())
-    .update(`${action}|${short}|${tgUserId}`)
-    .digest("base64url")
-    .slice(0, SIG_LEN);
+  // Reject v1 (no timestamp). Only v2 is accepted.
+  if (parts.length !== 5 || parts[0] !== "v2") return null;
+  const [, action, short, ts36, sig] = parts;
+  const ts = parseInt(ts36, 36);
+  if (!Number.isFinite(ts) || ts <= 0) return null;
+  const expected = mac(action, short, tgUserId, ts36);
   if (sig.length !== expected.length) return null;
   let diff = 0;
   for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0 ? { action, short } : null;
+  if (diff !== 0) return null;
+  if (Math.floor(Date.now() / 1000) - ts > MAX_AGE_SEC) return { expired: true };
+  return { action, short };
 }
 
 type Btn = { text: string; callback_data?: string; url?: string };
