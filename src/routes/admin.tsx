@@ -35,6 +35,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 import { AdSizePicker } from "@/components/admin/AdSizePicker";
