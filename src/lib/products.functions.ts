@@ -353,10 +353,6 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { inserted: rows.length };
   });
-    const { error } = await supabaseAdmin.from("marketplace_products").insert(rows as never);
-    if (error) throw new Error(error.message);
-    return { inserted: rows.length };
-  });
 
 /* ─────────────────────── Admin CRUD ─────────────────────── */
 export const adminListProducts = createServerFn({ method: "GET" })
