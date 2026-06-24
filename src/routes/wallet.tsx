@@ -87,7 +87,7 @@ function Wallet() {
             <p className="mt-0.5 font-mono text-xs text-muted-foreground">{fmtSats(totalSats)} · 1 BTC = {fmtFiat(rate ?? 0, "USD")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/portfolio"><Button variant="outline" size="sm">How escrow works</Button></Link>
+            <Link to="/escrow"><Button variant="outline" size="sm">How escrow works</Button></Link>
             <Link to="/trades"><Button variant="outline" size="sm">My trades</Button></Link>
           </div>
         </div>
