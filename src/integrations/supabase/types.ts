@@ -486,6 +486,48 @@ export type Database = {
           },
         ]
       }
+      bin_import_runs: {
+        Row: {
+          created_at: string
+          finished_at: string | null
+          id: string
+          notes: string | null
+          rows_added: number
+          rows_skipped: number
+          rows_updated: number
+          run_by: string | null
+          source: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          rows_added?: number
+          rows_skipped?: number
+          rows_updated?: number
+          run_by?: string | null
+          source: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          rows_added?: number
+          rows_skipped?: number
+          rows_updated?: number
+          run_by?: string | null
+          source?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       bin_metadata: {
         Row: {
           bin_number: string
