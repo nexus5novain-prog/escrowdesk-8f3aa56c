@@ -29,6 +29,7 @@ import { Route as EscrowNewRouteImport } from './routes/escrow.new'
 import { Route as EscrowIdRouteImport } from './routes/escrow.$id'
 import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicHooksReconcileRouteImport } from './routes/api/public/hooks/reconcile'
 import { Route as ApiPublicHooksBtcpayRouteImport } from './routes/api/public/hooks/btcpay'
 import { Route as ApiPublicHooksBtcConfirmPollRouteImport } from './routes/api/public/hooks/btc-confirm-poll'
 
@@ -133,6 +134,11 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksReconcileRoute = ApiPublicHooksReconcileRouteImport.update({
+  id: '/api/public/hooks/reconcile',
+  path: '/api/public/hooks/reconcile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksBtcpayRoute = ApiPublicHooksBtcpayRouteImport.update({
   id: '/api/public/hooks/btcpay',
   path: '/api/public/hooks/btcpay',
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/trade/$id': typeof TradeIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
+  '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/trade/$id': typeof TradeIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
+  '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesById {
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/trade/$id': typeof TradeIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
+  '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRouteTypes {
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/trade/$id'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
+    | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/trade/$id'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
+    | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
   id:
     | '__root__'
@@ -290,6 +301,7 @@ export interface FileRouteTypes {
     | '/trade/$id'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
+    | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   TradeIdRoute: typeof TradeIdRoute
   ApiPublicHooksBtcConfirmPollRoute: typeof ApiPublicHooksBtcConfirmPollRoute
   ApiPublicHooksBtcpayRoute: typeof ApiPublicHooksBtcpayRoute
+  ApiPublicHooksReconcileRoute: typeof ApiPublicHooksReconcileRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/reconcile': {
+      id: '/api/public/hooks/reconcile'
+      path: '/api/public/hooks/reconcile'
+      fullPath: '/api/public/hooks/reconcile'
+      preLoaderRoute: typeof ApiPublicHooksReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/btcpay': {
       id: '/api/public/hooks/btcpay'
       path: '/api/public/hooks/btcpay'
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   TradeIdRoute: TradeIdRoute,
   ApiPublicHooksBtcConfirmPollRoute: ApiPublicHooksBtcConfirmPollRoute,
   ApiPublicHooksBtcpayRoute: ApiPublicHooksBtcpayRoute,
+  ApiPublicHooksReconcileRoute: ApiPublicHooksReconcileRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
