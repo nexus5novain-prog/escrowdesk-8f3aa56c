@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.resolve_drift(uuid, text) FROM PUBLIC, anon, authenticated;
