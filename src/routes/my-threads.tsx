@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pencil, Trash2, ExternalLink, Plus, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/my-threads")({
   head: () => ({ meta: [{ title: "My Threads — EscrowDesk" }] }),
