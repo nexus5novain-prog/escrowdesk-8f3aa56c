@@ -17,7 +17,7 @@ import {
   Handshake, AlertTriangle, CheckCircle2, Clock,
 } from "lucide-react";
 
-export const Route = createFileRoute("/escrow/")({
+export const Route = createFileRoute("/escrow")({
   head: () => ({
     meta: [
       { title: "Escrow Dashboard · EscrowDesk" },
