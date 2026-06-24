@@ -1102,6 +1102,7 @@ export type Database = {
           currency: string | null
           description: string
           id: string
+          is_pinned: boolean
           kind: Database["public"]["Enums"]["listing_kind"]
           name: string
           status: Database["public"]["Enums"]["listing_status"]
@@ -1118,6 +1119,7 @@ export type Database = {
           currency?: string | null
           description: string
           id?: string
+          is_pinned?: boolean
           kind: Database["public"]["Enums"]["listing_kind"]
           name: string
           status?: Database["public"]["Enums"]["listing_status"]
@@ -1134,6 +1136,7 @@ export type Database = {
           currency?: string | null
           description?: string
           id?: string
+          is_pinned?: boolean
           kind?: Database["public"]["Enums"]["listing_kind"]
           name?: string
           status?: Database["public"]["Enums"]["listing_status"]
