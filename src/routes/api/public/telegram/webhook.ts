@@ -483,7 +483,6 @@ async function handle(update: Record<string, unknown>) {
   if (escrowGroupCommands.some((c) => text.startsWith(c))) {
     return send("⚠️ Legacy escrow groups are deprecated. Open a trade on the website to use the ledger-backed escrow flow.");
   }
-  void boundGroup;
   return send("Unknown command. Try /help");
 }
 
