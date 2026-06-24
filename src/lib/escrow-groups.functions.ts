@@ -45,6 +45,16 @@ function escapeHtml(s: string) {
   return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
+// ============================================================================
+// DEPRECATED (Security Remediation Phase 1, Issue #3)
+// The legacy "escrow groups" flow operates outside the ledger and violates
+// platform accounting rules. All write paths now throw. Use the ledger-backed
+// trade flow (offers/trades) instead. Read paths remain so existing data is
+// still viewable for audit / history.
+// ============================================================================
+const ESCROW_GROUPS_DEPRECATED =
+  "Escrow Groups are deprecated. Please use the ledger-backed escrow flow under Order Book / Trades.";
+
 // -------- Create a group --------
 export const createEscrowGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
