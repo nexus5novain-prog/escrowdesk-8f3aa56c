@@ -217,12 +217,14 @@ export const listMarketplace = createServerFn({ method: "GET" })
       ? (
           await supabaseAdmin
             .from("profiles")
-            .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
+            .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count")
             .in("user_id", ids)
         ).data ?? []
       : [];
-    const pm = new Map(profs.map((p) => [p.user_id, p]));
-    const enriched: ListingRow[] = (rows ?? []).map((r) => ({
+    const now = Date.now();
+    const visible = profs.filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
+    const enriched: ListingRow[] = (rows ?? []).filter((r) => pm.has(r.user_id)).map((r) => ({
       ...(r as Omit<ListingRow, "profile">),
       profile: (pm.get(r.user_id) as ListingRow["profile"]) ?? null,
     }));
