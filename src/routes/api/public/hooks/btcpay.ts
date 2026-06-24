@@ -175,6 +175,7 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
             _event_type: evt.type,
             _invoice_id: evt.invoiceId,
             _payload: payloadJson,
+            _payment_hash: dep.method === "lightning" ? lightningPaymentHash : null,
           } as never,
         );
         if (rpcErr) {
