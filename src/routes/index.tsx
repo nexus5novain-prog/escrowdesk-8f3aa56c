@@ -42,6 +42,7 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
+      <FreeBinLookup />
       <AdBanner placement="under_hero" variant="card" className="block" />
       <AdminAnnouncements />
       <AnnouncementBanner />
