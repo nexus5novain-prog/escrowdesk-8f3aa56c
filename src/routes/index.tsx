@@ -24,6 +24,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AnnouncementBanner as AdminAnnouncements } from "@/components/AnnouncementBanner";
+import { FreeBinLookup } from "@/components/FreeBinLookup";
 
 export const Route = createFileRoute("/")({
   head: () => ({
