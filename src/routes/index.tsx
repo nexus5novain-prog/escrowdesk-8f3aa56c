@@ -41,6 +41,7 @@ function LandingPage() {
     <div className="space-y-6">
       <Hero />
       <AdBanner placement="under_hero" variant="card" className="block" />
+      <AdminAnnouncements />
       <AnnouncementBanner />
       <UniversalSearch />
       <QuickCategories />
