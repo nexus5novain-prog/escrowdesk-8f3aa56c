@@ -1283,6 +1283,7 @@ function CategoryProductsSection({
                     </SelectContent>
                   </Select>
                   <Button size="sm" variant="outline" onClick={async () => { try { await update({ data: { id: p.id, is_featured: !p.is_featured } }); toast.success("Updated"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>{p.is_featured ? "Unfeature" : "Feature"}</Button>
+                  <EditProductDialog product={p} update={update} onSaved={onChanged} />
                   <Button size="sm" variant="destructive" onClick={async () => { if (!window.confirm("Delete this product?")) return; try { await del({ data: { id: p.id } }); toast.success("Deleted"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>Delete</Button>
                 </div>
               </div>
