@@ -46,7 +46,9 @@ function TransactionsPage() {
   const fetchStats = useServerFn(getMyPortfolioStats);
   const { data, isLoading } = useQuery({ queryKey: ["my-portfolio"], queryFn: () => fetchStats(), refetchInterval: 30_000 });
   const s = data?.stats;
-  const purchases = (data?.purchases ?? []) as Purchase[];
+  const allPurchases = (data?.purchases ?? []) as Purchase[];
+  // Only finished & successful purchases from marketplace + P2P order-book
+  const purchases = allPurchases.filter((p) => p.status === "released");
 
   const downloadAll = () => {
     if (!purchases.length) return;
