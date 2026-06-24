@@ -21,7 +21,7 @@ export function MobileNav({ user, isStaff, onSignOut }: MobileNavProps) {
     { label: "P2P Order-book", to: "/order-book", icon: "📊" },
     ...(user ? [
       { label: "Trades", to: "/trades", icon: "📈" },
-      { label: "Escrow", to: "/escrow/new", icon: "🔒" },
+      { label: "Trade", to: "/order-book", icon: "🔒" },
       { label: "Wallet", to: "/wallet", icon: "💰" },
       { label: "Transactions", to: "/transactions", icon: "💳" },
       { label: "Settings", to: "/settings", icon: "⚙️" },
