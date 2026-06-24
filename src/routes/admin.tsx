@@ -18,7 +18,7 @@ import { adminListAnnouncements, adminCreateAnnouncement, adminToggleAnnouncemen
 import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
-import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
+import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata, adminUploadProductImage } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
 import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
