@@ -2,6 +2,155 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { tgCall, tgSendMessage } from "@/lib/telegram.server";
+import {
+  verifyTotp, hashRecoveryCode, isRecoveryCodeFormat,
+} from "@/lib/totp.server";
+
+// ───────── TOTP gate helpers (Phase 2) ─────────
+
+const TOTP_BRUTE_WINDOW_MIN = 15;
+const TOTP_BRUTE_THRESHOLD = 5;
+
+async function auditTg(
+  userId: string,
+  kind: string,
+  err?: { message: string } | null,
+  metadata: Record<string, unknown> = {},
+) {
+  await supabaseAdmin.from("user_security_events").insert({
+    user_id: userId,
+    kind,
+    severity: err ? "warning" : "info",
+    metadata: { ...metadata, ...(err ? { error: err.message } : {}) } as never,
+  });
+}
+
+async function isLockedOut(userId: string): Promise<boolean> {
+  const since = new Date(Date.now() - TOTP_BRUTE_WINDOW_MIN * 60_000).toISOString();
+  const { count } = await supabaseAdmin
+    .from("user_security_events")
+    .select("user_id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("kind", "tg_totp_fail")
+    .gte("created_at", since);
+  return (count ?? 0) >= TOTP_BRUTE_THRESHOLD;
+}
+
+/**
+ * Consume a TOTP or recovery code for a user.
+ * Returns reason on failure: 'no_totp' | 'locked' | 'invalid' | 'replayed' | 'rate_limit'.
+ */
+async function consumeTotp(
+  userId: string,
+  token: string,
+): Promise<{ ok: true; viaRecovery: boolean } | { ok: false; reason: string }> {
+  if (await isLockedOut(userId)) return { ok: false, reason: "locked" };
+
+  const { data: prof } = await supabaseAdmin
+    .from("profiles")
+    .select("totp_secret, totp_enabled_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!prof?.totp_enabled_at || !prof.totp_secret) return { ok: false, reason: "no_totp" };
+
+  const t = token.trim();
+  if (/^\d{6}$/.test(t)) {
+    const step = verifyTotp(prof.totp_secret, t);
+    if (step == null) {
+      await auditTg(userId, "tg_totp_fail", { message: "invalid_code" });
+      return { ok: false, reason: "invalid" };
+    }
+    // Replay protection — INSERT with PK (user_id, step)
+    const { error } = await supabaseAdmin
+      .from("totp_used_steps")
+      .insert({ user_id: userId, step });
+    if (error) {
+      await auditTg(userId, "tg_totp_fail", { message: "replayed" });
+      return { ok: false, reason: "replayed" };
+    }
+    await supabaseAdmin
+      .from("profiles")
+      .update({ totp_last_step: step })
+      .eq("user_id", userId);
+    return { ok: true, viaRecovery: false };
+  }
+
+  if (isRecoveryCodeFormat(t)) {
+    const { data: del } = await supabaseAdmin
+      .from("totp_recovery_codes")
+      .delete()
+      .eq("user_id", userId)
+      .eq("code_hash", hashRecoveryCode(t))
+      .select("user_id");
+    if ((del?.length ?? 0) === 0) {
+      await auditTg(userId, "tg_totp_fail", { message: "invalid_recovery" });
+      return { ok: false, reason: "invalid" };
+    }
+    await auditTg(userId, "tg_recovery_used", null);
+    return { ok: true, viaRecovery: true };
+  }
+
+  await auditTg(userId, "tg_totp_fail", { message: "bad_format" });
+  return { ok: false, reason: "invalid" };
+}
+
+function enrollHint(cmd: string): string {
+  return (
+    `🔒 <b>${cmd}</b> requires two-factor authentication.\n\n` +
+    `Enable 2FA at https://escrowdesk.lovable.app → Settings → Security, ` +
+    `then append your 6-digit code as the LAST argument.\n\n` +
+    `Example: <code>${cmd} ARG 123456</code>`
+  );
+}
+
+/**
+ * Parse the trailing token from a Telegram command, verify it, and return
+ * the command text with the token stripped (so existing parsers run unchanged).
+ */
+async function requireTotpFromText(
+  userId: string,
+  text: string,
+  cmd: string,
+): Promise<{ ok: true; text: string } | { ok: false; reply: string }> {
+  const parts = text.trim().split(/\s+/);
+  if (parts.length < 2) return { ok: false, reply: enrollHint(cmd) };
+  const last = parts[parts.length - 1];
+  const isToken = /^\d{6}$/.test(last) || isRecoveryCodeFormat(last);
+  if (!isToken) return { ok: false, reply: enrollHint(cmd) };
+
+  const r = await consumeTotp(userId, last);
+  if (!r.ok) {
+    if (r.reason === "no_totp") return { ok: false, reply: enrollHint(cmd) };
+    if (r.reason === "locked")
+      return { ok: false, reply: `🚫 Too many invalid codes. Telegram fund actions are paused for ${TOTP_BRUTE_WINDOW_MIN} minutes.` };
+    if (r.reason === "replayed")
+      return { ok: false, reply: "❌ That code was already used — wait for the next one (refreshes every 30s)." };
+    return { ok: false, reply: "❌ Invalid 2FA code." };
+  }
+
+  const stripped = parts.slice(0, -1).join(" ");
+  const extra = r.viaRecovery
+    ? "\n\n⚠️ <i>Used a recovery code — generate fresh ones at Settings → Security.</i>"
+    : "";
+  // Append the recovery-code warning to the eventual reply via a sentinel header.
+  // Handlers send their own messages; we just notify here when needed.
+  if (r.viaRecovery) {
+    try {
+      const { notifyUser } = await import("@/lib/notify.server");
+      await notifyUser({
+        userId,
+        kind: "system",
+        title: "Recovery code used in Telegram",
+        body: "If this wasn't you, change your password and disable 2FA immediately.",
+        link: "/settings",
+      });
+    } catch { /* ignore */ }
+  }
+  void extra;
+  return { ok: true, text: stripped };
+}
+
+
 
 type HelpScope = "user" | "staff" | "admin";
 type HelpTopic = {
