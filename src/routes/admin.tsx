@@ -1466,21 +1466,7 @@ function EditProductDialog({ product, update, onSaved }: {
             </div>
             <div className="sm:col-span-2"><Label>Seller payout (BTC) address</Label><Input value={f.seller_wallet_address} onChange={(e) => set("seller_wallet_address", e.target.value)} /></div>
 
-            {f.category === "BIN/CC" && (
-              <>
-                <div className="sm:col-span-2 mt-2 border-t border-border/60 pt-2 text-xs font-medium text-muted-foreground">Card details</div>
-                <div><Label>Card number (PAN)</Label><Input value={f.card_number} onChange={(e) => set("card_number", e.target.value)} /></div>
-                <div><Label>BIN (6 digits)</Label><Input value={f.bin_number} onChange={(e) => set("bin_number", e.target.value)} /></div>
-                <div><Label>CVV</Label><Input value={f.cvv} onChange={(e) => set("cvv", e.target.value)} /></div>
-                <div><Label>Expire (MM/YY)</Label><Input value={f.expire_date} onChange={(e) => set("expire_date", e.target.value)} /></div>
-                <div><Label>Holder</Label><Input value={f.card_user} onChange={(e) => set("card_user", e.target.value)} /></div>
-                <div><Label>Brand</Label><Input value={f.card_brand} onChange={(e) => set("card_brand", e.target.value)} /></div>
-                <div><Label>Type</Label><Input value={f.card_type} onChange={(e) => set("card_type", e.target.value)} /></div>
-                <div><Label>Bank</Label><Input value={f.card_bank} onChange={(e) => set("card_bank", e.target.value)} /></div>
-                <div><Label>Country</Label><Input value={f.card_country} onChange={(e) => set("card_country", e.target.value)} /></div>
-                <div className="sm:col-span-2"><Label>Billing address</Label><Input value={f.card_address} onChange={(e) => set("card_address", e.target.value)} /></div>
-              </>
-            )}
+            {f.category === "BIN/CC" && <EditBinSection f={f} set={set} />}
           </div>
         </ScrollArea>
         <DialogFooter>
