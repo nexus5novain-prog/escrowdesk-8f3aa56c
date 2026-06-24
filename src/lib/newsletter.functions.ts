@@ -21,17 +21,13 @@ export const subscribeNewsletter = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-async function assertStaff(context: { supabase: ReturnType<typeof requireSupabaseAuth> extends never ? never : any; userId: string }) {
-  const { data } = await context.supabase
-    .from("user_roles").select("role").eq("user_id", context.userId);
-  const isStaff = (data ?? []).some((r: { role: string }) => ["admin", "moderator"].includes(r.role));
-  if (!isStaff) throw new Error("Forbidden");
-}
-
 export const listNewsletterSubscribers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertStaff(context);
+    const { data: roles } = await context.supabase
+      .from("user_roles").select("role").eq("user_id", context.userId);
+    const isStaff = (roles ?? []).some((r) => ["admin", "moderator"].includes(r.role as string));
+    if (!isStaff) throw new Error("Forbidden");
     const { data, error } = await context.supabase
       .from("newsletter_subscribers")
       .select("id, email, source, subscribed_at, unsubscribed_at")
@@ -51,25 +47,25 @@ export const broadcastNewsletter = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertStaff(context);
+    const { data: roles } = await context.supabase
+      .from("user_roles").select("role").eq("user_id", context.userId);
+    const isStaff = (roles ?? []).some((r) => ["admin", "moderator"].includes(r.role as string));
+    if (!isStaff) throw new Error("Forbidden");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Newsletter goes to: (a) every signed-in user as in-app notification, (b) every linked Telegram.
-    const { data: profs } = await supabaseAdmin.from("profiles").select("user_id, telegram_user_id");
-    const { notifyUser } = await link();
+    const { notifyUser } = await import("@/lib/notify.server");
+    const { data: profs } = await supabaseAdmin.from("profiles").select("user_id");
     let sent = 0;
     for (const p of profs ?? []) {
-      await notifyUser({
-        userId: (p as { user_id: string }).user_id,
-        kind: "system",
-        title: data.title,
-        body: data.body,
-        link: data.link || undefined,
-      }).catch(() => null);
-      sent++;
+      try {
+        await notifyUser({
+          userId: (p as { user_id: string }).user_id,
+          kind: "system",
+          title: data.title,
+          body: data.body,
+          link: data.link || undefined,
+        });
+        sent++;
+      } catch { /* ignore */ }
     }
     return { ok: true, recipients: sent };
   });
-
-async function link() {
-  return await import("@/lib/notify.server");
-}
