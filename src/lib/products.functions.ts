@@ -255,6 +255,59 @@ function templateName(cat: keyof typeof NAME_TEMPLATES): string {
     .replace("{n}", String(randInt(1, 9)));
 }
 
+const STREETS = ["Main St","Oak Ave","Maple Dr","Pine Rd","Elm St","Cedar Ln","Park Ave","Washington St","Lake Dr","Sunset Blvd"];
+const CITIES_BY_CC: Record<string, string[]> = {
+  US: ["New York, NY","Los Angeles, CA","Chicago, IL","Houston, TX","Phoenix, AZ","Philadelphia, PA","Miami, FL","Seattle, WA"],
+  GB: ["London","Manchester","Birmingham","Leeds","Glasgow","Bristol"],
+  CA: ["Toronto, ON","Vancouver, BC","Montreal, QC","Calgary, AB"],
+  DE: ["Berlin","Munich","Hamburg","Frankfurt"],
+  FR: ["Paris","Lyon","Marseille","Toulouse"],
+  IE: ["Dublin","Cork","Galway"],
+  AU: ["Sydney NSW","Melbourne VIC","Brisbane QLD"],
+  BR: ["São Paulo","Rio de Janeiro","Brasília"],
+  MX: ["Mexico City","Guadalajara","Monterrey"],
+};
+function randomBillingAddress(cc: string): string {
+  const code = (cc || "US").toUpperCase().slice(0, 2);
+  const cities = CITIES_BY_CC[code] ?? CITIES_BY_CC.US;
+  const num = randInt(10, 9999);
+  return `${num} ${pick(STREETS)}, ${pick(cities)}, ${code}`;
+}
+
+const CATEGORY_BLURBS: Record<string, string[]> = {
+  ENROLL: [
+    "Step-by-step online banking enrollment guide. Includes screenshots and OTP handling tips.",
+    "Fresh enrollment pack with paired email + phone. Verified working within the last 24h.",
+    "Complete bill-pay setup walkthrough — works on web and mobile app.",
+  ],
+  SCANNER: [
+    "High-accuracy OCR scanner tuned for US bank statements and tax forms.",
+    "Detects routing/account numbers, ID fields, and selfie matches with confidence scores.",
+    "Validator suite — runs MOD-10, BIN, and issuer cross-checks in under 200ms.",
+  ],
+  COMBO: [
+    "Fresh combo list, deduplicated and validated. Hit rate ≥ 18% on first 1k checks.",
+    "Region-targeted credentials, formatted as user:pass per line.",
+    "Curated combo focused on banking + crypto exchange logins.",
+  ],
+  OTHERS: [
+    "Premium service access — instant delivery after escrow funding.",
+    "Verified working stock, replaced free of charge if dead on arrival.",
+    "Includes setup notes and a 24h support window via the trade room.",
+  ],
+};
+function buildCategoryDescription(cat: string, name: string): string {
+  const pool = CATEGORY_BLURBS[cat] ?? CATEGORY_BLURBS.OTHERS;
+  const blurb = pick(pool);
+  return [
+    `📦 ${name}`,
+    "",
+    blurb,
+    "",
+    "Delivered through the escrow trade room after the buyer funds the deposit.",
+  ].join("\n");
+}
+
 /* ─────────────────────── Seeder ─────────────────────── */
 export const adminSeedSampleProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
