@@ -106,9 +106,9 @@ function TransactionsPage() {
         ) : (
           <div className="mt-4 divide-y divide-border/40">
             {purchases.map((p) => {
-              const hasCardDetails = p.listing_category === "BIN" && (p.card_number || p.bin_number);
+              const hasCardDetails = p.listing_category === "BIN" && p.bin_number;
               const showCardDetails = hasCardDetails && (p.status === "released" || p.status === "active" || p.status === "funded");
-              
+
               return (
                 <div key={p.id} className="py-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -136,18 +136,13 @@ function TransactionsPage() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   {showCardDetails && (
                     <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
                       <div className="mb-2 font-semibold text-amber-900 dark:text-amber-100">Card Details</div>
+                      <p className="mb-2 text-xs text-muted-foreground">Full card number, CVV, expiry and billing address are revealed via the secure escrow chat once the trade is released.</p>
                       <div className="grid gap-2">
-                        {p.card_number && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Card Number:</span>
-                            <span className="font-mono">{p.card_number}</span>
-                          </div>
-                        )}
-                        {p.bin_number && !p.card_number && (
+                        {p.bin_number && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">BIN:</span>
                             <span className="font-mono">{p.bin_number}</span>
@@ -157,18 +152,6 @@ function TransactionsPage() {
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Cardholder:</span>
                             <span>{p.card_user}</span>
-                          </div>
-                        )}
-                        {p.expire_date && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Expires:</span>
-                            <span className="font-mono">{p.expire_date}</span>
-                          </div>
-                        )}
-                        {p.cvv && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">CVV:</span>
-                            <span className="font-mono">●●●</span>
                           </div>
                         )}
                         {p.card_type && (
@@ -193,12 +176,6 @@ function TransactionsPage() {
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Country:</span>
                             <span>{p.card_country}</span>
-                          </div>
-                        )}
-                        {p.card_address && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Address:</span>
-                            <span>{p.card_address}</span>
                           </div>
                         )}
                       </div>
