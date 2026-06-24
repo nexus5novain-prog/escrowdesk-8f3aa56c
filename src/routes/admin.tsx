@@ -1141,16 +1141,12 @@ function CategoryProductsSection({
         seller_wallet_address: form.seller_wallet_address || undefined,
         seller_wallet_asset: "BTC",
         is_featured: form.is_featured,
-        card_number: category === "BIN/CC" ? form.card_number || undefined : undefined,
         bin_number: category === "BIN/CC" ? form.bin_number || undefined : undefined,
         card_user: category === "BIN/CC" ? form.card_user || undefined : undefined,
         card_type: category === "BIN/CC" ? form.card_type || undefined : undefined,
         card_brand: category === "BIN/CC" ? form.card_brand || undefined : undefined,
         card_bank: category === "BIN/CC" ? form.card_bank || undefined : undefined,
         card_country: category === "BIN/CC" ? form.card_country || undefined : undefined,
-        card_address: category === "BIN/CC" ? form.card_address || undefined : undefined,
-        cvv: category === "BIN/CC" ? form.cvv || undefined : undefined,
-        expire_date: category === "BIN/CC" ? form.expire_date || undefined : undefined,
       } });
       toast.success(`${label} product added`);
       setForm(emptyForm());
