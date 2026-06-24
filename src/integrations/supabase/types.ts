@@ -2896,6 +2896,8 @@ export type Database = {
         | "admin_adjustment"
         | "bucket_transfer"
         | "withdrawal_cancelled"
+        | "escrow_lock"
+        | "escrow_refund"
       listing_kind: "selling" | "seeking"
       listing_status: "active" | "inactive" | "sold"
       notification_kind:
@@ -3121,6 +3123,8 @@ export const Constants = {
         "admin_adjustment",
         "bucket_transfer",
         "withdrawal_cancelled",
+        "escrow_lock",
+        "escrow_refund",
       ],
       listing_kind: ["selling", "seeking"],
       listing_status: ["active", "inactive", "sold"],
