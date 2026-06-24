@@ -124,7 +124,7 @@ function TransactionsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button asChild size="sm" variant="outline">
-                        <Link to="/escrow/$id" params={{ id: p.id }}><Eye className="mr-1 h-3 w-3" /> View</Link>
+                        <Link to="/trade/$id" params={{ id: p.id }}><Eye className="mr-1 h-3 w-3" /> View</Link>
                       </Button>
                       {p.listing_id && (
                         <Button asChild size="sm" variant="ghost">
