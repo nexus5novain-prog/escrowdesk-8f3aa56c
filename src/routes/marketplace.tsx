@@ -161,8 +161,8 @@ function StoreSection({ category, blurb, all, isLoading }: { category: Marketpla
     setBusyId(p.id);
     try {
       const r = await buyFn({ data: { id: p.id } });
-      toast.success("Escrow group opened");
-      nav({ to: "/escrow/$id", params: { id: r.id } });
+      toast.success("Escrow trade opened");
+      nav({ to: "/trade/$id", params: { id: r.trade_id } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
