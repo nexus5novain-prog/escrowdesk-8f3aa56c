@@ -26,7 +26,11 @@ const profileQuery = (userId: string, sort: Sort, kind: Kind, page: number) =>
   });
 
 export const Route = createFileRoute("/u/$userId")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (raw: Record<string, unknown>): ProfileSearch => ({
+    sort: SORTS.includes(raw.sort as Sort) ? (raw.sort as Sort) : "pinned",
+    kind: KINDS.includes(raw.kind as Kind) ? (raw.kind as Kind) : "all",
+    page: Math.max(1, Number(raw.page) || 1),
+  }),
   loaderDeps: ({ search }) => ({ sort: search.sort, kind: search.kind, page: search.page }),
   loader: ({ context, params, deps }) =>
     context.queryClient.ensureQueryData(profileQuery(params.userId, deps.sort, deps.kind, deps.page)),
