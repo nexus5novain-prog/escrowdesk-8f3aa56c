@@ -19,7 +19,7 @@ import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata, adminUploadProductImage } from "@/lib/products.functions";
-import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
+import { adminListThreads, adminSetThreadStatus, adminDeleteThread, adminPinThread, adminBanThreadAuthor } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
 import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
