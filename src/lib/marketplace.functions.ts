@@ -440,10 +440,13 @@ export const createListing = createServerFn({ method: "POST" })
     const { userId } = context;
     const { data: prof } = await supabaseAdmin
       .from("profiles")
-      .select("is_banned, telegram_username")
+      .select("is_banned, suspended_until, telegram_username")
       .eq("user_id", userId)
       .maybeSingle();
-    if (prof?.is_banned) throw new Error("Account is banned");
+    if (prof?.is_banned) throw new Error("Your account has been banned and cannot post new threads.");
+    if (prof?.suspended_until && new Date(prof.suspended_until).getTime() > Date.now()) {
+      throw new Error(`Your account is suspended until ${new Date(prof.suspended_until).toLocaleString()}.`);
+    }
     // Auto-assign the linked Telegram username unless user explicitly overrode it
     const tg = (data.contact_telegram?.trim() || prof?.telegram_username || "").replace(/^@/, "");
     const { data: row, error } = await supabaseAdmin
