@@ -2611,20 +2611,36 @@ export type Database = {
         Returns: undefined
       }
       run_reconciliation: { Args: never; Returns: string }
-      settle_deposit_atomic: {
-        Args: {
-          _confirmations: number
-          _delivery_id: string
-          _deposit_id: string
-          _event_type: string
-          _invoice_id: string
-          _next_status: string
-          _paid_sats: number
-          _payload: Json
-          _webhook_id: string
-        }
-        Returns: Json
-      }
+      settle_deposit_atomic:
+        | {
+            Args: {
+              _confirmations: number
+              _delivery_id: string
+              _deposit_id: string
+              _event_type: string
+              _invoice_id: string
+              _next_status: string
+              _paid_sats: number
+              _payload: Json
+              _webhook_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _confirmations: number
+              _delivery_id: string
+              _deposit_id: string
+              _event_type: string
+              _invoice_id: string
+              _next_status: string
+              _paid_sats: number
+              _payload: Json
+              _payment_hash?: string
+              _webhook_id: string
+            }
+            Returns: Json
+          }
       settle_escrow_invoice_atomic: {
         Args: {
           _btcpay_invoice_id: string
@@ -2732,6 +2748,7 @@ export type Database = {
         | "bonus"
         | "admin_adjustment"
         | "bucket_transfer"
+        | "withdrawal_cancelled"
       listing_kind: "selling" | "seeking"
       listing_status: "active" | "inactive" | "sold"
       notification_kind:
@@ -2956,6 +2973,7 @@ export const Constants = {
         "bonus",
         "admin_adjustment",
         "bucket_transfer",
+        "withdrawal_cancelled",
       ],
       listing_kind: ["selling", "seeking"],
       listing_status: ["active", "inactive", "sold"],

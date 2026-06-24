@@ -128,7 +128,7 @@ export const cancelWithdrawal = createServerFn({ method: "POST" })
       _from: "pending_withdrawal",
       _to: "available",
       _amount_sats: req.amount_sats,
-      _kind: "admin_adjustment",
+      _kind: "withdrawal_cancelled",
       _ref_type: "withdrawal_request",
       _ref_id: req.id,
       _metadata: { reason: "user_cancelled" },

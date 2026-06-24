@@ -42,12 +42,13 @@ export function LivePortfolio() {
     refetchInterval: 20_000,
   });
 
-  // Live invalidate on wallet/escrow row changes for this user
+  // Live invalidate on ledger entry changes for this user (single source of truth).
+  // Escrow invoices also trigger (off-ledger lifecycle still affects the "active trades" tile).
   useEffect(() => {
     if (!user) return;
     const ch = supabase
       .channel(`portfolio-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` },
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ledger_entries", filter: `user_id=eq.${user.id}` },
         () => qc.invalidateQueries({ queryKey: ["live-portfolio"] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "escrow_invoices" },
         () => qc.invalidateQueries({ queryKey: ["live-portfolio"] }))
