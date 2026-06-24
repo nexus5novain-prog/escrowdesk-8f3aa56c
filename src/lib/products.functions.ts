@@ -355,6 +355,9 @@ export const buyProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) {
+      throw new Error("Marketplace purchases via legacy escrow groups are disabled. Use the ledger-backed escrow flow.");
+    }
     const { userId } = context;
     const { data: p, error } = await supabaseAdmin
       .from("marketplace_products")
