@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PostOfferRouteImport } from './routes/post-offer'
 import { Route as PostListingRouteImport } from './routes/post-listing'
 import { Route as OrderBookRouteImport } from './routes/order-book'
+import { Route as MyThreadsRouteImport } from './routes/my-threads'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as EscrowRouteImport } from './routes/escrow'
 import { Route as DisputesRouteImport } from './routes/disputes'
@@ -66,6 +67,11 @@ const PostListingRoute = PostListingRouteImport.update({
 const OrderBookRoute = OrderBookRouteImport.update({
   id: '/order-book',
   path: '/order-book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyThreadsRoute = MyThreadsRouteImport.update({
+  id: '/my-threads',
+  path: '/my-threads',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketplaceRoute = MarketplaceRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
   '/marketplace': typeof MarketplaceRoute
+  '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
   '/marketplace': typeof MarketplaceRoute
+  '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
   '/marketplace': typeof MarketplaceRoute
+  '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/escrow'
     | '/marketplace'
+    | '/my-threads'
     | '/order-book'
     | '/post-listing'
     | '/post-offer'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/escrow'
     | '/marketplace'
+    | '/my-threads'
     | '/order-book'
     | '/post-listing'
     | '/post-offer'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/disputes'
     | '/escrow'
     | '/marketplace'
+    | '/my-threads'
     | '/order-book'
     | '/post-listing'
     | '/post-offer'
@@ -312,6 +324,7 @@ export interface RootRouteChildren {
   DisputesRoute: typeof DisputesRouteWithChildren
   EscrowRoute: typeof EscrowRoute
   MarketplaceRoute: typeof MarketplaceRoute
+  MyThreadsRoute: typeof MyThreadsRoute
   OrderBookRoute: typeof OrderBookRoute
   PostListingRoute: typeof PostListingRoute
   PostOfferRoute: typeof PostOfferRoute
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       path: '/order-book'
       fullPath: '/order-book'
       preLoaderRoute: typeof OrderBookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-threads': {
+      id: '/my-threads'
+      path: '/my-threads'
+      fullPath: '/my-threads'
+      preLoaderRoute: typeof MyThreadsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/marketplace': {
@@ -515,6 +535,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisputesRoute: DisputesRouteWithChildren,
   EscrowRoute: EscrowRoute,
   MarketplaceRoute: MarketplaceRoute,
+  MyThreadsRoute: MyThreadsRoute,
   OrderBookRoute: OrderBookRoute,
   PostListingRoute: PostListingRoute,
   PostOfferRoute: PostOfferRoute,

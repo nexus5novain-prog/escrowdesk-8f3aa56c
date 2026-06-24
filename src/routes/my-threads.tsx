@@ -234,9 +234,7 @@ function EditDialog({ row, onSaved }: { row: Row; onSaved: () => void }) {
           </div>
         </div>
         <DialogFooter>
-          <Link to="/product/$id" params={{ id: row.id }}>
-            <Button variant="ghost" size="sm" className="gap-1"><ExternalLink className="h-3.5 w-3.5" /> View</Button>
-          </Link>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
           <Button onClick={save} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}</Button>
         </DialogFooter>
       </DialogContent>
