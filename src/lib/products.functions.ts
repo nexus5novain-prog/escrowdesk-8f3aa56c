@@ -40,17 +40,15 @@ function publicCardNumber(cardNumber?: string | null, bin?: string | null): stri
 }
 
 // Apply masking to a product row — preserves the row's shape, only overrides
-// sensitive fields. Uses a loose mutable cast so we can null out fields whether
-// or not the row's static type includes them (card_address/cvv are absent on
-// the listProducts projection but present on getProduct).
-function maskProductRow<T extends { card_number?: string | null; bin_number?: string | null; card_user?: string | null }>(row: T): T {
-  const bin = row.bin_number ?? (row.card_number ? String(row.card_number).replace(/\D/g, "").slice(0, 6) : null);
+// sensitive fields. Card PAN/CVV/expiry/billing address are no longer stored
+// on marketplace_products at all (dropped at the schema level for security).
+// We still mask the cardholder name and synthesize a BIN-only display value.
+function maskProductRow<T extends { bin_number?: string | null; card_user?: string | null }>(row: T): T {
+  const bin = (row.bin_number ?? "").replace(/\D/g, "").slice(0, 6) || null;
   const out: Record<string, unknown> = { ...row };
-  out.card_number = publicCardNumber(row.card_number ?? null, bin);
   out.bin_number = bin;
+  out.card_number = publicCardNumber(null, bin);
   out.card_user = maskHolder(row.card_user ?? null);
-  out.card_address = null;
-  out.cvv = null;
   return out as T;
 }
 
@@ -68,7 +66,7 @@ export const listProducts = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("marketplace_products")
-      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,card_number,bin_number,card_type,card_brand,card_bank,card_user,card_country,expire_date,card_style")
+      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,bin_number,card_type,card_brand,card_bank,card_user,card_country,card_style")
       .eq("status", "active")
       .order("is_featured", { ascending: false })
       .order("created_at", { ascending: false })
@@ -168,7 +166,7 @@ export const getProduct = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
       .from("marketplace_products")
-      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address,expire_date,card_style")
+      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_style")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -378,21 +376,16 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           };
           const brand = bin.card_brand ?? "Visa";
           const binNum = bin.bin_number;
-          const cardNumber = randomCardNumber(binNum, brand);
           const holder = randomName();
           const level = bin.card_level ? ` ${bin.card_level}` : "";
           base.name = `${bin.card_bank ?? "Bank"} ${brand}${level} ${bin.card_type ?? "Credit"} — BIN ${binNum}`;
           base.description = buildBinDescription(bin);
-          base.card_number = cardNumber;
           base.bin_number = binNum;
           base.card_user = holder;
           base.card_type = bin.card_type ?? "Credit";
           base.card_brand = brand;
           base.card_bank = bin.card_bank ?? "Global Bank";
           base.card_country = bin.card_country ?? "US";
-          base.card_address = randomBillingAddress(bin.country_code ?? bin.card_country ?? "US");
-          base.cvv = randomCVV(brand);
-          base.expire_date = randomExpire();
           if (bin.currency) base.currency = bin.currency;
         } else {
           const name = templateName(cat);
@@ -430,16 +423,12 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
     seller_wallet_address: z.string().trim().max(200).optional().nullable(),
     seller_wallet_asset: z.enum(ASSETS).default("BTC"),
     is_featured: z.boolean().default(false),
-    card_number: z.string().trim().min(12).max(32).optional().nullable(),
     bin_number: z.string().trim().min(6).max(6).optional().nullable(),
     card_user: z.string().trim().max(120).optional().nullable(),
     card_type: z.string().trim().max(120).optional().nullable(),
     card_brand: z.string().trim().max(120).optional().nullable(),
     card_bank: z.string().trim().max(120).optional().nullable(),
     card_country: z.string().trim().max(120).optional().nullable(),
-    card_address: z.string().trim().max(300).optional().nullable(),
-    cvv: z.string().trim().min(3).max(4).optional().nullable(),
-    expire_date: z.string().trim().min(5).max(5).optional().nullable(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
@@ -468,16 +457,12 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
     seller_wallet_asset: z.enum(ASSETS).optional(),
     is_featured: z.boolean().optional(),
     status: z.enum(["active", "inactive", "sold_out"]).optional(),
-    card_number: z.string().trim().min(12).max(32).nullable().optional(),
     bin_number: z.string().trim().min(6).max(6).nullable().optional(),
     card_user: z.string().trim().max(120).nullable().optional(),
     card_type: z.string().trim().max(120).nullable().optional(),
     card_brand: z.string().trim().max(120).nullable().optional(),
     card_bank: z.string().trim().max(120).nullable().optional(),
     card_country: z.string().trim().max(120).nullable().optional(),
-    card_address: z.string().trim().max(300).nullable().optional(),
-    cvv: z.string().trim().min(3).max(4).nullable().optional(),
-    expire_date: z.string().trim().min(5).max(5).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);

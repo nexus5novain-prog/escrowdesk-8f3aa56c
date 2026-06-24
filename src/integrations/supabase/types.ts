@@ -1154,11 +1154,9 @@ export type Database = {
       marketplace_products: {
         Row: {
           bin_number: string | null
-          card_address: string | null
           card_bank: string | null
           card_brand: string | null
           card_country: string | null
-          card_number: string | null
           card_style: number
           card_type: string | null
           card_user: string | null
@@ -1166,9 +1164,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency: string
-          cvv: string | null
           description: string
-          expire_date: string | null
           id: string
           image_url: string | null
           is_featured: boolean
@@ -1183,11 +1179,9 @@ export type Database = {
         }
         Insert: {
           bin_number?: string | null
-          card_address?: string | null
           card_bank?: string | null
           card_brand?: string | null
           card_country?: string | null
-          card_number?: string | null
           card_style?: number
           card_type?: string | null
           card_user?: string | null
@@ -1195,9 +1189,7 @@ export type Database = {
           created_at?: string
           created_by: string
           currency?: string
-          cvv?: string | null
           description: string
-          expire_date?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean
@@ -1212,11 +1204,9 @@ export type Database = {
         }
         Update: {
           bin_number?: string | null
-          card_address?: string | null
           card_bank?: string | null
           card_brand?: string | null
           card_country?: string | null
-          card_number?: string | null
           card_style?: number
           card_type?: string | null
           card_user?: string | null
@@ -1224,9 +1214,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency?: string
-          cvv?: string | null
           description?: string
-          expire_date?: string | null
           id?: string
           image_url?: string | null
           is_featured?: boolean
