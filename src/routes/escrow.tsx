@@ -210,12 +210,21 @@ function EscrowPage() {
 function NewEscrowForm() {
   const nav = useNavigate();
   const fn = useServerFn(createOffer);
+  const getAddrs = useServerFn(getCompanyEscrowAddresses);
+  const { data: company } = useQuery({
+    queryKey: ["company-escrow-addrs"],
+    queryFn: () => getAddrs(),
+    staleTime: 60_000,
+  });
+
   const [busy, setBusy] = useState(false);
   const [f, setF] = useState({
     side: "sell" as "buy" | "sell",
     amount_btc: "0.05",
     price: "65000",
     payment_method: "onchain" as "onchain" | "lightning",
+    counterparty_username: "",
+    counterparty_telegram: "",
     terms: "",
   });
 
@@ -223,12 +232,39 @@ function NewEscrowForm() {
   const px = Number(f.price) || 0;
   const fiatTotal = amt * px;
   const isSeller = f.side === "sell";
+  const companyAddr = f.payment_method === "onchain" ? (company?.btc_address ?? "") : (company?.lightning_address ?? "");
+  const railLabel = f.payment_method === "onchain" ? "On-chain BTC" : "Lightning";
+
+  // Light client-side validation of the company address
+  const addrLooksValid = (() => {
+    const v = companyAddr.trim();
+    if (!v) return false;
+    if (f.payment_method === "onchain") {
+      // Loose BTC checks: bech32, P2SH, legacy
+      return /^(bc1|tb1)[0-9a-z]{8,}$/i.test(v) || /^[13][a-km-zA-HJ-NP-Z1-9]{25,39}$/.test(v);
+    }
+    // Lightning: address (user@host) or bolt11 invoice
+    return /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(v) || /^ln(bc|tb)[0-9a-z]+$/i.test(v);
+  })();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amt <= 0 || px <= 0) { toast.error("Enter a valid amount and price"); return; }
+    if (!f.counterparty_username.trim()) { toast.error("Enter the counterparty's username"); return; }
+    if (!companyAddr) { toast.error(`Admin has not configured a company ${railLabel} address yet`); return; }
+    if (!addrLooksValid) { toast.error(`Company ${railLabel} address looks invalid — ask admin to update it`); return; }
+
     setBusy(true);
     try {
+      const meta = [
+        `Role: ${isSeller ? "Seller (receives payout)" : "Buyer (deposits funds)"}`,
+        `Counterparty: @${f.counterparty_username.trim().replace(/^@/, "")}`,
+        f.counterparty_telegram.trim() ? `Counterparty Telegram: @${f.counterparty_telegram.trim().replace(/^@/, "")}` : "",
+        `Rail: ${railLabel}`,
+        `Company ${railLabel} address: ${companyAddr}`,
+        f.terms.trim() ? `\nTerms:\n${f.terms.trim()}` : "",
+      ].filter(Boolean).join("\n");
+
       const res = await fn({ data: {
         side: f.side,
         asset: "BTC",
@@ -238,7 +274,7 @@ function NewEscrowForm() {
         max_amount: fiatTotal,
         available_crypto: amt,
         payment_method_types: [f.payment_method],
-        terms: f.terms || undefined,
+        terms: meta,
       }});
       toast.success("Escrow offer published");
       nav({ to: "/offer/$id", params: { id: res.id } });
@@ -249,6 +285,9 @@ function NewEscrowForm() {
     }
   };
 
+  const depositor = isSeller ? "the buyer" : "you";
+  const receiver = isSeller ? "you" : "the seller";
+
   return (
     <Card className="w-full max-w-2xl border-primary/30 bg-card/80 p-6 shadow-lg backdrop-blur">
       <div className="mb-5 flex items-center gap-3">
@@ -257,9 +296,7 @@ function NewEscrowForm() {
         </div>
         <div>
           <h2 className="text-lg font-semibold">Start a new escrow</h2>
-          <p className="text-xs text-muted-foreground">
-            Pick your role. EscrowDesk locks the BTC and releases when both parties confirm.
-          </p>
+          <p className="text-xs text-muted-foreground">Pick your role, invite the counterparty, and confirm the company payout rail.</p>
         </div>
       </div>
 
@@ -268,32 +305,47 @@ function NewEscrowForm() {
         <div>
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">Your role</Label>
           <div className="mt-2 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setF({ ...f, side: "sell" })}
-              className={`rounded-lg border p-4 text-left transition-all ${isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
-            >
+            <button type="button" onClick={() => setF({ ...f, side: "sell" })}
+              className={`rounded-lg border p-4 text-left transition-all ${isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}>
               <div className="flex items-center gap-2">
                 <ShoppingBag className={`h-4 w-4 ${isSeller ? "text-primary" : "text-muted-foreground"}`} />
                 <span className="font-semibold">I am a seller</span>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">I deliver the goods / service. I receive BTC after the buyer confirms.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Buyer deposits to EscrowDesk. I receive the BTC payout once they confirm delivery.</p>
             </button>
-            <button
-              type="button"
-              onClick={() => setF({ ...f, side: "buy" })}
-              className={`rounded-lg border p-4 text-left transition-all ${!isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
-            >
+            <button type="button" onClick={() => setF({ ...f, side: "buy" })}
+              className={`rounded-lg border p-4 text-left transition-all ${!isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}>
               <div className="flex items-center gap-2">
                 <Search className={`h-4 w-4 ${!isSeller ? "text-primary" : "text-muted-foreground"}`} />
                 <span className="font-semibold">I am a buyer</span>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">I deposit BTC into escrow now. Released to seller when I confirm delivery.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">I deposit BTC to the EscrowDesk address now. Released to the seller after I accept delivery.</p>
             </button>
           </div>
         </div>
 
-        {/* Core fields */}
+        {/* Invite counterparty */}
+        <div className="rounded-lg border border-border/60 bg-background/40 p-4">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Invite the {isSeller ? "buyer" : "seller"}
+          </Label>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Username on EscrowDesk</Label>
+              <Input className="mt-1" value={f.counterparty_username}
+                onChange={(e) => setF({ ...f, counterparty_username: e.target.value })}
+                placeholder={isSeller ? "buyer_username" : "seller_username"} />
+            </div>
+            <div>
+              <Label className="text-xs">Telegram <span className="text-muted-foreground">(optional, for faster response)</span></Label>
+              <Input className="mt-1" value={f.counterparty_telegram}
+                onChange={(e) => setF({ ...f, counterparty_telegram: e.target.value })}
+                placeholder="@their_handle" />
+            </div>
+          </div>
+        </div>
+
+        {/* Amount + price */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Amount (BTC)</Label>
@@ -307,32 +359,39 @@ function NewEscrowForm() {
           </div>
         </div>
 
-        {/* Payment method */}
+        {/* Payment method picker */}
         <div>
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Payout / deposit rail</Label>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Payment rail</Label>
           <div className="mt-2 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setF({ ...f, payment_method: "onchain" })}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "onchain" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
-            >
-              <Bitcoin className="h-4 w-4 text-orange-500" />
-              <span className="font-medium">On-chain BTC</span>
+            <button type="button" onClick={() => setF({ ...f, payment_method: "onchain" })}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "onchain" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}>
+              <Bitcoin className="h-4 w-4 text-orange-500" /><span className="font-medium">On-chain BTC</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setF({ ...f, payment_method: "lightning" })}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "lightning" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
-            >
-              <Zap className="h-4 w-4 text-yellow-400" />
-              <span className="font-medium">Lightning</span>
+            <button type="button" onClick={() => setF({ ...f, payment_method: "lightning" })}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "lightning" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}>
+              <Zap className="h-4 w-4 text-yellow-400" /><span className="font-medium">Lightning</span>
             </button>
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            EscrowDesk's treasury wallet handles {f.payment_method === "onchain" ? "on-chain" : "Lightning"} deposits & payouts — you'll get the address after publishing.
-          </p>
+
+          {/* Company address (conditional) */}
+          <div className="mt-3 rounded-lg border border-border/60 bg-secondary/30 p-3">
+            <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Company {railLabel} address
+            </Label>
+            {companyAddr ? (
+              <p className={`mt-1 break-all font-mono text-xs ${addrLooksValid ? "text-foreground" : "text-rose-500"}`}>{companyAddr}</p>
+            ) : (
+              <p className="mt-1 text-xs text-rose-500">
+                Not configured. An admin must set the company {railLabel} address in Admin → Settings before this escrow can be funded.
+              </p>
+            )}
+            {companyAddr && !addrLooksValid && (
+              <p className="mt-1 text-[11px] text-rose-500">This address doesn't look like a valid {railLabel} destination.</p>
+            )}
+          </div>
         </div>
 
+        {/* Terms */}
         <div>
           <Label>Terms (optional)</Label>
           <Textarea className="mt-1" rows={3} value={f.terms}
@@ -340,17 +399,23 @@ function NewEscrowForm() {
             placeholder="What's being delivered, deadlines, refund policy…" />
         </div>
 
-        {/* Summary */}
-        <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 text-xs">
-          <p className="font-medium">
-            {isSeller
-              ? <>You will <span className="text-primary">receive</span> {fmtCrypto(amt, "BTC")} (~{fmtFiat(fiatTotal, "USD")}) once the buyer confirms delivery.</>
-              : <>You will <span className="text-primary">deposit</span> {fmtCrypto(amt, "BTC")} (~{fmtFiat(fiatTotal, "USD")}) into escrow now. Released to the seller after you confirm.</>
-            }
+        {/* Dynamic escrow instructions */}
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-xs">
+          <div className="flex items-center gap-2 font-semibold text-primary">
+            <ShieldCheck className="h-4 w-4" /> Escrow flow
+          </div>
+          <ol className="mt-2 space-y-1.5 text-muted-foreground">
+            <li><span className="font-mono text-primary">1.</span> {isSeller ? "Buyer" : "You"} deposit{isSeller ? "s" : ""} <span className="font-mono text-foreground">{fmtCrypto(amt, "BTC")}</span> (~{fmtFiat(fiatTotal, "USD")}) via {railLabel} to the company address above.</li>
+            <li><span className="font-mono text-primary">2.</span> EscrowDesk locks the funds and notifies {isSeller ? "you (seller)" : "the seller"} to deliver.</li>
+            <li><span className="font-mono text-primary">3.</span> {isSeller ? "Seller (you)" : "Seller"} delivers the goods / service off-platform.</li>
+            <li><span className="font-mono text-primary">4.</span> {isSeller ? "Buyer" : "You"} accept{isSeller ? "s" : ""} delivery → EscrowDesk releases the BTC payout to {receiver}.</li>
+          </ol>
+          <p className="mt-3 text-[11px]">
+            Net: <span className="text-foreground">{depositor}</span> deposit{isSeller ? "s" : ""}, <span className="text-foreground">{receiver}</span> receive{isSeller ? "s" : ""} the payout.
           </p>
         </div>
 
-        <Button type="submit" disabled={busy} className="w-full">
+        <Button type="submit" disabled={busy || !companyAddr || !addrLooksValid} className="w-full">
           {busy ? "Publishing…" : <><Handshake className="mr-2 h-4 w-4" /> Publish escrow offer</>}
         </Button>
       </form>
