@@ -15,7 +15,6 @@ import { Route as TradesRouteImport } from './routes/trades'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PostOfferRouteImport } from './routes/post-offer'
 import { Route as PostListingRouteImport } from './routes/post-listing'
-import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as OrderBookRouteImport } from './routes/order-book'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as EscrowRouteImport } from './routes/escrow'
@@ -62,11 +61,6 @@ const PostOfferRoute = PostOfferRouteImport.update({
 const PostListingRoute = PostListingRouteImport.update({
   id: '/post-listing',
   path: '/post-listing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortfolioRoute = PortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrderBookRoute = OrderBookRouteImport.update({
@@ -165,7 +159,6 @@ export interface FileRoutesByFullPath {
   '/escrow': typeof EscrowRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
-  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -191,7 +184,6 @@ export interface FileRoutesByTo {
   '/escrow': typeof EscrowRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
-  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -218,7 +210,6 @@ export interface FileRoutesById {
   '/escrow': typeof EscrowRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
-  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -246,7 +237,6 @@ export interface FileRouteTypes {
     | '/escrow'
     | '/marketplace'
     | '/order-book'
-    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -272,7 +262,6 @@ export interface FileRouteTypes {
     | '/escrow'
     | '/marketplace'
     | '/order-book'
-    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -298,7 +287,6 @@ export interface FileRouteTypes {
     | '/escrow'
     | '/marketplace'
     | '/order-book'
-    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -325,7 +313,6 @@ export interface RootRouteChildren {
   EscrowRoute: typeof EscrowRouteWithChildren
   MarketplaceRoute: typeof MarketplaceRoute
   OrderBookRoute: typeof OrderBookRoute
-  PortfolioRoute: typeof PortfolioRoute
   PostListingRoute: typeof PostListingRoute
   PostOfferRoute: typeof PostOfferRoute
   SettingsRoute: typeof SettingsRoute
@@ -383,13 +370,6 @@ declare module '@tanstack/react-router' {
       path: '/post-listing'
       fullPath: '/post-listing'
       preLoaderRoute: typeof PostListingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portfolio': {
-      id: '/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof PortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/order-book': {
@@ -547,7 +527,6 @@ const rootRouteChildren: RootRouteChildren = {
   EscrowRoute: EscrowRouteWithChildren,
   MarketplaceRoute: MarketplaceRoute,
   OrderBookRoute: OrderBookRoute,
-  PortfolioRoute: PortfolioRoute,
   PostListingRoute: PostListingRoute,
   PostOfferRoute: PostOfferRoute,
   SettingsRoute: SettingsRoute,

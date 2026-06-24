@@ -1,30 +1,39 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AuthGate } from "@/components/AuthGate";
 import { LivePortfolio } from "@/components/wallet/LivePortfolio";
+import { ParticleBackground } from "@/components/ParticleBackground";
+import { MediatorBot } from "@/components/MediatorBot";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMyTrades } from "@/lib/escrow.functions";
+import { getMyTrades, createOffer } from "@/lib/escrow.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
+import { toast } from "sonner";
 import {
   Plus, ArrowRight, Lock, ListChecks, Scale, Wallet as WalletIcon,
   Handshake, AlertTriangle, CheckCircle2, Clock,
+  ShieldCheck, Zap, FileSignature, Bitcoin, Bot, Eye, Gavel, Server, KeyRound, Activity,
 } from "lucide-react";
 
 export const Route = createFileRoute("/escrow")({
   head: () => ({
     meta: [
-      { title: "Escrow Dashboard · EscrowDesk" },
-      { name: "description", content: "Your live escrow operations: balances, active trades, locked funds and quick actions." },
+      { title: "Escrow — EscrowDesk · Bitcoin Escrow & Arbitration" },
+      { name: "description", content: "Open a ledger-backed Bitcoin escrow. Live balances, active trades, locked funds, mediated arbitration — all on one page." },
+      { property: "og:title", content: "EscrowDesk — Bitcoin Escrow & Arbitration" },
+      { property: "og:description", content: "Custodial vault. Internal ledger. Human + bot arbitration. Built for serious counter-parties." },
     ],
   }),
-  component: () => (<AuthGate><EscrowDashboard /></AuthGate>),
+  component: () => (<AuthGate><EscrowPage /></AuthGate>),
 });
 
 const ACTIVE_STATUSES = new Set([
@@ -32,7 +41,7 @@ const ACTIVE_STATUSES = new Set([
   "pending_payment", "paid", "disputed",
 ]);
 
-function EscrowDashboard() {
+function EscrowPage() {
   const fn = useServerFn(getMyTrades);
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -58,35 +67,50 @@ function EscrowDashboard() {
   const totalLocked = active.reduce((s, t) => s + Number(t.crypto_amount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-primary">Escrow · Operations</p>
-          <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Escrow Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Live balances, active escrows, and quick actions. Read about how it works on the{" "}
-            <Link to="/portfolio" className="text-primary hover:underline">platform page</Link>.
-          </p>
+    <div className="space-y-8">
+      {/* HERO — moved from portfolio */}
+      <section className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-background to-background p-6 sm:p-10">
+        <ParticleBackground color="#f7931a" density={60} linkDistance={130} />
+        <div className="relative z-10 grid gap-8 lg:grid-cols-2 lg:items-center">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-primary">
+              <Bot className="h-3.5 w-3.5" /> EscrowDesk · Mediated Trust
+            </div>
+            <h1 className="mt-3 text-3xl font-bold sm:text-5xl">
+              Trade with anyone.<br />
+              <span className="text-primary">Trust the machine.</span>
+            </h1>
+            <p className="mt-3 max-w-lg text-sm text-muted-foreground sm:text-base">
+              EscrowDesk holds Bitcoin in a custodial treasury until both parties confirm the deal.
+              If something goes wrong, our arbitration bot triages the dispute and human judges
+              issue signed, on-record verdicts. No private keys to lose. No counter-party risk.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a href="#new-escrow"><Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Start a new escrow</Button></a>
+              <Link to="/trades"><Button size="sm" variant="outline"><ListChecks className="mr-1 h-3.5 w-3.5" /> All trades</Button></Link>
+              <Link to="/disputes"><Button size="sm" variant="ghost"><Scale className="mr-1 h-3.5 w-3.5" /> Disputes</Button></Link>
+              <Link to="/wallet"><Button size="sm" variant="ghost"><WalletIcon className="mr-1 h-3.5 w-3.5" /> Wallet</Button></Link>
+            </div>
+          </div>
+          <MediatorBot className="hidden lg:block" />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/escrow/new"><Button size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> New escrow</Button></Link>
-          <Link to="/trades"><Button size="sm" variant="outline"><ListChecks className="mr-1 h-3.5 w-3.5" /> All trades</Button></Link>
-          <Link to="/disputes"><Button size="sm" variant="outline"><Scale className="mr-1 h-3.5 w-3.5" /> Disputes</Button></Link>
-          <Link to="/wallet"><Button size="sm" variant="ghost"><WalletIcon className="mr-1 h-3.5 w-3.5" /> Wallet</Button></Link>
-        </div>
-      </div>
+      </section>
 
-      {/* Live balances panel */}
+      {/* Live wallet panel */}
       <LivePortfolio />
 
-      {/* Stat tiles */}
+      {/* Stat tiles — live escrow state */}
       <div className="grid gap-3 sm:grid-cols-4">
         <StatTile icon={<Handshake className="h-4 w-4 text-primary" />} label="Active" value={String(active.length)} />
         <StatTile icon={<Lock className="h-4 w-4 text-orange-500" />} label="Locked (BTC)" value={fmtCrypto(totalLocked, "BTC")} />
         <StatTile icon={<AlertTriangle className="h-4 w-4 text-amber-500" />} label="Disputed" value={String(disputed.length)} />
         <StatTile icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} label="Completed" value={String(released.length)} />
       </div>
+
+      {/* CENTER — the previous "Create escrow" form, now wired to ledger-backed offers */}
+      <section id="new-escrow" className="flex justify-center">
+        <NewEscrowForm />
+      </section>
 
       {/* Active escrows */}
       <Card className="p-5">
@@ -97,33 +121,22 @@ function EscrowDashboard() {
           </div>
           <Link to="/trades" className="text-xs text-primary hover:underline">All trades →</Link>
         </div>
-
         <div className="mt-4 space-y-2">
           {isLoading ? (
-            <>
-              <Skeleton className="h-14" /><Skeleton className="h-14" /><Skeleton className="h-14" />
-            </>
+            <><Skeleton className="h-14" /><Skeleton className="h-14" /><Skeleton className="h-14" /></>
           ) : active.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-              No active escrows. <Link to="/escrow/new" className="text-primary hover:underline">Start one</Link>.
+              No active escrows. <a href="#new-escrow" className="text-primary hover:underline">Start one</a>.
             </div>
           ) : (
             active.slice(0, 8).map((t) => (
-              <Link
-                key={t.id}
-                to="/trade/$id"
-                params={{ id: t.id }}
-                className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 p-3 transition-colors hover:border-primary/60"
-              >
+              <Link key={t.id} to="/trade/$id" params={{ id: t.id }}
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-background/40 p-3 transition-colors hover:border-primary/60">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <StatusBadge status={t.status} />
-                    <span className="font-mono text-xs text-muted-foreground">
-                      #{t.id.slice(0, 8)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      · {t.buyer_id === user?.id ? "you buy" : "you sell"}
-                    </span>
+                    <span className="font-mono text-xs text-muted-foreground">#{t.id.slice(0, 8)}</span>
+                    <span className="text-xs text-muted-foreground">· {t.buyer_id === user?.id ? "you buy" : "you sell"}</span>
                   </div>
                   <p className="mt-1 font-mono text-sm">
                     {fmtCrypto(Number(t.crypto_amount), t.asset)} ·{" "}
@@ -136,16 +149,180 @@ function EscrowDashboard() {
           )}
         </div>
       </Card>
+
+      {/* HOW IT WORKS — moved from portfolio */}
+      <Card className="p-5 sm:p-6">
+        <h2 className="text-lg font-semibold">How EscrowDesk works</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Four steps. Fully internal — no on-chain transfers between counter-parties.
+        </p>
+        <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Step n={1} icon={<Handshake className="h-5 w-5" />} title="Agree terms" body="Both parties sign exact terms inside the trade chat — legally meaningful, audit-logged, immutable." />
+          <Step n={2} icon={<Lock className="h-5 w-5" />} title="Lock funds" body="Buyer funds escrow from their internal balance. Sats move from `available` → `locked_escrow` instantly." />
+          <Step n={3} icon={<FileSignature className="h-5 w-5" />} title="Deliver & confirm" body="Seller delivers off-platform. Buyer confirms receipt; 24/7 arbitration available if they don't." />
+          <Step n={4} icon={<Zap className="h-5 w-5" />} title="Release" body="Funds settle into seller's available balance. Withdraw on-chain or via Lightning, anytime." />
+        </ol>
+      </Card>
+
+      {/* TRUST — moved from portfolio */}
+      <section>
+        <h2 className="text-lg font-semibold">Why it's safe</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The same primitives that secure exchanges, applied to peer-to-peer escrow.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Why icon={<ShieldCheck className="h-5 w-5 text-emerald-500" />} title="Custodial vault" body="Private keys live in EscrowDesk's hardened BTCPay + LND treasury. Users never sign a transaction." />
+          <Why icon={<Scale className="h-5 w-5 text-blue-500" />} title="Arbitration first" body="Disputes go to a panel — bot triage, then mediator, judge, and appeal. Decisions are signed and on-record." />
+          <Why icon={<Bitcoin className="h-5 w-5 text-orange-500" />} title="Bitcoin native" body="Deposit & withdraw on-chain or via Lightning. Treasury custody is reconciled hourly against the internal ledger." />
+          <Why icon={<Eye className="h-5 w-5 text-violet-500" />} title="Append-only ledger" body="Every sat movement is an immutable ledger entry. Balances are a view over entries — they cannot be edited." />
+          <Why icon={<Gavel className="h-5 w-5 text-amber-500" />} title="Dual-admin payouts" body="Withdrawals ≥ $2,000 require two independent admin approvals before broadcast. Every action is audited." />
+          <Why icon={<KeyRound className="h-5 w-5 text-rose-500" />} title="User-side hardening" body="Per-user withdrawal limits, address whitelists, trusted devices, scoped API tokens, and a full security feed." />
+        </div>
+      </section>
+
+      {/* INFRA — moved from portfolio */}
+      <Card className="p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <Server className="h-4 w-4 text-primary" />
+          <h2 className="text-lg font-semibold">Infrastructure</h2>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3 text-sm">
+          <Info label="Settlement layer" body="BTCPay Server (on-chain) + LND (Lightning) — operated by EscrowDesk treasury." />
+          <Info label="Source of truth" body="Postgres ledger. Append-only entries; balances derived from a view." />
+          <Info label="Reconciliation" body="Hourly automated check that ledger sums match wallet buckets across every account." />
+        </div>
+      </Card>
+
+      <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 text-center text-xs text-muted-foreground">
+        <Activity className="mx-auto mb-2 h-4 w-4 text-primary" />
+        Need a counter-party? Browse open offers on the{" "}
+        <Link to="/order-book" className="text-primary hover:underline">Order Book</Link>.
+      </div>
     </div>
   );
 }
 
+/* ---------------- Center form: ledger-backed "New escrow" (post an offer) ---------------- */
+
+function NewEscrowForm() {
+  const nav = useNavigate();
+  const fn = useServerFn(createOffer);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({
+    side: "sell" as "buy" | "sell",
+    fiat_currency: "USD",
+    price: "65000",
+    min_amount: "50",
+    max_amount: "1000",
+    available_crypto: "0.05",
+    payment_method_types: "bank",
+    terms: "",
+  });
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await fn({ data: {
+        side: f.side,
+        asset: "BTC",
+        fiat_currency: f.fiat_currency.toUpperCase(),
+        price: Number(f.price),
+        min_amount: Number(f.min_amount),
+        max_amount: Number(f.max_amount),
+        available_crypto: Number(f.available_crypto),
+        payment_method_types: f.payment_method_types.split(",").map((s) => s.trim()).filter(Boolean),
+        terms: f.terms || undefined,
+      }});
+      toast.success("Escrow offer published");
+      nav({ to: "/offer/$id", params: { id: res.id } });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="w-full max-w-2xl border-primary/30 bg-card/80 p-6 shadow-lg backdrop-blur">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/15 text-primary">
+          <Plus className="h-5 w-5" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">Start a new escrow</h2>
+          <p className="text-xs text-muted-foreground">
+            Publishes a ledger-backed BTC offer. Counter-parties open a trade against it; funds lock atomically.
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Side</Label>
+            <select
+              value={f.side}
+              onChange={(e) => setF({ ...f, side: e.target.value as "buy" | "sell" })}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="sell">I sell BTC</option>
+              <option value="buy">I buy BTC</option>
+            </select>
+          </div>
+          <div>
+            <Label>Asset</Label>
+            <div className="mt-1 flex h-10 items-center gap-2 rounded-md border border-input bg-secondary/30 px-3 text-sm font-medium">
+              <Bitcoin className="h-4 w-4 text-orange-500" /> BTC
+            </div>
+          </div>
+          <div>
+            <Label>Fiat currency</Label>
+            <Input className="mt-1" value={f.fiat_currency} onChange={(e) => setF({ ...f, fiat_currency: e.target.value })} />
+          </div>
+          <div>
+            <Label>Price per BTC</Label>
+            <Input className="mt-1" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
+          </div>
+          <div>
+            <Label>Min (fiat)</Label>
+            <Input className="mt-1" value={f.min_amount} onChange={(e) => setF({ ...f, min_amount: e.target.value })} />
+          </div>
+          <div>
+            <Label>Max (fiat)</Label>
+            <Input className="mt-1" value={f.max_amount} onChange={(e) => setF({ ...f, max_amount: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Available BTC</Label>
+            <Input className="mt-1" value={f.available_crypto} onChange={(e) => setF({ ...f, available_crypto: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Payment methods (comma-separated)</Label>
+            <Input className="mt-1" value={f.payment_method_types} onChange={(e) => setF({ ...f, payment_method_types: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <Label>Terms (optional)</Label>
+            <Textarea className="mt-1" rows={3} value={f.terms} onChange={(e) => setF({ ...f, terms: e.target.value })} />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? "Publishing…" : <><Handshake className="mr-2 h-4 w-4" /> Publish escrow offer</>}
+        </Button>
+        <p className="text-center text-[11px] text-muted-foreground">
+          Off-ledger escrow groups were retired. Every new escrow now runs through the platform ledger with full double-entry accounting.
+        </p>
+      </form>
+    </Card>
+  );
+}
+
+/* ---------------- small presentational helpers ---------------- */
+
 function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <Card className="p-4">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-        {icon} {label}
-      </div>
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">{icon} {label}</div>
       <p className="mt-2 font-mono text-xl font-bold tabular-nums">{value}</p>
     </Card>
   );
@@ -158,13 +335,42 @@ function StatusBadge({ status }: { status: string }) {
       : status === "released" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
       : status === "cancelled" ? "bg-muted text-muted-foreground"
       : "bg-amber-500/15 text-amber-600 dark:text-amber-400";
-  const Icon = status === "disputed" ? AlertTriangle
-    : status === "released" ? CheckCircle2
-    : Clock;
+  const Icon = status === "disputed" ? AlertTriangle : status === "released" ? CheckCircle2 : Clock;
   return (
     <Badge variant="secondary" className={`h-5 gap-1 px-1.5 text-[10px] ${tone}`}>
-      <Icon className="h-3 w-3" />
-      {status.replace(/_/g, " ")}
+      <Icon className="h-3 w-3" /> {status.replace(/_/g, " ")}
     </Badge>
+  );
+}
+
+function Step({ n, icon, title, body }: { n: number; icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <li className="relative rounded-xl border border-border/60 bg-background/40 p-4">
+      <div className="flex items-center gap-2 text-primary">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15 font-mono text-xs">{n}</span>
+        {icon}
+      </div>
+      <h3 className="mt-2 font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+    </li>
+  );
+}
+
+function Why({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <Card className="p-5">
+      <div>{icon}</div>
+      <h3 className="mt-2 font-semibold">{title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+    </Card>
+  );
+}
+
+function Info({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xs">{body}</p>
+    </div>
   );
 }
