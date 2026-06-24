@@ -24,6 +24,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AnnouncementBanner as AdminAnnouncements } from "@/components/AnnouncementBanner";
+import { FreeBinLookup } from "@/components/FreeBinLookup";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +42,7 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
+      <FreeBinLookup />
       <AdBanner placement="under_hero" variant="card" className="block" />
       <AdminAnnouncements />
       <AnnouncementBanner />
@@ -97,6 +99,9 @@ function Hero() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="gap-2">
               <Link to="/marketplace">Enter Marketplace <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+            <Button asChild size="lg" variant="secondary" className="gap-2">
+              <a href="#bin-lookup">Free BIN Lookup <Search className="h-4 w-4" /></a>
             </Button>
             <Button asChild size="lg" variant="outline" className="gap-2">
               <Link to="/auth">Create account</Link>
