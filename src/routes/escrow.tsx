@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getMyTrades, createOffer } from "@/lib/escrow.functions";
+import { getMyTrades, createOffer, getCompanyEscrowAddresses } from "@/lib/escrow.functions";
 import { THREAD_SECTIONS } from "@/lib/thread-categories";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
