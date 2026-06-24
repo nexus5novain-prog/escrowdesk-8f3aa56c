@@ -38,6 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 import { AdSizePicker } from "@/components/admin/AdSizePicker";
+import { BinAdminPanel } from "@/components/admin/BinAdminPanel";
 
 export const Route = createFileRoute("/admin")({ component: () => (<AuthGate><Admin /></AuthGate>) });
 
