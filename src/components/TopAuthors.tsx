@@ -20,14 +20,15 @@ export function TopAuthors() {
   });
 
   useEffect(() => {
+    const invalidate = () => qc.invalidateQueries({ queryKey: ["top-authors"] });
     const ch = supabase
       .channel("top-authors-listings")
-      .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => {
-        qc.invalidateQueries({ queryKey: ["top-authors"] });
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, invalidate)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, invalidate)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
+
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>;
