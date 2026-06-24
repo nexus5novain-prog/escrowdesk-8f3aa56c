@@ -1509,6 +1509,89 @@ export type Database = {
         }
         Relationships: []
       }
+      reconciliation_drift: {
+        Row: {
+          actual_sats: number | null
+          created_at: string
+          details: Json
+          expected_sats: number | null
+          id: string
+          kind: string
+          ref_id: string | null
+          ref_type: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          run_id: string
+          severity: string
+        }
+        Insert: {
+          actual_sats?: number | null
+          created_at?: string
+          details?: Json
+          expected_sats?: number | null
+          id?: string
+          kind: string
+          ref_id?: string | null
+          ref_type?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          run_id: string
+          severity?: string
+        }
+        Update: {
+          actual_sats?: number | null
+          created_at?: string
+          details?: Json
+          expected_sats?: number | null
+          id?: string
+          kind?: string
+          ref_id?: string | null
+          ref_type?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          run_id?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_drift_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_runs: {
+        Row: {
+          checks_run: number
+          drift_count: number
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          summary: Json
+        }
+        Insert: {
+          checks_run?: number
+          drift_count?: number
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: Json
+        }
+        Update: {
+          checks_run?: number
+          drift_count?: number
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: Json
+        }
+        Relationships: []
+      }
       shoutbox_messages: {
         Row: {
           body: string
@@ -2140,6 +2223,42 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_deliveries: {
+        Row: {
+          delivery_id: string
+          event_type: string | null
+          id: string
+          invoice_id: string | null
+          payload: Json
+          processed_at: string
+          result: Json | null
+          source: string
+          webhook_id: string | null
+        }
+        Insert: {
+          delivery_id: string
+          event_type?: string | null
+          id?: string
+          invoice_id?: string | null
+          payload?: Json
+          processed_at?: string
+          result?: Json | null
+          source: string
+          webhook_id?: string | null
+        }
+        Update: {
+          delivery_id?: string
+          event_type?: string | null
+          id?: string
+          invoice_id?: string | null
+          payload?: Json
+          processed_at?: string
+          result?: Json | null
+          source?: string
+          webhook_id?: string | null
+        }
+        Relationships: []
+      }
       withdrawal_approvals: {
         Row: {
           action: string
@@ -2476,6 +2595,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      resolve_drift: {
+        Args: { _id: string; _note: string }
+        Returns: undefined
+      }
       revoke_role: {
         Args: {
           _caller: string
@@ -2484,6 +2607,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      run_reconciliation: { Args: never; Returns: string }
       sign_terms: {
         Args: {
           _caller: string

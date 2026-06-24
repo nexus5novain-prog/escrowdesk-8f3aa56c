@@ -44,6 +44,20 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+        // Idempotency: dedupe by BTCPay delivery id. Replays return the cached result.
+        const deliveryId = evt.deliveryId ?? evt.originalDeliveryId ?? null;
+        if (deliveryId) {
+          const { data: prior } = await supabaseAdmin
+            .from("webhook_deliveries" as never)
+            .select("id, result")
+            .eq("source", "btcpay")
+            .eq("delivery_id", deliveryId)
+            .maybeSingle();
+          if (prior) {
+            return Response.json({ ok: true, replay: true, result: (prior as { result: unknown }).result });
+          }
+        }
+
         // Log every webhook receipt (audit)
         await supabaseAdmin.from("escrow_events").insert({
           trade_id: null,
@@ -114,6 +128,14 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
                 link: "/wallet",
               });
             } catch (e) { console.warn("[wallet-dep] notify", e); }
+          }
+          if (deliveryId) {
+            await supabaseAdmin.from("webhook_deliveries" as never).insert({
+              source: "btcpay", delivery_id: deliveryId, webhook_id: evt.webhookId ?? null,
+              event_type: evt.type, invoice_id: evt.invoiceId,
+              payload: JSON.parse(JSON.stringify(evt)),
+              result: { kind: "wallet_deposit", status: nextDepStatus, paid_sats: paidSats },
+            } as never);
           }
           return Response.json({ ok: true, kind: "wallet_deposit" });
         }
@@ -187,6 +209,19 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           }
         } catch (e) {
           console.error("[btcpay-webhook] notify/confirm failed", e);
+        }
+
+        // Record successful processing for idempotency replay protection.
+        if (deliveryId) {
+          await supabaseAdmin.from("webhook_deliveries" as never).insert({
+            source: "btcpay",
+            delivery_id: deliveryId,
+            webhook_id: evt.webhookId ?? null,
+            event_type: evt.type,
+            invoice_id: evt.invoiceId,
+            payload: JSON.parse(JSON.stringify(evt)),
+            result: { status: nextStatus, confirmations, paid },
+          } as never);
         }
 
         return Response.json({ ok: true });
