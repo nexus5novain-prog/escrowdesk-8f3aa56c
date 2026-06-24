@@ -335,14 +335,39 @@ function TelegramPanel() {
 
 function SettingsPanel() {
   const setFee = useServerFn(adminSetFee);
+  const getAddrs = useServerFn(getCompanyEscrowAddresses);
+  const setAddrs = useServerFn(adminSetCompanyEscrowAddresses);
   const [fee, setFeeVal] = useState("100");
+  const [btc, setBtc] = useState("");
+  const [ln, setLn] = useState("");
+  useEffect(() => { getAddrs().then((r) => { setBtc(r.btc_address); setLn(r.lightning_address); }).catch(() => {}); }, [getAddrs]);
   return (
-    <div className="surface p-5">
-      <h2 className="font-semibold">Platform fee (bps · 100 = 1%) — legacy override</h2>
-      <p className="mt-1 text-xs text-muted-foreground">Tiered fees (set in <code className="font-mono">platform_settings.fee_tiers</code>) take precedence. This is a fallback if no tiers exist.</p>
-      <div className="mt-2 flex gap-2">
-        <Input className="w-32 font-mono" value={fee} onChange={(e) => setFeeVal(e.target.value)} />
-        <Button onClick={async () => { try { await setFee({ data: { fee_bps: Number(fee) } }); toast.success("Saved"); } catch (e) { toast.error((e as Error).message); } }}>Save</Button>
+    <div className="space-y-4">
+      <div className="surface p-5">
+        <h2 className="font-semibold">Company escrow payout addresses</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          These are the treasury addresses shown to buyers when they fund an escrow. Leave a field empty to disable that rail.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">On-chain BTC address</Label>
+            <Input value={btc} onChange={(e) => setBtc(e.target.value)} placeholder="bc1q… or 3… or 1…" className="font-mono text-xs" />
+          </div>
+          <div>
+            <Label className="text-xs uppercase text-muted-foreground">Lightning address / invoice</Label>
+            <Input value={ln} onChange={(e) => setLn(e.target.value)} placeholder="treasury@escrowdesk.com or lnbc…" className="font-mono text-xs" />
+          </div>
+        </div>
+        <div className="mt-3"><Button onClick={async () => { try { await setAddrs({ data: { btc_address: btc.trim(), lightning_address: ln.trim() } }); toast.success("Saved"); } catch (e) { toast.error((e as Error).message); } }}>Save addresses</Button></div>
+      </div>
+
+      <div className="surface p-5">
+        <h2 className="font-semibold">Platform fee (bps · 100 = 1%) — legacy override</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Tiered fees (set in <code className="font-mono">platform_settings.fee_tiers</code>) take precedence. This is a fallback if no tiers exist.</p>
+        <div className="mt-2 flex gap-2">
+          <Input className="w-32 font-mono" value={fee} onChange={(e) => setFeeVal(e.target.value)} />
+          <Button onClick={async () => { try { await setFee({ data: { fee_bps: Number(fee) } }); toast.success("Saved"); } catch (e) { toast.error((e as Error).message); } }}>Save</Button>
+        </div>
       </div>
     </div>
   );
