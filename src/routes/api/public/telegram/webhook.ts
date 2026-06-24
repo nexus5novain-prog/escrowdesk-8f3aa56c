@@ -301,7 +301,7 @@ async function handle(update: Record<string, unknown>) {
   if (!message) return;
   const chat = message.chat as { id: number };
   const from = message.from as { id: number; username?: string; first_name?: string };
-  const text = (message.text as string | undefined) ?? "";
+  let text = (message.text as string | undefined) ?? "";
   const tgId = from.id;
 
   // Find linked user
