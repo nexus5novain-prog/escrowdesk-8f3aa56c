@@ -203,6 +203,19 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
           console.error("[btcpay-webhook] notify/confirm failed", e);
         }
 
+        // Record successful processing for idempotency replay protection.
+        if (deliveryId) {
+          await supabaseAdmin.from("webhook_deliveries" as never).insert({
+            source: "btcpay",
+            delivery_id: deliveryId,
+            webhook_id: evt.webhookId ?? null,
+            event_type: evt.type,
+            invoice_id: evt.invoiceId,
+            payload: JSON.parse(JSON.stringify(evt)),
+            result: { status: nextStatus, confirmations, paid },
+          } as never);
+        }
+
         return Response.json({ ok: true });
       },
     },
