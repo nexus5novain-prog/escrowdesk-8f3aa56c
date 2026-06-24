@@ -45,6 +45,16 @@ function escapeHtml(s: string) {
   return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
+// ============================================================================
+// DEPRECATED (Security Remediation Phase 1, Issue #3)
+// The legacy "escrow groups" flow operates outside the ledger and violates
+// platform accounting rules. All write paths now throw. Use the ledger-backed
+// trade flow (offers/trades) instead. Read paths remain so existing data is
+// still viewable for audit / history.
+// ============================================================================
+const ESCROW_GROUPS_DEPRECATED =
+  "Escrow Groups are deprecated. Please use the ledger-backed escrow flow under Order Book / Trades.";
+
 // -------- Create a group --------
 export const createEscrowGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -58,6 +68,7 @@ export const createEscrowGroup = createServerFn({ method: "POST" })
     listing_id: z.string().uuid().optional(),
   }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { userId } = context;
 
     // Resolve seller — if listing supplied, owner is the seller; otherwise try by username/telegram
@@ -136,6 +147,7 @@ export const acceptEscrowInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { data: mem } = await supabaseAdmin.from("escrow_group_members")
       .select("role, accepted_at, declined_at")
       .eq("group_id", data.group_id).eq("user_id", context.userId).maybeSingle();
@@ -160,6 +172,7 @@ export const declineEscrowInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { data: mem } = await supabaseAdmin.from("escrow_group_members")
       .select("role").eq("group_id", data.group_id).eq("user_id", context.userId).maybeSingle();
     if (!mem) throw new Error("Not invited");
@@ -180,6 +193,7 @@ export const verifyGroupDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { data: g } = await supabaseAdmin.from("escrow_groups")
       .select("counterparty_id, deposit_tx_hash, status").eq("id", data.group_id).maybeSingle();
     if (!g) throw new Error("Not found");
@@ -227,6 +241,7 @@ export const sendGroupMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid(), body: z.string().trim().min(1).max(2000) }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     await ensureMember(data.group_id, context.userId);
     await supabaseAdmin.from("escrow_group_messages").insert({
       group_id: data.group_id, sender_id: context.userId, body: data.body,
@@ -245,6 +260,7 @@ export const inviteModerator = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     await ensureMember(data.group_id, context.userId);
     // Find a judge / moderator
     const { data: judges } = await supabaseAdmin
@@ -275,6 +291,7 @@ export const submitGroupTxHash = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid(), hash: z.string().trim().min(8).max(200) }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { data: g } = await supabaseAdmin.from("escrow_groups").select("creator_id, status").eq("id", data.group_id).maybeSingle();
     if (!g) throw new Error("Not found");
     if (g.creator_id !== context.userId) throw new Error("Only buyer can submit the tx hash");
@@ -291,6 +308,7 @@ export const releaseEscrowGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     const { data: g } = await supabaseAdmin.from("escrow_groups").select("*").eq("id", data.group_id).maybeSingle();
     if (!g) throw new Error("Not found");
     if (g.counterparty_id !== context.userId) throw new Error("Only seller can release");
@@ -307,6 +325,7 @@ export const cancelEscrowGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ group_id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
+    if (Date.now() > 0) throw new Error(ESCROW_GROUPS_DEPRECATED);
     await ensureMember(data.group_id, context.userId);
     const { data: g } = await supabaseAdmin.from("escrow_groups").select("status").eq("id", data.group_id).maybeSingle();
     if (!g) throw new Error("Not found");

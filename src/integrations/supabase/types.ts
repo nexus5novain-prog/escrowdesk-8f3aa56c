@@ -786,6 +786,7 @@ export type Database = {
           cvv: string | null
           deposit_tx_hash: string | null
           deposit_verified_at: string | null
+          deprecated_at: string
           escrow_address: string | null
           escrow_address_chain: string | null
           expire_date: string | null
@@ -821,6 +822,7 @@ export type Database = {
           cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
+          deprecated_at?: string
           escrow_address?: string | null
           escrow_address_chain?: string | null
           expire_date?: string | null
@@ -856,6 +858,7 @@ export type Database = {
           cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
+          deprecated_at?: string
           escrow_address?: string | null
           escrow_address_chain?: string | null
           expire_date?: string | null
@@ -2608,6 +2611,35 @@ export type Database = {
         Returns: undefined
       }
       run_reconciliation: { Args: never; Returns: string }
+      settle_deposit_atomic: {
+        Args: {
+          _confirmations: number
+          _delivery_id: string
+          _deposit_id: string
+          _event_type: string
+          _invoice_id: string
+          _next_status: string
+          _paid_sats: number
+          _payload: Json
+          _webhook_id: string
+        }
+        Returns: Json
+      }
+      settle_escrow_invoice_atomic: {
+        Args: {
+          _btcpay_invoice_id: string
+          _confirmations: number
+          _delivery_id: string
+          _event_type: string
+          _invoice_id: string
+          _next_status: string
+          _paid_btc: number
+          _paid_sats: number
+          _payload: Json
+          _webhook_id: string
+        }
+        Returns: Json
+      }
       sign_terms: {
         Args: {
           _caller: string
