@@ -1317,6 +1317,8 @@ function EditProductDialog({ product, update, onSaved }: {
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadImage = useServerFn(adminUploadProductImage);
   const [f, setF] = useState(() => ({
     name: product.name,
     description: product.description,
