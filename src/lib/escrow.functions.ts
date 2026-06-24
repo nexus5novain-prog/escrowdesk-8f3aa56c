@@ -924,3 +924,35 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
       purchases,
     };
   });
+
+// ---------- Company escrow payout addresses (admin-configurable, public-readable) ----------
+export const getCompanyEscrowAddresses = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const { data, error } = await supabaseAdmin
+      .from("platform_settings")
+      .select("key, value")
+      .in("key", ["company_btc_address", "company_lightning_address"]);
+    if (error) throw new Error(error.message);
+    const map = new Map((data ?? []).map((r) => [r.key, r.value as unknown]));
+    const btc = String(map.get("company_btc_address") ?? "").trim();
+    const ln = String(map.get("company_lightning_address") ?? "").trim();
+    return { btc_address: btc, lightning_address: ln };
+  });
+
+export const adminSetCompanyEscrowAddresses = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    btc_address: z.string().max(200).default(""),
+    lightning_address: z.string().max(200).default(""),
+  }))
+  .handler(async ({ data, context }) => {
+    const { isAdmin } = await assertAdmin(context.userId);
+    if (!isAdmin) throw new Error("Admin only");
+    const now = new Date().toISOString();
+    const { error } = await supabaseAdmin.from("platform_settings").upsert([
+      { key: "company_btc_address", value: data.btc_address.trim(), updated_at: now },
+      { key: "company_lightning_address", value: data.lightning_address.trim(), updated_at: now },
+    ]);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
