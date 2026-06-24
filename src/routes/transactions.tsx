@@ -30,16 +30,12 @@ type Purchase = {
   fiat_currency: string;
   status: string;
   created_at: string;
-  card_number?: string | null;
   bin_number?: string | null;
   card_user?: string | null;
   card_type?: string | null;
   card_brand?: string | null;
   card_bank?: string | null;
   card_country?: string | null;
-  card_address?: string | null;
-  cvv?: string | null;
-  expire_date?: string | null;
 };
 
 function TransactionsPage() {
