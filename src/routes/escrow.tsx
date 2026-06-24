@@ -213,28 +213,31 @@ function NewEscrowForm() {
   const [busy, setBusy] = useState(false);
   const [f, setF] = useState({
     side: "sell" as "buy" | "sell",
-    fiat_currency: "USD",
+    amount_btc: "0.05",
     price: "65000",
-    min_amount: "50",
-    max_amount: "1000",
-    available_crypto: "0.05",
-    payment_method_types: "bank",
+    payment_method: "onchain" as "onchain" | "lightning",
     terms: "",
   });
 
+  const amt = Number(f.amount_btc) || 0;
+  const px = Number(f.price) || 0;
+  const fiatTotal = amt * px;
+  const isSeller = f.side === "sell";
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (amt <= 0 || px <= 0) { toast.error("Enter a valid amount and price"); return; }
     setBusy(true);
     try {
       const res = await fn({ data: {
         side: f.side,
         asset: "BTC",
-        fiat_currency: f.fiat_currency.toUpperCase(),
-        price: Number(f.price),
-        min_amount: Number(f.min_amount),
-        max_amount: Number(f.max_amount),
-        available_crypto: Number(f.available_crypto),
-        payment_method_types: f.payment_method_types.split(",").map((s) => s.trim()).filter(Boolean),
+        fiat_currency: "USD",
+        price: px,
+        min_amount: fiatTotal,
+        max_amount: fiatTotal,
+        available_crypto: amt,
+        payment_method_types: [f.payment_method],
         terms: f.terms || undefined,
       }});
       toast.success("Escrow offer published");
@@ -255,66 +258,101 @@ function NewEscrowForm() {
         <div>
           <h2 className="text-lg font-semibold">Start a new escrow</h2>
           <p className="text-xs text-muted-foreground">
-            Publishes a ledger-backed BTC offer. Counter-parties open a trade against it; funds lock atomically.
+            Pick your role. EscrowDesk locks the BTC and releases when both parties confirm.
           </p>
         </div>
       </div>
 
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit} className="space-y-5">
+        {/* Role toggle */}
+        <div>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Your role</Label>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setF({ ...f, side: "sell" })}
+              className={`rounded-lg border p-4 text-left transition-all ${isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className={`h-4 w-4 ${isSeller ? "text-primary" : "text-muted-foreground"}`} />
+                <span className="font-semibold">I am a seller</span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">I deliver the goods / service. I receive BTC after the buyer confirms.</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setF({ ...f, side: "buy" })}
+              className={`rounded-lg border p-4 text-left transition-all ${!isSeller ? "border-primary bg-primary/10 ring-2 ring-primary/40" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
+            >
+              <div className="flex items-center gap-2">
+                <Search className={`h-4 w-4 ${!isSeller ? "text-primary" : "text-muted-foreground"}`} />
+                <span className="font-semibold">I am a buyer</span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">I deposit BTC into escrow now. Released to seller when I confirm delivery.</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Core fields */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Side</Label>
-            <select
-              value={f.side}
-              onChange={(e) => setF({ ...f, side: e.target.value as "buy" | "sell" })}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <Label>Amount (BTC)</Label>
+            <Input className="mt-1" inputMode="decimal" value={f.amount_btc}
+              onChange={(e) => setF({ ...f, amount_btc: e.target.value })} placeholder="0.05" />
+          </div>
+          <div>
+            <Label>Price per BTC (USD)</Label>
+            <Input className="mt-1" inputMode="decimal" value={f.price}
+              onChange={(e) => setF({ ...f, price: e.target.value })} placeholder="65000" />
+          </div>
+        </div>
+
+        {/* Payment method */}
+        <div>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Payout / deposit rail</Label>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setF({ ...f, payment_method: "onchain" })}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "onchain" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
             >
-              <option value="sell">I sell BTC</option>
-              <option value="buy">I buy BTC</option>
-            </select>
+              <Bitcoin className="h-4 w-4 text-orange-500" />
+              <span className="font-medium">On-chain BTC</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setF({ ...f, payment_method: "lightning" })}
+              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-all ${f.payment_method === "lightning" ? "border-primary bg-primary/10" : "border-border/60 bg-background/40 hover:border-primary/40"}`}
+            >
+              <Zap className="h-4 w-4 text-yellow-400" />
+              <span className="font-medium">Lightning</span>
+            </button>
           </div>
-          <div>
-            <Label>Asset</Label>
-            <div className="mt-1 flex h-10 items-center gap-2 rounded-md border border-input bg-secondary/30 px-3 text-sm font-medium">
-              <Bitcoin className="h-4 w-4 text-orange-500" /> BTC
-            </div>
-          </div>
-          <div>
-            <Label>Fiat currency</Label>
-            <Input className="mt-1" value={f.fiat_currency} onChange={(e) => setF({ ...f, fiat_currency: e.target.value })} />
-          </div>
-          <div>
-            <Label>Price per BTC</Label>
-            <Input className="mt-1" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
-          </div>
-          <div>
-            <Label>Min (fiat)</Label>
-            <Input className="mt-1" value={f.min_amount} onChange={(e) => setF({ ...f, min_amount: e.target.value })} />
-          </div>
-          <div>
-            <Label>Max (fiat)</Label>
-            <Input className="mt-1" value={f.max_amount} onChange={(e) => setF({ ...f, max_amount: e.target.value })} />
-          </div>
-          <div className="col-span-2">
-            <Label>Available BTC</Label>
-            <Input className="mt-1" value={f.available_crypto} onChange={(e) => setF({ ...f, available_crypto: e.target.value })} />
-          </div>
-          <div className="col-span-2">
-            <Label>Payment methods (comma-separated)</Label>
-            <Input className="mt-1" value={f.payment_method_types} onChange={(e) => setF({ ...f, payment_method_types: e.target.value })} />
-          </div>
-          <div className="col-span-2">
-            <Label>Terms (optional)</Label>
-            <Textarea className="mt-1" rows={3} value={f.terms} onChange={(e) => setF({ ...f, terms: e.target.value })} />
-          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            EscrowDesk's treasury wallet handles {f.payment_method === "onchain" ? "on-chain" : "Lightning"} deposits & payouts — you'll get the address after publishing.
+          </p>
+        </div>
+
+        <div>
+          <Label>Terms (optional)</Label>
+          <Textarea className="mt-1" rows={3} value={f.terms}
+            onChange={(e) => setF({ ...f, terms: e.target.value })}
+            placeholder="What's being delivered, deadlines, refund policy…" />
+        </div>
+
+        {/* Summary */}
+        <div className="rounded-lg border border-border/60 bg-secondary/30 p-3 text-xs">
+          <p className="font-medium">
+            {isSeller
+              ? <>You will <span className="text-primary">receive</span> {fmtCrypto(amt, "BTC")} (~{fmtFiat(fiatTotal, "USD")}) once the buyer confirms delivery.</>
+              : <>You will <span className="text-primary">deposit</span> {fmtCrypto(amt, "BTC")} (~{fmtFiat(fiatTotal, "USD")}) into escrow now. Released to the seller after you confirm.</>
+            }
+          </p>
         </div>
 
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? "Publishing…" : <><Handshake className="mr-2 h-4 w-4" /> Publish escrow offer</>}
         </Button>
-        <p className="text-center text-[11px] text-muted-foreground">
-          Off-ledger escrow groups were retired. Every new escrow now runs through the platform ledger with full double-entry accounting.
-        </p>
       </form>
     </Card>
   );
