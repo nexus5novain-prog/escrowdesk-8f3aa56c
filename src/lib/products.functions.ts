@@ -86,19 +86,82 @@ export const listProducts = createServerFn({ method: "GET" })
     return { products };
   });
 
+// Builds a rich, ready-to-paste product description from BIN metadata.
+// Used both by the lookup endpoint (admin form auto-fill) and by the seeder
+// so seeded listings carry the same detail level as manually-entered ones.
+function buildBinDescription(m: {
+  bin_number: string;
+  card_brand?: string | null;
+  card_type?: string | null;
+  card_bank?: string | null;
+  card_country?: string | null;
+  card_level?: string | null;
+  currency?: string | null;
+}): string {
+  const network = (m.card_brand || "Card").toString().toUpperCase();
+  const type = (m.card_type || "").toString().toLowerCase();
+  const headline = `${network}${type ? " " + type : ""} card — BIN ${m.bin_number}`;
+  const lines = [`💳 ${headline}`];
+  if (m.card_bank) lines.push(`🏦 Issuer: ${m.card_bank}`);
+  if (m.card_country) lines.push(`🌍 Country: ${m.card_country}`);
+  if (m.card_level) lines.push(`⭐ Level: ${m.card_level}`);
+  if (m.currency) lines.push(`💱 Currency: ${m.currency}`);
+  lines.push(`🔢 BIN range: ${m.bin_number}xxxxxxxxxx`);
+  lines.push("");
+  lines.push("Full PAN, CVV, expiry and billing address are released in the");
+  lines.push("escrow trade room only after the buyer funds the deposit.");
+  return lines.join("\n");
+}
+
+// BIN lookup accepts either a full card_number OR a 4–8 digit BIN prefix and
+// returns enriched metadata plus a pre-built description for auto-fill. It
+// reads from bin_metadata first, then falls back to the richer `bins` table
+// when fields are missing (card_level, currency, country_code).
 export const lookupBinMetadata = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ card_number: z.string().trim().min(6).max(32) }))
+  .inputValidator(z.object({
+    card_number: z.string().trim().min(4).max(32).optional(),
+    bin: z.string().trim().min(4).max(8).optional(),
+  }).refine((v) => v.card_number || v.bin, { message: "card_number or bin required" }))
   .handler(async ({ data }) => {
-    const bin = data.card_number.replace(/\D/g, "").slice(0, 6);
+    const raw = (data.bin ?? data.card_number ?? "").replace(/\D/g, "");
+    const bin = raw.slice(0, 6);
     if (bin.length < 6) return { metadata: null };
-    const { data: row, error } = await supabaseAdmin
+
+    const { data: meta } = await supabaseAdmin
       .from("bin_metadata")
       .select("bin_number,card_brand,card_type,card_bank,card_country,card_address,description")
       .eq("bin_number", bin)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return { metadata: row ?? null };
+
+    // Fallback / enrichment from raw `bins` import table
+    const { data: raw2 } = await supabaseAdmin
+      .from("bins")
+      .select("bin,bank,brand,card_type,card_level,country,country_code,currency,notes")
+      .eq("bin", bin)
+      .maybeSingle();
+
+    if (!meta && !raw2) return { metadata: null };
+
+    const merged = {
+      bin_number: bin,
+      card_brand: meta?.card_brand ?? raw2?.brand ?? null,
+      card_type: meta?.card_type ?? raw2?.card_type ?? null,
+      card_bank: meta?.card_bank ?? raw2?.bank ?? null,
+      card_country: meta?.card_country ?? raw2?.country ?? null,
+      card_country_code: raw2?.country_code ?? null,
+      card_level: raw2?.card_level ?? null,
+      currency: raw2?.currency ?? null,
+      card_address: meta?.card_address ?? null,
+      description: meta?.description ?? null,
+    };
+
+    const auto_description = buildBinDescription(merged);
+    const suggested_name = `${merged.card_bank ?? "Issuer"} ${merged.card_brand ?? "Card"} ${merged.card_type ?? ""} — BIN ${bin}`.replace(/\s+/g, " ").trim();
+
+    return { metadata: { ...merged, auto_description, suggested_name } };
   });
+
+export { buildBinDescription };
 
 export const getProduct = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
