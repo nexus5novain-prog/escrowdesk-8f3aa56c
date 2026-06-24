@@ -83,6 +83,8 @@ function AuthorCard({ a, rank }: { a: TopAuthor; rank: number }) {
           </div>
         )}
       </div>
+      </Link>
     </motion.div>
+
   );
 }
