@@ -28,6 +28,7 @@ import {
   createApiToken, revokeApiToken, revokeTrustedDevice, changePassword,
 } from "@/lib/settings.functions";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { TwoFactorCard } from "@/components/TwoFactorCard";
 import { SupportForm } from "@/components/SupportForm";
 
 export const Route = createFileRoute("/settings")({
@@ -242,6 +243,8 @@ function SecurityTab({ email }: { email: string | null }) {
           <Badge variant="outline">Verified</Badge>
         </div>
       </section>
+
+      <TwoFactorCard />
 
       <section className="surface p-5">
         <SectionHead title="Change password" subtitle="Use at least 8 characters. You'll be required to sign in again on other devices." />

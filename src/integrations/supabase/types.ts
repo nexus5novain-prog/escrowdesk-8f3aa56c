@@ -1540,6 +1540,9 @@ export type Database = {
           telegram_user_id: number | null
           telegram_username: string | null
           timezone: string
+          totp_enabled_at: string | null
+          totp_last_step: number | null
+          totp_secret: string | null
           trades_completed: number
           updated_at: string
           user_id: string
@@ -1572,6 +1575,9 @@ export type Database = {
           telegram_user_id?: number | null
           telegram_username?: string | null
           timezone?: string
+          totp_enabled_at?: string | null
+          totp_last_step?: number | null
+          totp_secret?: string | null
           trades_completed?: number
           updated_at?: string
           user_id: string
@@ -1604,6 +1610,9 @@ export type Database = {
           telegram_user_id?: number | null
           telegram_username?: string | null
           timezone?: string
+          totp_enabled_at?: string | null
+          totp_last_step?: number | null
+          totp_secret?: string | null
           trades_completed?: number
           updated_at?: string
           user_id?: string
@@ -1842,6 +1851,42 @@ export type Database = {
           created_at?: string
           expires_at?: string
           used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      totp_recovery_codes: {
+        Row: {
+          code_hash: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      totp_used_steps: {
+        Row: {
+          step: number
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          step: number
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          step?: number
+          used_at?: string
           user_id?: string
         }
         Relationships: []
