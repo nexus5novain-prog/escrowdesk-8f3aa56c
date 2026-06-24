@@ -160,9 +160,9 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
     const now = Date.now();
     const visible = (profs ?? []).filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
     const pm = new Map(visible.map((p) => [p.user_id, p]));
-    const threads: CategoryThread[] = (rows ?? []).map((r) => {
-      const p = pm.get(r.user_id);
-      const ratingCount = p?.rating_count ?? 0;
+    const threads: CategoryThread[] = (rows ?? []).filter((r) => pm.has(r.user_id)).map((r) => {
+      const p = pm.get(r.user_id)!;
+      const ratingCount = p.rating_count ?? 0;
       return {
         id: r.id,
         user_id: r.user_id,
@@ -174,13 +174,13 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
         status: r.status as "active" | "inactive" | "sold",
         created_at: r.created_at,
         is_pinned: !!(r as { is_pinned?: boolean }).is_pinned,
-        author: p?.display_name ?? "Anon",
-        avatar_url: p?.avatar_url ?? null,
-        telegram_username: p?.telegram_username ?? null,
-        is_premium: !!p?.is_premium,
-        is_trusted: !!p?.is_trusted,
-        trades_completed: p?.trades_completed ?? 0,
-        rating_avg: ratingCount > 0 ? (p!.rating_sum ?? 0) / ratingCount : null,
+        author: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url ?? null,
+        telegram_username: p.telegram_username ?? null,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_avg: ratingCount > 0 ? (p.rating_sum ?? 0) / ratingCount : null,
         rating_count: ratingCount,
       };
     });
