@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { ShieldCheck, Mail, MessageCircle, Github } from "lucide-react";
+import { Mail, MessageCircle, Github } from "lucide-react";
 import { AdBanner } from "@/components/AdBanner";
+import logoAsset from "@/assets/escrowdesk-logo.png.asset.json";
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -13,10 +14,11 @@ export function SiteFooter() {
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div className="space-y-3">
             <Link to="/" className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-md border border-primary/30 bg-primary/10 text-primary">
-                <ShieldCheck className="h-4 w-4" />
-              </span>
-              <span className="text-base font-semibold tracking-tight">EscrowDesk</span>
+              <img
+                src={logoAsset.url}
+                alt="EscrowDesk"
+                className="h-8 w-auto"
+              />
             </Link>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Professional peer-to-peer crypto escrow. Every trade is mediated, signed and settled on-platform.
