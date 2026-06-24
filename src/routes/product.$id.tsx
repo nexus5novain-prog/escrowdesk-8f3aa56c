@@ -122,12 +122,12 @@ function ProductDetailPage() {
               <Badge variant="secondary" className="mb-1.5"><Wallet className="mr-1 h-3 w-3" />Pay in {p.seller_wallet_asset ?? "USDT"}</Badge>
               <Badge variant={p.status === "active" ? "default" : "secondary"} className="mb-1.5">{p.status}</Badge>
             </div>
-            {(p.card_number || p.bin_number || p.card_bank || p.card_type || p.card_user) && (
+            {(p.bin_number || p.card_bank || p.card_type || p.card_user) && (
               <div className="mt-4 rounded-2xl border border-border/60 bg-secondary/30 p-4 text-sm text-muted-foreground">
                 {p.card_user && <div className="font-medium text-foreground">{p.card_user}</div>}
-                {(p.card_number || p.bin_number) && (
+                {p.bin_number && (
                   <div className="mt-2 font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                    {p.card_number ? maskCardNumber(p.card_number) : `${p.bin_number} **** **** ****`}
+                    {`${p.bin_number} **** **** ****`}
                   </div>
                 )}
                 <div className="mt-2 text-xs text-muted-foreground">
