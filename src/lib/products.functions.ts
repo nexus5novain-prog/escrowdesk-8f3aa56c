@@ -66,7 +66,7 @@ export const listProducts = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("marketplace_products")
-      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,card_number,bin_number,card_type,card_brand,card_bank,card_user,card_country,expire_date,card_style")
+      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,bin_number,card_type,card_brand,card_bank,card_user,card_country,card_style")
       .eq("status", "active")
       .order("is_featured", { ascending: false })
       .order("created_at", { ascending: false })
