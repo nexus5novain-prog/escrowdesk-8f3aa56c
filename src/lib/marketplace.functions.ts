@@ -523,7 +523,7 @@ export const updateMyThread = createServerFn({ method: "POST" })
     const clean: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
     const { error } = await supabaseAdmin
-      .from("listings").update(clean).eq("id", id).eq("user_id", context.userId);
+      .from("listings").update(clean as never).eq("id", id).eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
