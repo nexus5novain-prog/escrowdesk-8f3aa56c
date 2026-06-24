@@ -166,7 +166,7 @@ export const getProduct = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
       .from("marketplace_products")
-      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address,expire_date,card_style")
+      .select("id,name,description,category,price,currency,image_url,stock,status,is_featured,created_at,seller_wallet_asset,seller_wallet_address,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_style")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
