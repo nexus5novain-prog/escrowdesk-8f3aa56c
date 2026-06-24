@@ -1264,7 +1264,21 @@ function CategoryProductsSection({
                     </div>
 
                     <div className="text-[11px] text-muted-foreground">{p.price} {p.currency} · Stock: {p.stock === -1 ? "∞" : p.stock}</div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{p.description}</p>
+                    {p.category === "BIN/CC" && (
+                      <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground sm:grid-cols-3">
+                        {p.card_number && <div><span className="opacity-70">PAN:</span> {p.card_number}</div>}
+                        {p.bin_number && <div><span className="opacity-70">BIN:</span> {p.bin_number}</div>}
+                        {p.cvv && <div><span className="opacity-70">CVV:</span> {p.cvv}</div>}
+                        {p.expire_date && <div><span className="opacity-70">Exp:</span> {p.expire_date}</div>}
+                        {p.card_brand && <div><span className="opacity-70">Brand:</span> {p.card_brand}</div>}
+                        {p.card_type && <div><span className="opacity-70">Type:</span> {p.card_type}</div>}
+                        {p.card_bank && <div><span className="opacity-70">Bank:</span> {p.card_bank}</div>}
+                        {p.card_country && <div><span className="opacity-70">Country:</span> {p.card_country}</div>}
+                        {p.card_user && <div className="col-span-2 sm:col-span-3"><span className="opacity-70">Holder:</span> {p.card_user}</div>}
+                        {p.card_address && <div className="col-span-2 sm:col-span-3"><span className="opacity-70">Address:</span> {p.card_address}</div>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
