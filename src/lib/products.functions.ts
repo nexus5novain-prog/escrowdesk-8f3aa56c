@@ -86,19 +86,82 @@ export const listProducts = createServerFn({ method: "GET" })
     return { products };
   });
 
+// Builds a rich, ready-to-paste product description from BIN metadata.
+// Used both by the lookup endpoint (admin form auto-fill) and by the seeder
+// so seeded listings carry the same detail level as manually-entered ones.
+function buildBinDescription(m: {
+  bin_number: string;
+  card_brand?: string | null;
+  card_type?: string | null;
+  card_bank?: string | null;
+  card_country?: string | null;
+  card_level?: string | null;
+  currency?: string | null;
+}): string {
+  const network = (m.card_brand || "Card").toString().toUpperCase();
+  const type = (m.card_type || "").toString().toLowerCase();
+  const headline = `${network}${type ? " " + type : ""} card — BIN ${m.bin_number}`;
+  const lines = [`💳 ${headline}`];
+  if (m.card_bank) lines.push(`🏦 Issuer: ${m.card_bank}`);
+  if (m.card_country) lines.push(`🌍 Country: ${m.card_country}`);
+  if (m.card_level) lines.push(`⭐ Level: ${m.card_level}`);
+  if (m.currency) lines.push(`💱 Currency: ${m.currency}`);
+  lines.push(`🔢 BIN range: ${m.bin_number}xxxxxxxxxx`);
+  lines.push("");
+  lines.push("Full PAN, CVV, expiry and billing address are released in the");
+  lines.push("escrow trade room only after the buyer funds the deposit.");
+  return lines.join("\n");
+}
+
+// BIN lookup accepts either a full card_number OR a 4–8 digit BIN prefix and
+// returns enriched metadata plus a pre-built description for auto-fill. It
+// reads from bin_metadata first, then falls back to the richer `bins` table
+// when fields are missing (card_level, currency, country_code).
 export const lookupBinMetadata = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ card_number: z.string().trim().min(6).max(32) }))
+  .inputValidator(z.object({
+    card_number: z.string().trim().min(4).max(32).optional(),
+    bin: z.string().trim().min(4).max(8).optional(),
+  }).refine((v) => v.card_number || v.bin, { message: "card_number or bin required" }))
   .handler(async ({ data }) => {
-    const bin = data.card_number.replace(/\D/g, "").slice(0, 6);
+    const raw = (data.bin ?? data.card_number ?? "").replace(/\D/g, "");
+    const bin = raw.slice(0, 6);
     if (bin.length < 6) return { metadata: null };
-    const { data: row, error } = await supabaseAdmin
+
+    const { data: meta } = await supabaseAdmin
       .from("bin_metadata")
       .select("bin_number,card_brand,card_type,card_bank,card_country,card_address,description")
       .eq("bin_number", bin)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return { metadata: row ?? null };
+
+    // Fallback / enrichment from raw `bins` import table
+    const { data: raw2 } = await supabaseAdmin
+      .from("bins")
+      .select("bin,bank,brand,card_type,card_level,country,country_code,currency,notes")
+      .eq("bin", bin)
+      .maybeSingle();
+
+    if (!meta && !raw2) return { metadata: null };
+
+    const merged = {
+      bin_number: bin,
+      card_brand: meta?.card_brand ?? raw2?.brand ?? null,
+      card_type: meta?.card_type ?? raw2?.card_type ?? null,
+      card_bank: meta?.card_bank ?? raw2?.bank ?? null,
+      card_country: meta?.card_country ?? raw2?.country ?? null,
+      card_country_code: raw2?.country_code ?? null,
+      card_level: raw2?.card_level ?? null,
+      currency: raw2?.currency ?? null,
+      card_address: meta?.card_address ?? null,
+      description: meta?.description ?? null,
+    };
+
+    const auto_description = buildBinDescription(merged);
+    const suggested_name = `${merged.card_bank ?? "Issuer"} ${merged.card_brand ?? "Card"} ${merged.card_type ?? ""} — BIN ${bin}`.replace(/\s+/g, " ").trim();
+
+    return { metadata: { ...merged, auto_description, suggested_name } };
   });
+
+export { buildBinDescription };
 
 export const getProduct = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
@@ -192,6 +255,59 @@ function templateName(cat: keyof typeof NAME_TEMPLATES): string {
     .replace("{n}", String(randInt(1, 9)));
 }
 
+const STREETS = ["Main St","Oak Ave","Maple Dr","Pine Rd","Elm St","Cedar Ln","Park Ave","Washington St","Lake Dr","Sunset Blvd"];
+const CITIES_BY_CC: Record<string, string[]> = {
+  US: ["New York, NY","Los Angeles, CA","Chicago, IL","Houston, TX","Phoenix, AZ","Philadelphia, PA","Miami, FL","Seattle, WA"],
+  GB: ["London","Manchester","Birmingham","Leeds","Glasgow","Bristol"],
+  CA: ["Toronto, ON","Vancouver, BC","Montreal, QC","Calgary, AB"],
+  DE: ["Berlin","Munich","Hamburg","Frankfurt"],
+  FR: ["Paris","Lyon","Marseille","Toulouse"],
+  IE: ["Dublin","Cork","Galway"],
+  AU: ["Sydney NSW","Melbourne VIC","Brisbane QLD"],
+  BR: ["São Paulo","Rio de Janeiro","Brasília"],
+  MX: ["Mexico City","Guadalajara","Monterrey"],
+};
+function randomBillingAddress(cc: string): string {
+  const code = (cc || "US").toUpperCase().slice(0, 2);
+  const cities = CITIES_BY_CC[code] ?? CITIES_BY_CC.US;
+  const num = randInt(10, 9999);
+  return `${num} ${pick(STREETS)}, ${pick(cities)}, ${code}`;
+}
+
+const CATEGORY_BLURBS: Record<string, string[]> = {
+  ENROLL: [
+    "Step-by-step online banking enrollment guide. Includes screenshots and OTP handling tips.",
+    "Fresh enrollment pack with paired email + phone. Verified working within the last 24h.",
+    "Complete bill-pay setup walkthrough — works on web and mobile app.",
+  ],
+  SCANNER: [
+    "High-accuracy OCR scanner tuned for US bank statements and tax forms.",
+    "Detects routing/account numbers, ID fields, and selfie matches with confidence scores.",
+    "Validator suite — runs MOD-10, BIN, and issuer cross-checks in under 200ms.",
+  ],
+  COMBO: [
+    "Fresh combo list, deduplicated and validated. Hit rate ≥ 18% on first 1k checks.",
+    "Region-targeted credentials, formatted as user:pass per line.",
+    "Curated combo focused on banking + crypto exchange logins.",
+  ],
+  OTHERS: [
+    "Premium service access — instant delivery after escrow funding.",
+    "Verified working stock, replaced free of charge if dead on arrival.",
+    "Includes setup notes and a 24h support window via the trade room.",
+  ],
+};
+function buildCategoryDescription(cat: string, name: string): string {
+  const pool = CATEGORY_BLURBS[cat] ?? CATEGORY_BLURBS.OTHERS;
+  const blurb = pick(pool);
+  return [
+    `📦 ${name}`,
+    "",
+    blurb,
+    "",
+    "Delivered through the escrow trade room after the buyer funds the deposit.",
+  ].join("\n");
+}
+
 /* ─────────────────────── Seeder ─────────────────────── */
 export const adminSeedSampleProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -205,14 +321,38 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const cats = (data.category ? [data.category] : ["BIN/CC", "ENROLL", "SCANNER", "COMBO", "OTHERS"]) as Array<"BIN/CC"|"ENROLL"|"SCANNER"|"COMBO"|"OTHERS">;
 
-    // Preload real BIN reference data for realistic card seeding
-    const { data: binRows } = await supabaseAdmin
-      .from("bin_metadata")
-      .select("bin_number,card_brand,card_type,card_bank,card_country");
-    const bins = (binRows ?? []) as Array<{
+    // Preload BIN data from BOTH catalogs and merge by BIN — gives the seeder
+    // access to card_level / currency / country_code from the richer `bins` table.
+    const [{ data: metaRows }, { data: rawRows }] = await Promise.all([
+      supabaseAdmin.from("bin_metadata").select("bin_number,card_brand,card_type,card_bank,card_country"),
+      supabaseAdmin.from("bins").select("bin,bank,brand,card_type,card_level,country,country_code,currency"),
+    ]);
+    const byBin = new Map<string, {
       bin_number: string; card_brand: string | null; card_type: string | null;
       card_bank: string | null; card_country: string | null;
-    }>;
+      card_level: string | null; currency: string | null; country_code: string | null;
+    }>();
+    for (const m of metaRows ?? []) {
+      byBin.set(m.bin_number, {
+        bin_number: m.bin_number,
+        card_brand: m.card_brand, card_type: m.card_type, card_bank: m.card_bank, card_country: m.card_country,
+        card_level: null, currency: null, country_code: null,
+      });
+    }
+    for (const r of rawRows ?? []) {
+      const prev = byBin.get(r.bin);
+      byBin.set(r.bin, {
+        bin_number: r.bin,
+        card_brand: prev?.card_brand ?? r.brand,
+        card_type: prev?.card_type ?? r.card_type,
+        card_bank: prev?.card_bank ?? r.bank,
+        card_country: prev?.card_country ?? r.country,
+        card_level: r.card_level,
+        currency: r.currency,
+        country_code: r.country_code,
+      });
+    }
+    const bins = Array.from(byBin.values());
 
     const rows: Array<Record<string, unknown>> = [];
     for (const cat of cats) {
@@ -231,26 +371,33 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           created_by: context.userId,
         };
         if (cat === "BIN/CC") {
-          const bin = bins.length ? pick(bins) : null;
-          const brand = bin?.card_brand ?? "Visa";
-          const binNum = bin?.bin_number ?? "414720";
+          const bin = bins.length ? pick(bins) : {
+            bin_number: "414720", card_brand: "Visa", card_type: "Credit",
+            card_bank: "Global Bank", card_country: "US",
+            card_level: null, currency: "USD", country_code: "US",
+          };
+          const brand = bin.card_brand ?? "Visa";
+          const binNum = bin.bin_number;
           const cardNumber = randomCardNumber(binNum, brand);
           const holder = randomName();
-          base.name = `${bin?.card_bank ?? "Bank"} ${brand} ${bin?.card_type ?? "Credit"} — BIN ${binNum}`;
-          base.description = `Real-BIN demo card from ${bin?.card_bank ?? "Issuer"} (${bin?.card_country ?? "US"}). Seeded for testing — purchase to reveal full PAN/CVV via escrow.`;
+          const level = bin.card_level ? ` ${bin.card_level}` : "";
+          base.name = `${bin.card_bank ?? "Bank"} ${brand}${level} ${bin.card_type ?? "Credit"} — BIN ${binNum}`;
+          base.description = buildBinDescription(bin);
           base.card_number = cardNumber;
           base.bin_number = binNum;
           base.card_user = holder;
-          base.card_type = bin?.card_type ?? "Credit";
+          base.card_type = bin.card_type ?? "Credit";
           base.card_brand = brand;
-          base.card_bank = bin?.card_bank ?? "Global Bank";
-          base.card_country = bin?.card_country ?? "US";
-          base.card_address = null;
+          base.card_bank = bin.card_bank ?? "Global Bank";
+          base.card_country = bin.card_country ?? "US";
+          base.card_address = randomBillingAddress(bin.country_code ?? bin.card_country ?? "US");
           base.cvv = randomCVV(brand);
           base.expire_date = randomExpire();
+          if (bin.currency) base.currency = bin.currency;
         } else {
-          base.name = templateName(cat);
-          base.description = `[SEEDED DEMO] ${base.name} — replace with a real listing from the admin panel.`;
+          const name = templateName(cat);
+          base.name = name;
+          base.description = buildCategoryDescription(cat, name);
         }
         rows.push(base);
       }

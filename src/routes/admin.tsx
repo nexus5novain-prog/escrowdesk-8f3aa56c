@@ -1148,6 +1148,33 @@ function CategoryProductsSection({
     </>
   );
 
+  const runLookup = async (source: "card" | "bin") => {
+    const raw = (source === "card" ? form.card_number : form.bin_number).replace(/\D/g, "");
+    if (raw.length < 6) return;
+    setLookupNote("Looking up BIN metadata…");
+    try {
+      const r = await binLookup({ data: source === "card" ? { card_number: form.card_number } : { bin: raw.slice(0, 6) } });
+      const m = r.metadata;
+      if (!m) { setLookupNote("No BIN metadata found. Complete fields manually."); return; }
+      setForm((prev) => ({
+        ...prev,
+        bin_number: m.bin_number ?? prev.bin_number,
+        card_brand: m.card_brand ?? prev.card_brand,
+        card_type: m.card_type ?? prev.card_type,
+        card_bank: m.card_bank ?? prev.card_bank,
+        card_country: m.card_country ?? prev.card_country,
+        card_address: prev.card_address || m.card_address || "",
+        // Auto-fill name + description when the user hasn't entered them yet,
+        // so seeded BIN data drops straight into a postable product.
+        name: prev.name.trim() ? prev.name : (m.suggested_name ?? prev.name),
+        description: prev.description.trim() ? prev.description : (m.auto_description ?? prev.description),
+      }));
+      setLookupNote(`BIN ${m.bin_number} — ${m.card_bank ?? "Unknown bank"} (${m.card_country ?? "??"}). Name + description auto-filled.`);
+    } catch {
+      setLookupNote("BIN lookup failed. Please enter metadata manually.");
+    }
+  };
+
   const binFields = (
     <>
       <div className="md:col-span-2">
@@ -1155,31 +1182,7 @@ function CategoryProductsSection({
         <Input
           value={form.card_number}
           onChange={(e) => setForm({ ...form, card_number: e.target.value })}
-          onBlur={async () => {
-            const digits = form.card_number.replace(/\D/g, "");
-            if (digits.length >= 16) {
-              setLookupNote("Looking up BIN metadata…");
-              try {
-                const r = await binLookup({ data: { card_number: form.card_number } });
-                if (r.metadata) {
-                  setForm((prev) => ({
-                    ...prev,
-                    bin_number: r.metadata?.bin_number ?? prev.bin_number,
-                    card_brand: r.metadata?.card_brand ?? prev.card_brand,
-                    card_type: r.metadata?.card_type ?? prev.card_type,
-                    card_bank: r.metadata?.card_bank ?? prev.card_bank,
-                    card_country: r.metadata?.card_country ?? prev.card_country,
-                    card_address: r.metadata?.card_address ?? prev.card_address,
-                  }));
-                  setLookupNote("BIN metadata filled from database.");
-                } else {
-                  setLookupNote("No BIN metadata found. Complete fields manually.");
-                }
-              } catch {
-                setLookupNote("BIN lookup failed. Please enter metadata manually.");
-              }
-            }
-          }}
+          onBlur={() => runLookup("card")}
           placeholder="1234 5678 9012 3456"
           className="font-mono"
         />
@@ -1187,7 +1190,12 @@ function CategoryProductsSection({
       </div>
       <div>
         <Label className="text-xs uppercase text-muted-foreground">BIN / first six digits</Label>
-        <Input value={form.bin_number} onChange={(e) => setForm({ ...form, bin_number: e.target.value })} placeholder="412345" />
+        <Input
+          value={form.bin_number}
+          onChange={(e) => setForm({ ...form, bin_number: e.target.value })}
+          onBlur={() => runLookup("bin")}
+          placeholder="412345"
+        />
       </div>
       <div>
         <Label className="text-xs uppercase text-muted-foreground">Cardholder</Label>
@@ -1458,21 +1466,7 @@ function EditProductDialog({ product, update, onSaved }: {
             </div>
             <div className="sm:col-span-2"><Label>Seller payout (BTC) address</Label><Input value={f.seller_wallet_address} onChange={(e) => set("seller_wallet_address", e.target.value)} /></div>
 
-            {f.category === "BIN/CC" && (
-              <>
-                <div className="sm:col-span-2 mt-2 border-t border-border/60 pt-2 text-xs font-medium text-muted-foreground">Card details</div>
-                <div><Label>Card number (PAN)</Label><Input value={f.card_number} onChange={(e) => set("card_number", e.target.value)} /></div>
-                <div><Label>BIN (6 digits)</Label><Input value={f.bin_number} onChange={(e) => set("bin_number", e.target.value)} /></div>
-                <div><Label>CVV</Label><Input value={f.cvv} onChange={(e) => set("cvv", e.target.value)} /></div>
-                <div><Label>Expire (MM/YY)</Label><Input value={f.expire_date} onChange={(e) => set("expire_date", e.target.value)} /></div>
-                <div><Label>Holder</Label><Input value={f.card_user} onChange={(e) => set("card_user", e.target.value)} /></div>
-                <div><Label>Brand</Label><Input value={f.card_brand} onChange={(e) => set("card_brand", e.target.value)} /></div>
-                <div><Label>Type</Label><Input value={f.card_type} onChange={(e) => set("card_type", e.target.value)} /></div>
-                <div><Label>Bank</Label><Input value={f.card_bank} onChange={(e) => set("card_bank", e.target.value)} /></div>
-                <div><Label>Country</Label><Input value={f.card_country} onChange={(e) => set("card_country", e.target.value)} /></div>
-                <div className="sm:col-span-2"><Label>Billing address</Label><Input value={f.card_address} onChange={(e) => set("card_address", e.target.value)} /></div>
-              </>
-            )}
+            {f.category === "BIN/CC" && <EditBinSection f={f} set={set} />}
           </div>
         </ScrollArea>
         <DialogFooter>
@@ -1884,5 +1878,58 @@ function NewsletterPanel() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---- EditProductDialog: BIN section with auto-lookup ----
+type EditBinFields = {
+  card_number: string; bin_number: string; cvv: string; expire_date: string;
+  card_user: string; card_brand: string; card_type: string; card_bank: string;
+  card_country: string; card_address: string; name: string; description: string;
+};
+function EditBinSection({ f, set }: {
+  f: EditBinFields;
+  set: <K extends keyof EditBinFields>(k: K, v: EditBinFields[K]) => void;
+}) {
+  const binLookup = useServerFn(lookupBinMetadata);
+  const [note, setNote] = useState("Edit BIN or card number to auto-fill metadata.");
+  const runLookup = async (source: "card" | "bin") => {
+    const raw = (source === "card" ? f.card_number : f.bin_number).replace(/\D/g, "");
+    if (raw.length < 6) return;
+    setNote("Looking up BIN…");
+    try {
+      const r = await binLookup({ data: source === "card" ? { card_number: f.card_number } : { bin: raw.slice(0, 6) } });
+      const m = r.metadata;
+      if (!m) { setNote("No BIN metadata found."); return; }
+      if (m.bin_number) set("bin_number", m.bin_number);
+      if (m.card_brand) set("card_brand", m.card_brand);
+      if (m.card_type) set("card_type", m.card_type);
+      if (m.card_bank) set("card_bank", m.card_bank);
+      if (m.card_country) set("card_country", m.card_country);
+      if (!f.card_address && m.card_address) set("card_address", m.card_address);
+      if (!f.name.trim() && m.suggested_name) set("name", m.suggested_name);
+      if (!f.description.trim() && m.auto_description) set("description", m.auto_description);
+      setNote(`BIN ${m.bin_number} — ${m.card_bank ?? "Unknown bank"} (${m.card_country ?? "??"})`);
+    } catch {
+      setNote("BIN lookup failed.");
+    }
+  };
+  return (
+    <>
+      <div className="sm:col-span-2 mt-2 flex items-center justify-between border-t border-border/60 pt-2">
+        <span className="text-xs font-medium text-muted-foreground">Card details</span>
+        <span className="text-[10px] text-muted-foreground">{note}</span>
+      </div>
+      <div><Label>Card number (PAN)</Label><Input value={f.card_number} onChange={(e) => set("card_number", e.target.value)} onBlur={() => runLookup("card")} className="font-mono" /></div>
+      <div><Label>BIN (6 digits)</Label><Input value={f.bin_number} onChange={(e) => set("bin_number", e.target.value)} onBlur={() => runLookup("bin")} /></div>
+      <div><Label>CVV</Label><Input value={f.cvv} onChange={(e) => set("cvv", e.target.value)} /></div>
+      <div><Label>Expire (MM/YY)</Label><Input value={f.expire_date} onChange={(e) => set("expire_date", e.target.value)} /></div>
+      <div><Label>Holder</Label><Input value={f.card_user} onChange={(e) => set("card_user", e.target.value)} /></div>
+      <div><Label>Brand</Label><Input value={f.card_brand} onChange={(e) => set("card_brand", e.target.value)} /></div>
+      <div><Label>Type</Label><Input value={f.card_type} onChange={(e) => set("card_type", e.target.value)} /></div>
+      <div><Label>Bank</Label><Input value={f.card_bank} onChange={(e) => set("card_bank", e.target.value)} /></div>
+      <div><Label>Country</Label><Input value={f.card_country} onChange={(e) => set("card_country", e.target.value)} /></div>
+      <div className="sm:col-span-2"><Label>Billing address</Label><Input value={f.card_address} onChange={(e) => set("card_address", e.target.value)} /></div>
+    </>
   );
 }
