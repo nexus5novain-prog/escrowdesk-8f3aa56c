@@ -63,6 +63,7 @@ function Disputes() {
 
   return (
     <div className="space-y-6">
+      <TradesSubNav />
       <div>
         <h1 className="text-2xl font-semibold">Disputes & Arbitration</h1>
         <p className="text-sm text-muted-foreground">Open a case, track status, and file appeals.</p>
