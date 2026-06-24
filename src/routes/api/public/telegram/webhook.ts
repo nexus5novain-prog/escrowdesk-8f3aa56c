@@ -386,89 +386,19 @@ async function handle(update: Record<string, unknown>) {
     if (!t?.length) return send("No active trades.");
     return send("📋 <b>Active trades</b>\n" + t.map((x) => `• <code>${x.id.slice(0,8)}</code> ${x.asset} ${x.crypto_amount} ↔ ${x.fiat_amount} ${x.fiat_currency} · ${x.status}`).join("\n"));
   }
-  if (text.startsWith("/terms")) {
-    const parts = text.split(" ");
-    const idArg = parts[1];
-    const termsText = parts.slice(2).join(" ").trim();
-    if (!idArg || !termsText) return send("Usage: <code>/terms TRADE_ID your terms text</code>");
-    const full = await resolveTradeId(idArg, profile.user_id);
-    if (!full) return send("Trade not found.");
-    const { data: tr } = await supabaseAdmin.from("trades").select("buyer_id, seller_id").eq("id", full).maybeSingle();
-    if (!tr) return send("Trade not found.");
-    const col = tr.buyer_id === profile.user_id ? "terms_buyer" : tr.seller_id === profile.user_id ? "terms_seller" : null;
-    if (!col) return send("You are not a party to this trade.");
-    const patch = (col === "terms_buyer" ? { terms_buyer: termsText } : { terms_seller: termsText });
-    const { error } = await supabaseAdmin.from("trades").update(patch).eq("id", full);
-    return send(error ? `❌ ${error.message}` : `📝 Terms saved for trade <code>${full.slice(0,8)}</code>. Counterparty can read them with /trade ${full.slice(0,8)}, then sign with /sign.`);
-  }
-  if (text.startsWith("/sign")) {
-    const parts = text.split(" ");
-    const idArg = parts[1];
-    const phrase = parts.slice(2).join(" ").trim();
-    if (!idArg || !phrase) return send("Usage:\n<code>/sign TRADE_ID I AGREE TO TERMS AND CONDITIONS OF THE SELLER</code> (if you're the buyer)\n<code>/sign TRADE_ID I AGREE TO TERMS AND CONDITIONS OF THE BUYER</code> (if you're the seller)");
-    const full = await resolveTradeId(idArg, profile.user_id);
-    if (!full) return send("Trade not found.");
-    const { error } = await supabaseAdmin.rpc("sign_terms", { _trade_id: full, _caller: profile.user_id, _signature: phrase, _terms: null as unknown as string });
-    return send(error ? `❌ ${error.message}` : `✍️ Signed trade <code>${full.slice(0,8)}</code>.`);
-  }
-  if (text.startsWith("/confirm")) {
-    const idArg = text.split(" ")[1];
-    if (!idArg) return send("Usage: <code>/confirm TRADE_ID</code> (seller confirms buyer's escrow deposit)");
-    const full = await resolveTradeId(idArg, profile.user_id);
-    if (!full) return send("Trade not found.");
-    const { error } = await supabaseAdmin.rpc("confirm_buyer_deposit", { _trade_id: full, _caller: profile.user_id });
-    return send(error ? `❌ ${error.message}` : `✅ Deposit confirmed on trade <code>${full.slice(0,8)}</code>. Buyer can now release.`);
-  }
-  if (text.startsWith("/release")) {
-    const id = text.split(" ")[1]?.trim();
-    if (!id) return send("Usage: /release TRADE_ID");
-    const full = await resolveTradeId(id, profile.user_id);
-    if (!full) return send("Trade not found.");
-    const { error } = await supabaseAdmin.rpc("release_trade", { _trade_id: full, _caller: profile.user_id });
-    return send(error ? `❌ ${error.message}` : `✅ Released ${full.slice(0,8)}`);
-  }
-  if (text.startsWith("/dispute")) {
-    const parts = text.split(" "); const id = parts[1]; const reason = parts.slice(2).join(" ");
-    if (!id || reason.length < 5) return send("Usage: /dispute TRADE_ID reason (min 5 chars)");
-    const full = await resolveTradeId(id, profile.user_id);
-    if (!full) return send("Trade not found.");
-    const { error } = await supabaseAdmin.rpc("open_dispute", { _trade_id: full, _caller: profile.user_id, _reason: reason });
-    return send(error ? `❌ ${error.message}` : `🚩 Dispute opened for ${full.slice(0,8)}`);
-  }
-  if (text.startsWith("/fee")) {
-    if (!isAdmin) return send("Admin only.");
-    const n = Number(text.split(" ")[1]);
-    if (!Number.isFinite(n) || n < 0 || n > 1000) return send("Usage: /fee BPS (0..1000)");
-    await supabaseAdmin.from("platform_settings").upsert({ key: "fee_bps", value: n, updated_at: new Date().toISOString() });
-    return send(`✅ Fee set to ${n} bps`);
-  }
-  if (text.startsWith("/ban")) {
-    if (!isModerator) return send("Admin or moderator only.");
-    const parts = text.split(" ");
-    const target = parts[1];
-    const reason = parts.slice(2).join(" ").trim();
-    if (!target || reason.length < 3) return send("Usage: <code>/ban USER_ID reason text…</code> (reason min 3 chars)");
-    const { error } = await supabaseAdmin.rpc("ban_user", { _target: target, _caller: profile.user_id, _reason: reason });
-    return send(error ? `❌ ${error.message}` : `🔨 Banned <code>${target.slice(0,8)}</code>: ${reason}`);
-  }
-  if (text.startsWith("/unban")) {
-    if (!isAdmin) return send("Admin only.");
-    const target = text.split(" ")[1];
-    if (!target) return send("Usage: <code>/unban USER_ID</code>");
-    const { error } = await supabaseAdmin.rpc("unban_user", { _target: target, _caller: profile.user_id });
-    return send(error ? `❌ ${error.message}` : `♻️ Unbanned <code>${target.slice(0,8)}</code>`);
-  }
-  if (text.startsWith("/warn")) {
-    if (!(isAdmin || isModerator || isJudge)) return send("Admin, moderator, or judge only.");
-    const parts = text.split(" ");
-    const target = parts[1];
-    const severity = (parts[2] || "").toLowerCase();
-    const reason = parts.slice(3).join(" ").trim();
-    if (!target || !["minor","major","final"].includes(severity) || reason.length < 3) {
-      return send("Usage: <code>/warn USER_ID severity reason</code>\nseverity = minor | major | final");
-    }
-    const { error } = await supabaseAdmin.rpc("warn_user", { _target: target, _caller: profile.user_id, _reason: reason, _severity: severity });
-    return send(error ? `❌ ${error.message}` : `⚠️ Warned <code>${target.slice(0,8)}</code> (${severity})`);
+  // ───────── Phase 2 gate ─────────
+  // Fund-moving and admin write commands are disabled in Telegram until per-action
+  // TOTP enforcement ships. Read-only (/balance, /trades) + linking + notifications
+  // are the supported Phase 1 surface. See plan: "Phase 1 only" + "Per-action TOTP".
+  const PHASE2_CMDS = ["/terms","/sign","/confirm","/release","/dispute","/fee","/ban","/unban","/warn"];
+  const matched = PHASE2_CMDS.find((c) => text.startsWith(c));
+  if (matched) {
+    return send(
+      `🔒 <b>${matched}</b> is not available in Telegram yet.\n\n` +
+      `For your safety, fund-moving and admin actions require per-action 2FA, which is shipping in Phase 2. ` +
+      `Please use the web app at https://escrowdesk.lovable.app for this action.\n\n` +
+      `Telegram currently supports: <code>/balance</code>, <code>/trades</code>, <code>/help</code>, <code>/link</code>, and push notifications.`,
+    );
   }
 
   // ---------- Escrow group commands (DEPRECATED — Issue #3) ----------
