@@ -486,46 +486,10 @@ async function handle(update: Record<string, unknown>) {
   return send("Unknown command. Try /help");
 }
 
-async function groupForUser(userId: string) {
-  const { data } = await supabaseAdmin
-    .from("escrow_groups")
-    .select("id, status, creator_id, counterparty_id, escrow_address, asset, amount")
-    .or(`creator_id.eq.${userId},counterparty_id.eq.${userId}`)
-    .not("status", "in", "(released,cancelled)")
-    .order("created_at", { ascending: false }).limit(1).maybeSingle();
-  return data;
-}
+// Legacy escrow_groups helpers removed (Issue #3). Bind/status/release/cancel
+// commands now return a deprecation notice in handle().
 
-async function insertGroupSystem(groupId: string, body: string) {
-  await supabaseAdmin.from("escrow_group_messages").insert({ group_id: groupId, body, is_system: true } as never);
-  const { data: g } = await supabaseAdmin.from("escrow_groups").select("telegram_chat_id").eq("id", groupId).maybeSingle();
-  if (g?.telegram_chat_id) await tgSendMessage(Number(g.telegram_chat_id), `<i>${body.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</i>`);
-}
 
-async function handleEscrowBind(chatId: number, token: string, userId: string) {
-  const { data: g } = await supabaseAdmin
-    .from("escrow_groups").select("id, creator_id, counterparty_id, telegram_chat_id")
-    .eq("telegram_link_token", token).maybeSingle();
-  if (!g) return tgSendMessage(chatId, "❌ Unknown escrow token.");
-  if (![g.creator_id, g.counterparty_id].includes(userId)) return tgSendMessage(chatId, "❌ You're not a participant of that group.");
-  if (g.telegram_chat_id && Number(g.telegram_chat_id) !== chatId) return tgSendMessage(chatId, "❌ Group already bound to another chat.");
-  await supabaseAdmin.from("escrow_groups").update({ telegram_chat_id: chatId } as never).eq("id", g.id);
-  await insertGroupSystem(g.id, `🔗 Telegram chat linked to this escrow group.`);
-  return tgSendMessage(chatId, `✅ Telegram chat bound. Use /status, /txhash, /release_group, /cancel_group, /invite_moderator. Plain messages here mirror to the web chat.`);
-}
-
-async function sendGroupStatus(chatId: number, groupId: string) {
-  const { data: g } = await supabaseAdmin
-    .from("escrow_groups").select("*").eq("id", groupId).maybeSingle();
-  if (!g) return tgSendMessage(chatId, "Group not found.");
-  return tgSendMessage(chatId, [
-    `<b>Escrow ${String(g.id).slice(0,8)}</b>`,
-    `Status: <code>${g.status}</code>`,
-    `${g.amount} ${g.asset}${g.fiat_amount ? ` (≈ ${g.fiat_amount} ${g.fiat_currency})` : ""}`,
-    g.escrow_address ? `Payout: <code>${g.escrow_address}</code>` : null,
-    g.deposit_tx_hash ? `Tx: <code>${g.deposit_tx_hash}</code>` : null,
-  ].filter(Boolean).join("\n"));
-}
 
 
 async function resolveTradeId(prefix: string, userId: string) {
