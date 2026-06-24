@@ -2544,6 +2544,10 @@ export type Database = {
         Args: { _caller: string; _reason: string; _target: string }
         Returns: undefined
       }
+      buy_listing: {
+        Args: { _btc_rate: number; _buyer: string; _listing_id: string }
+        Returns: string
+      }
       buy_marketplace_product: {
         Args: { _btc_rate: number; _buyer: string; _product_id: string }
         Returns: string
