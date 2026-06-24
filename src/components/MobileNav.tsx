@@ -20,8 +20,8 @@ export function MobileNav({ user, isStaff, onSignOut }: MobileNavProps) {
     { label: "Marketplace", to: "/marketplace", icon: "🛍️" },
     { label: "P2P Order-book", to: "/order-book", icon: "📊" },
     ...(user ? [
+      { label: "My Threads", to: "/my-threads", icon: "📝" },
       { label: "Trades", to: "/trades", icon: "📈" },
-      { label: "Trade", to: "/order-book", icon: "🔒" },
       { label: "Wallet", to: "/wallet", icon: "💰" },
       { label: "Transactions", to: "/transactions", icon: "💳" },
       { label: "Settings", to: "/settings", icon: "⚙️" },
