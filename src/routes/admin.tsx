@@ -38,6 +38,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 import { AdSizePicker } from "@/components/admin/AdSizePicker";
+import { BinAdminPanel } from "@/components/admin/BinAdminPanel";
 
 export const Route = createFileRoute("/admin")({ component: () => (<AuthGate><Admin /></AuthGate>) });
 
@@ -78,6 +79,7 @@ function Admin() {
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
+          <TabsTrigger value="bins">BIN Catalog</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="disputes" className="mt-4"><DisputesPanel /></TabsContent>
@@ -96,6 +98,7 @@ function Admin() {
         <TabsContent value="announcements" className="mt-4"><AnnouncementsPanel /></TabsContent>
         <TabsContent value="broadcast" className="mt-4"><BroadcastPanel /></TabsContent>
         <TabsContent value="newsletter" className="mt-4"><NewsletterPanel /></TabsContent>
+        <TabsContent value="bins" className="mt-4"><BinAdminPanel /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel /></TabsContent>
       </Tabs>
     </div>

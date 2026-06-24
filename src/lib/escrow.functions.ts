@@ -557,18 +557,40 @@ export const getMyTrades = createServerFn({ method: "GET" })
     return { trades: data ?? [] };
   });
 
+// Buyer purchase history — ledger-backed trades where the user is the buyer.
+// Pulls the product/listing name from the one-shot offer's `terms` field
+// (format: "Marketplace purchase: <name>" or "Order-book trade: <name>").
 export const getPurchaseHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await supabaseAdmin
-      .from("escrow_groups")
-      .select("id,listing_id,listing_name,listing_category,asset,amount,fiat_amount,fiat_currency,status,created_at")
-      .eq("creator_id", context.userId)
+      .from("trades")
+      .select("id,asset,crypto_amount,fiat_amount,fiat_currency,status,created_at,offer_id,offers(terms,payment_method_types)")
+      .eq("buyer_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return { purchases: data ?? [] };
+    const purchases = (data ?? []).map((t) => {
+      const offer = (t as unknown as { offers?: { terms?: string | null; payment_method_types?: string[] | null } }).offers;
+      const terms = offer?.terms ?? "";
+      const m = terms.match(/^(?:Marketplace purchase|Order-book trade):\s*(.+)$/);
+      const sources = offer?.payment_method_types ?? [];
+      const source = sources.includes("marketplace") ? "marketplace" : sources.includes("order_book") ? "order_book" : "trade";
+      return {
+        id: t.id,
+        listing_name: m ? m[1] : null,
+        listing_category: source,
+        asset: t.asset,
+        amount: Number(t.crypto_amount),
+        fiat_amount: Number(t.fiat_amount),
+        fiat_currency: t.fiat_currency,
+        status: t.status,
+        created_at: t.created_at,
+      };
+    });
+    return { purchases };
   });
+
 
 export const getTrade = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -855,20 +877,16 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const uid = context.userId;
-    const [tradesRes, groupsRes, warningsRes] = await Promise.all([
+    const [tradesRes, warningsRes] = await Promise.all([
       supabaseAdmin
         .from("trades")
-        .select("id,status,buyer_id,seller_id,fiat_amount,fiat_currency,crypto_amount,asset")
-        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`),
-      supabaseAdmin
-        .from("escrow_groups")
-        .select("id,creator_id,counterparty_id,status,fiat_amount,fiat_currency,amount,asset,listing_id,listing_name,listing_category,created_at,bin_number,card_user,card_type,card_brand,card_bank,card_country")
-        .or(`creator_id.eq.${uid},counterparty_id.eq.${uid}`),
+        .select("id,status,buyer_id,seller_id,fiat_amount,fiat_currency,crypto_amount,asset,created_at,offer_id,offers(terms,payment_method_types)")
+        .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`)
+        .order("created_at", { ascending: false }),
       supabaseAdmin.from("user_warnings").select("id").eq("user_id", uid),
     ]);
 
     const trades = tradesRes.data ?? [];
-    const groups = groupsRes.data ?? [];
     const warnings = warningsRes.data ?? [];
 
     let spent = 0, earned = 0, refunded = 0;
@@ -877,6 +895,7 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
 
     for (const t of trades) {
       const amt = Number(t.fiat_amount) || 0;
+      if (t.buyer_id === uid) created += 1;
       if (t.status === "released") {
         if (t.buyer_id === uid) { spent += amt; bought += 1; successful += 1; }
         if (t.seller_id === uid) { earned += amt; sold += 1; successful += 1; }
@@ -884,27 +903,32 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
         failed += 1;
         if (t.buyer_id === uid) refunded += amt;
       } else if (t.status === "disputed") {
-        failed += 1;
-      }
-    }
-
-    for (const g of groups) {
-      if (g.creator_id === uid) created += 1;
-      const amt = Number(g.fiat_amount) || 0;
-      if (g.status === "released") {
-        if (g.creator_id === uid) { spent += amt; bought += 1; successful += 1; }
-        if (g.counterparty_id === uid) { earned += amt; sold += 1; successful += 1; }
-      } else if (g.status === "cancelled") {
-        failed += 1;
-        if (g.creator_id === uid) refunded += amt;
-      } else if (g.status === "disputed") {
         rejected += 1;
+        failed += 1;
       }
     }
 
-    const purchases = groups
-      .filter((g) => g.creator_id === uid)
-      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    const purchases = trades
+      .filter((t) => t.buyer_id === uid)
+      .map((t) => {
+        const offer = (t as unknown as { offers?: { terms?: string | null; payment_method_types?: string[] | null } }).offers;
+        const terms = offer?.terms ?? "";
+        const m = terms.match(/^(?:Marketplace purchase|Order-book trade):\s*(.+)$/);
+        const sources = offer?.payment_method_types ?? [];
+        const source = sources.includes("marketplace") ? "marketplace" : sources.includes("order_book") ? "order_book" : "trade";
+        return {
+          id: t.id,
+          listing_id: null as string | null,
+          listing_name: m ? m[1] : null,
+          listing_category: source,
+          asset: t.asset,
+          amount: Number(t.crypto_amount),
+          fiat_amount: Number(t.fiat_amount),
+          fiat_currency: t.fiat_currency,
+          status: t.status,
+          created_at: t.created_at,
+        };
+      });
 
     return {
       stats: {
@@ -918,12 +942,13 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
         rejected,
         created,
         warnings: warnings.length,
-        active_trades: trades.filter((t) => ["pending_payment","paid","awaiting_agreement","awaiting_seller_confirm"].includes(t.status)).length,
-        active_groups: groups.filter((g) => ["awaiting_counterparty","active","funded"].includes(g.status)).length,
+        active_trades: trades.filter((t) => ["pending_payment","paid","awaiting_agreement","awaiting_seller_confirm","awaiting_deposit"].includes(t.status as string)).length,
+        active_groups: 0,
       },
       purchases,
     };
   });
+
 
 // ---------- Company escrow payout addresses (admin-configurable, public-readable) ----------
 export const getCompanyEscrowAddresses = createServerFn({ method: "GET" })
