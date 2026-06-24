@@ -269,8 +269,20 @@ function ListingCard({ row }: { row: ListingRow }) {
       whileHover={{ backgroundColor: "color-mix(in oklab, var(--secondary) 30%, transparent)" }}
       className="p-3"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start gap-3">
+        {/* Author avatar + link */}
+        <Link
+          to="/u/$userId"
+          params={{ user_id: row.user_id } as unknown as { userId: string }}
+          className="flex-shrink-0"
+        >
+          {row.profile?.avatar_url
+            ? <img src={row.profile.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+            : <div className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-sm font-semibold">
+                {(row.profile?.display_name ?? "A").slice(0, 1).toUpperCase()}
+              </div>}
+        </Link>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate font-medium">{row.name}</span>
             {row.profile?.is_premium && <Crown className="h-3.5 w-3.5 text-primary" />}
@@ -282,8 +294,16 @@ function ListingCard({ row }: { row: ListingRow }) {
             {row.amount != null && (
               <span className="font-mono text-xs text-primary">{fmtFiat(Number(row.amount), row.currency || "USD")}</span>
             )}
-            <span className="text-[10px] text-muted-foreground">· {row.profile?.display_name ?? "—"}</span>
-            {rating && <span className="text-[10px] text-muted-foreground">· ★ {rating}</span>}
+            <Link to="/u/$userId" params={{ userId: row.user_id }} className="text-[11px] text-primary hover:underline">
+              @{row.profile?.display_name ?? "anon"}
+            </Link>
+            {rating && (
+              <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
+                ★ {rating}
+                <span className="text-muted-foreground">({row.profile?.rating_count ?? 0})</span>
+              </span>
+            )}
+            <Badge variant="secondary" className="text-[9px]">{row.kind === "selling" ? "Selling" : "Seeking"}</Badge>
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
