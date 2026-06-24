@@ -12,6 +12,10 @@ import {
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
   getCompanyEscrowAddresses, adminSetCompanyEscrowAddresses,
 } from "@/lib/escrow.functions";
+import { listSupportTickets, respondToSupportTicket } from "@/lib/support.functions";
+import { listNewsletterSubscribers, broadcastNewsletter } from "@/lib/newsletter.functions";
+import { adminListAnnouncements, adminCreateAnnouncement, adminToggleAnnouncement, adminDeleteAnnouncement } from "@/lib/announcements.functions";
+import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
@@ -70,6 +74,10 @@ function Admin() {
           <TabsTrigger value="ads">Ads</TabsTrigger>
           <TabsTrigger value="shoutbox">Shoutbox</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
+          <TabsTrigger value="support">Support</TabsTrigger>
+          <TabsTrigger value="announcements">Announcements</TabsTrigger>
+          <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
+          <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="disputes" className="mt-4"><DisputesPanel /></TabsContent>
@@ -84,6 +92,10 @@ function Admin() {
         <TabsContent value="ads" className="mt-4"><AdsPanel /></TabsContent>
         <TabsContent value="shoutbox" className="mt-4"><ShoutboxPanel /></TabsContent>
         <TabsContent value="telegram" className="mt-4"><TelegramPanel /></TabsContent>
+        <TabsContent value="support" className="mt-4"><SupportPanel /></TabsContent>
+        <TabsContent value="announcements" className="mt-4"><AnnouncementsPanel /></TabsContent>
+        <TabsContent value="broadcast" className="mt-4"><BroadcastPanel /></TabsContent>
+        <TabsContent value="newsletter" className="mt-4"><NewsletterPanel /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel /></TabsContent>
       </Tabs>
     </div>
