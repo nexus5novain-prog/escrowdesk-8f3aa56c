@@ -1536,6 +1536,7 @@ export type Database = {
           rating_sum: number
           show_online_status: boolean
           show_trade_history: boolean
+          suspended_until: string | null
           telegram_user_id: number | null
           telegram_username: string | null
           timezone: string
@@ -1567,6 +1568,7 @@ export type Database = {
           rating_sum?: number
           show_online_status?: boolean
           show_trade_history?: boolean
+          suspended_until?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
           timezone?: string
@@ -1598,6 +1600,7 @@ export type Database = {
           rating_sum?: number
           show_online_status?: boolean
           show_trade_history?: boolean
+          suspended_until?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
           timezone?: string
@@ -2649,6 +2652,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_user_blocked: { Args: { _user: string }; Returns: boolean }
       ledger_credit: {
         Args: {
           _amount_sats: number
