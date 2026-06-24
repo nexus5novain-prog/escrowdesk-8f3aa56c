@@ -15,13 +15,14 @@ import { Route as TradesRouteImport } from './routes/trades'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PostOfferRouteImport } from './routes/post-offer'
 import { Route as PostListingRouteImport } from './routes/post-listing'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as OrderBookRouteImport } from './routes/order-book'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
-import { Route as EscrowPortfolioRouteImport } from './routes/escrow-portfolio'
 import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EscrowIndexRouteImport } from './routes/escrow.index'
 import { Route as TradeIdRouteImport } from './routes/trade.$id'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as OfferIdRouteImport } from './routes/offer.$id'
@@ -63,6 +64,11 @@ const PostListingRoute = PostListingRouteImport.update({
   path: '/post-listing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrderBookRoute = OrderBookRouteImport.update({
   id: '/order-book',
   path: '/order-book',
@@ -71,11 +77,6 @@ const OrderBookRoute = OrderBookRouteImport.update({
 const MarketplaceRoute = MarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EscrowPortfolioRoute = EscrowPortfolioRouteImport.update({
-  id: '/escrow-portfolio',
-  path: '/escrow-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DisputesRoute = DisputesRouteImport.update({
@@ -96,6 +97,11 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EscrowIndexRoute = EscrowIndexRouteImport.update({
+  id: '/escrow/',
+  path: '/escrow/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TradeIdRoute = TradeIdRouteImport.update({
@@ -156,9 +162,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
-  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
+  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/escrow/': typeof EscrowIndexRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -181,9 +188,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
-  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
+  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/escrow': typeof EscrowIndexRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -207,9 +215,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
-  '/escrow-portfolio': typeof EscrowPortfolioRoute
   '/marketplace': typeof MarketplaceRoute
   '/order-book': typeof OrderBookRoute
+  '/portfolio': typeof PortfolioRoute
   '/post-listing': typeof PostListingRoute
   '/post-offer': typeof PostOfferRoute
   '/settings': typeof SettingsRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/escrow/': typeof EscrowIndexRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -234,9 +243,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
-    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
+    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/escrow/'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -259,9 +269,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
-    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
+    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/escrow'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -284,9 +295,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/disputes'
-    | '/escrow-portfolio'
     | '/marketplace'
     | '/order-book'
+    | '/portfolio'
     | '/post-listing'
     | '/post-offer'
     | '/settings'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/escrow/'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -310,9 +322,9 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   DisputesRoute: typeof DisputesRouteWithChildren
-  EscrowPortfolioRoute: typeof EscrowPortfolioRoute
   MarketplaceRoute: typeof MarketplaceRoute
   OrderBookRoute: typeof OrderBookRoute
+  PortfolioRoute: typeof PortfolioRoute
   PostListingRoute: typeof PostListingRoute
   PostOfferRoute: typeof PostOfferRoute
   SettingsRoute: typeof SettingsRoute
@@ -324,6 +336,7 @@ export interface RootRouteChildren {
   OfferIdRoute: typeof OfferIdRoute
   ProductIdRoute: typeof ProductIdRoute
   TradeIdRoute: typeof TradeIdRoute
+  EscrowIndexRoute: typeof EscrowIndexRoute
   ApiPublicHooksBtcConfirmPollRoute: typeof ApiPublicHooksBtcConfirmPollRoute
   ApiPublicHooksBtcpayRoute: typeof ApiPublicHooksBtcpayRoute
   ApiPublicHooksReconcileRoute: typeof ApiPublicHooksReconcileRoute
@@ -374,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PostListingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/order-book': {
       id: '/order-book'
       path: '/order-book'
@@ -386,13 +406,6 @@ declare module '@tanstack/react-router' {
       path: '/marketplace'
       fullPath: '/marketplace'
       preLoaderRoute: typeof MarketplaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/escrow-portfolio': {
-      id: '/escrow-portfolio'
-      path: '/escrow-portfolio'
-      fullPath: '/escrow-portfolio'
-      preLoaderRoute: typeof EscrowPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/disputes': {
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/escrow/': {
+      id: '/escrow/'
+      path: '/escrow'
+      fullPath: '/escrow/'
+      preLoaderRoute: typeof EscrowIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trade/$id': {
@@ -513,9 +533,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   DisputesRoute: DisputesRouteWithChildren,
-  EscrowPortfolioRoute: EscrowPortfolioRoute,
   MarketplaceRoute: MarketplaceRoute,
   OrderBookRoute: OrderBookRoute,
+  PortfolioRoute: PortfolioRoute,
   PostListingRoute: PostListingRoute,
   PostOfferRoute: PostOfferRoute,
   SettingsRoute: SettingsRoute,
@@ -527,6 +547,7 @@ const rootRouteChildren: RootRouteChildren = {
   OfferIdRoute: OfferIdRoute,
   ProductIdRoute: ProductIdRoute,
   TradeIdRoute: TradeIdRoute,
+  EscrowIndexRoute: EscrowIndexRoute,
   ApiPublicHooksBtcConfirmPollRoute: ApiPublicHooksBtcConfirmPollRoute,
   ApiPublicHooksBtcpayRoute: ApiPublicHooksBtcpayRoute,
   ApiPublicHooksReconcileRoute: ApiPublicHooksReconcileRoute,
