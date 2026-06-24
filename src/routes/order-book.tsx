@@ -273,7 +273,7 @@ function ListingCard({ row }: { row: ListingRow }) {
         {/* Author avatar + link */}
         <Link
           to="/u/$userId"
-          params={{ user_id: row.user_id } as unknown as { userId: string }}
+          params={{ userId: row.user_id }}
           className="flex-shrink-0"
         >
           {row.profile?.avatar_url
