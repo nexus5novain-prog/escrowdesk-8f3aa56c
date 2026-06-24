@@ -557,18 +557,40 @@ export const getMyTrades = createServerFn({ method: "GET" })
     return { trades: data ?? [] };
   });
 
+// Buyer purchase history — ledger-backed trades where the user is the buyer.
+// Pulls the product/listing name from the one-shot offer's `terms` field
+// (format: "Marketplace purchase: <name>" or "Order-book trade: <name>").
 export const getPurchaseHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await supabaseAdmin
-      .from("escrow_groups")
-      .select("id,listing_id,listing_name,listing_category,asset,amount,fiat_amount,fiat_currency,status,created_at")
-      .eq("creator_id", context.userId)
+      .from("trades")
+      .select("id,asset,crypto_amount,fiat_amount,fiat_currency,status,created_at,offer_id,offers(terms,payment_method_types)")
+      .eq("buyer_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
-    return { purchases: data ?? [] };
+    const purchases = (data ?? []).map((t) => {
+      const offer = (t as unknown as { offers?: { terms?: string | null; payment_method_types?: string[] | null } }).offers;
+      const terms = offer?.terms ?? "";
+      const m = terms.match(/^(?:Marketplace purchase|Order-book trade):\s*(.+)$/);
+      const sources = offer?.payment_method_types ?? [];
+      const source = sources.includes("marketplace") ? "marketplace" : sources.includes("order_book") ? "order_book" : "trade";
+      return {
+        id: t.id,
+        listing_name: m ? m[1] : null,
+        listing_category: source,
+        asset: t.asset,
+        amount: Number(t.crypto_amount),
+        fiat_amount: Number(t.fiat_amount),
+        fiat_currency: t.fiat_currency,
+        status: t.status,
+        created_at: t.created_at,
+      };
+    });
+    return { purchases };
   });
+
 
 export const getTrade = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
