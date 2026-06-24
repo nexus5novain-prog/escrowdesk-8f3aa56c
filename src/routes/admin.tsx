@@ -18,7 +18,7 @@ import { adminListAnnouncements, adminCreateAnnouncement, adminToggleAnnouncemen
 import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
-import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata } from "@/lib/products.functions";
+import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata, adminUploadProductImage } from "@/lib/products.functions";
 import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
 import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
@@ -1317,6 +1317,8 @@ function EditProductDialog({ product, update, onSaved }: {
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadImage = useServerFn(adminUploadProductImage);
   const [f, setF] = useState(() => ({
     name: product.name,
     description: product.description,
@@ -1340,6 +1342,28 @@ function EditProductDialog({ product, update, onSaved }: {
     expire_date: product.expire_date ?? "",
   }));
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
+
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Pick an image file");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Image must be ≤ 5 MB");
+    setUploading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      // Chunked base64 to avoid call-stack blow-ups on large files
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const data_base64 = btoa(binary);
+      const res = await uploadImage({ data: { content_type: file.type, filename: file.name, data_base64 } }) as { url: string };
+      set("image_url", res.url);
+      toast.success("Image uploaded");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setUploading(false); }
+  };
 
   const save = async () => {
     const price = Number(f.price);
@@ -1411,7 +1435,27 @@ function EditProductDialog({ product, update, onSaved }: {
             <div><Label>Currency</Label><Input value={f.currency} onChange={(e) => set("currency", e.target.value)} /></div>
             <div><Label>Stock (-1 = ∞)</Label><Input type="number" value={f.stock} onChange={(e) => set("stock", e.target.value)} /></div>
             <div className="flex items-end gap-2"><Switch checked={f.is_featured} onCheckedChange={(v) => set("is_featured", v)} /><span className="text-sm">Featured</span></div>
-            <div className="sm:col-span-2"><Label>Image URL</Label><Input value={f.image_url} onChange={(e) => set("image_url", e.target.value)} /></div>
+            <div className="sm:col-span-2 space-y-2">
+              <Label>Product image</Label>
+              <div className="flex items-start gap-3">
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-muted">
+                  {f.image_url
+                    ? <img src={f.image_url} alt="Preview" className="h-full w-full object-cover" />
+                    : <span className="text-[10px] text-muted-foreground">No image</span>}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Input value={f.image_url} onChange={(e) => set("image_url", e.target.value)} placeholder="https://… or upload below" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0] ?? null)} disabled={uploading} className="max-w-xs" />
+                    {f.image_url && (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => set("image_url", "")} disabled={uploading}>Clear</Button>
+                    )}
+                    {uploading && <span className="text-xs text-muted-foreground">Uploading…</span>}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP, GIF or AVIF. Max 5 MB. Stored privately and served via signed URL.</p>
+                </div>
+              </div>
+            </div>
             <div className="sm:col-span-2"><Label>Seller payout (BTC) address</Label><Input value={f.seller_wallet_address} onChange={(e) => set("seller_wallet_address", e.target.value)} /></div>
 
             {f.category === "BIN/CC" && (

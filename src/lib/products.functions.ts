@@ -350,6 +350,48 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const IMAGE_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"]);
+const IMAGE_EXT: Record<string, string> = {
+  "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
+};
+
+// Admin-only product image upload. Accepts base64 data (≤ 5 MB) and writes to
+// the private `product-images` bucket via the service role. Returns a long-lived
+// signed URL suitable for storing in marketplace_products.image_url.
+export const adminUploadProductImage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    content_type: z.string().trim().min(3).max(80),
+    filename: z.string().trim().min(1).max(160).optional(),
+    data_base64: z.string().min(8).max(7_500_000), // ~5.5 MB base64 ≈ ~5 MB binary
+  }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const ct = data.content_type.toLowerCase();
+    if (!IMAGE_MIME.has(ct)) throw new Error("Unsupported image type");
+    const buf = Buffer.from(data.data_base64, "base64");
+    if (buf.byteLength === 0) throw new Error("Empty file");
+    if (buf.byteLength > 5 * 1024 * 1024) throw new Error("Image exceeds 5 MB limit");
+
+    const ext = IMAGE_EXT[ct] ?? "bin";
+    const safeBase = (data.filename ?? "image").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80) || "image";
+    const path = `${context.userId}/${Date.now()}-${crypto.randomUUID()}-${safeBase}.${ext}`;
+
+    const { error: upErr } = await supabaseAdmin.storage
+      .from("product-images")
+      .upload(path, buf, { contentType: ct, upsert: false });
+    if (upErr) throw new Error(upErr.message);
+
+    // 10-year signed URL (bucket is private; service-role signing bypasses RLS)
+    const { data: signed, error: sErr } = await supabaseAdmin.storage
+      .from("product-images")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (sErr) throw new Error(sErr.message);
+    return { url: signed.signedUrl, path };
+  });
+
+
+
 /* ─────────────────────── Buy → ledger-backed escrow trade ─────────────────────── */
 // Ledger-backed purchase for an order-book listing (selling thread).
 export const buyListing = createServerFn({ method: "POST" })
