@@ -28,6 +28,7 @@ import {
   createApiToken, revokeApiToken, revokeTrustedDevice, changePassword,
 } from "@/lib/settings.functions";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { SupportForm } from "@/components/SupportForm";
 
 export const Route = createFileRoute("/settings")({
   component: () => (<AuthGate><Settings /></AuthGate>),
@@ -80,6 +81,7 @@ function Settings() {
         <TabsContent value="devices"        className="mt-6"><DevicesTab devices={data.devices} /></TabsContent>
         <TabsContent value="activity"       className="mt-6"><ActivityTab events={data.events} /></TabsContent>
       </Tabs>
+      <SupportForm defaultEmail={data.email ?? ""} />
     </div>
   );
 }

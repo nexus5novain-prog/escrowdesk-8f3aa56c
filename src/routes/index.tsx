@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AnnouncementBanner as AdminAnnouncements } from "@/components/AnnouncementBanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,6 +42,7 @@ function LandingPage() {
     <div className="space-y-6">
       <Hero />
       <AdBanner placement="under_hero" variant="card" className="block" />
+      <AdminAnnouncements />
       <AnnouncementBanner />
       <UniversalSearch />
       <QuickCategories />

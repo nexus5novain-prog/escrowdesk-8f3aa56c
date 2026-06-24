@@ -26,6 +26,7 @@ import {
   Handshake, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Search,
   ShieldCheck, Zap, FileSignature, Bitcoin, Bot, Eye, Gavel, Server, KeyRound, Activity,
 } from "lucide-react";
+import { SupportForm } from "@/components/SupportForm";
 
 export const Route = createFileRoute("/escrow")({
   head: () => ({
@@ -201,6 +202,8 @@ function EscrowPage() {
         Need a counter-party? Browse open offers on the{" "}
         <Link to="/order-book" className="text-primary hover:underline">Order Book</Link>.
       </div>
+
+      <SupportForm />
     </div>
   );
 }

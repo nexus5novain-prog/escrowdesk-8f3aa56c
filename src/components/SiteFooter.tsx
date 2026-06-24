@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Mail, MessageCircle, Github } from "lucide-react";
 import { AdBanner } from "@/components/AdBanner";
+import { NewsletterForm } from "@/components/NewsletterForm";
 import logoAsset from "@/assets/escrowdesk-logo.png.asset.json";
 
 export function SiteFooter() {
@@ -11,7 +12,10 @@ export function SiteFooter() {
         {/* Footer ad slot */}
         <AdBanner placement="footer" variant="card" className="mb-8 block" />
 
-        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
+        <NewsletterForm source="footer" />
+
+
+        <div className="mt-8 grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div className="space-y-3">
             <Link to="/" className="flex items-center gap-2">
               <img
