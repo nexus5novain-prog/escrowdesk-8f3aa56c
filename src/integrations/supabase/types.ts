@@ -2575,6 +2575,60 @@ export type Database = {
       }
     }
     Views: {
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          btc_volume_usd: number | null
+          created_at: string | null
+          display_name: string | null
+          distinct_partners: number | null
+          five_star_count: number | null
+          is_premium: boolean | null
+          is_trusted: boolean | null
+          rating_count: number | null
+          rating_sum: number | null
+          show_online_status: boolean | null
+          show_trade_history: boolean | null
+          trades_completed: number | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          btc_volume_usd?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          distinct_partners?: number | null
+          five_star_count?: number | null
+          is_premium?: boolean | null
+          is_trusted?: boolean | null
+          rating_count?: number | null
+          rating_sum?: number | null
+          show_online_status?: boolean | null
+          show_trade_history?: boolean | null
+          trades_completed?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          btc_volume_usd?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          distinct_partners?: number | null
+          five_star_count?: number | null
+          is_premium?: boolean | null
+          is_trusted?: boolean | null
+          rating_count?: number | null
+          rating_sum?: number | null
+          show_online_status?: boolean | null
+          show_trade_history?: boolean | null
+          trades_completed?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       v_wallet_balances: {
         Row: {
           available_sats: number | null
