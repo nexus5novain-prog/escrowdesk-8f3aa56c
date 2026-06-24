@@ -10,6 +10,7 @@ import {
   tgGetStatus, tgSetWebhook, tgDeleteWebhook, tgSendTest,
   adminListUsers, adminBanUser, adminUnbanUser, adminWarnUser,
   adminAssignRole, adminRevokeRole, adminUnlinkTelegram, adminListWarnings,
+  getCompanyEscrowAddresses, adminSetCompanyEscrowAddresses,
 } from "@/lib/escrow.functions";
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
