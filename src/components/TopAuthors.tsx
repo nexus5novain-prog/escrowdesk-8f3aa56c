@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Crown, ShieldCheck, Star, TrendingUp, Loader2 } from "lucide-react";
 import { listTopAuthors, type TopAuthor } from "@/lib/marketplace.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { fmtFiat } from "@/lib/format";
+
 
 export function TopAuthors() {
   const fetchAuthors = useServerFn(listTopAuthors);
