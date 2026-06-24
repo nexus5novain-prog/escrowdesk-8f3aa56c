@@ -26,6 +26,7 @@ import { Route as TradeIdRouteImport } from './routes/trade.$id'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as OfferIdRouteImport } from './routes/offer.$id'
 import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
+import { Route as ApiPaymentMetadataRouteImport } from './routes/api/payment-metadata'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicHooksReconcileRouteImport } from './routes/api/public/hooks/reconcile'
 import { Route as ApiPublicHooksBtcpayRouteImport } from './routes/api/public/hooks/btcpay'
@@ -116,6 +117,11 @@ const DisputesIdRoute = DisputesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => DisputesRoute,
 } as any)
+const ApiPaymentMetadataRoute = ApiPaymentMetadataRouteImport.update({
+  id: '/api/payment-metadata',
+  path: '/api/payment-metadata',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
   '/wallet': typeof WalletRoute
+  '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/api/payment-metadata'
     | '/disputes/$id'
     | '/offer/$id'
     | '/product/$id'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/api/payment-metadata'
     | '/disputes/$id'
     | '/offer/$id'
     | '/product/$id'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/transactions'
     | '/wallet'
+    | '/api/payment-metadata'
     | '/disputes/$id'
     | '/offer/$id'
     | '/product/$id'
@@ -295,6 +307,7 @@ export interface RootRouteChildren {
   TradesRoute: typeof TradesRoute
   TransactionsRoute: typeof TransactionsRoute
   WalletRoute: typeof WalletRoute
+  ApiPaymentMetadataRoute: typeof ApiPaymentMetadataRoute
   OfferIdRoute: typeof OfferIdRoute
   ProductIdRoute: typeof ProductIdRoute
   TradeIdRoute: typeof TradeIdRoute
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DisputesIdRouteImport
       parentRoute: typeof DisputesRoute
     }
+    '/api/payment-metadata': {
+      id: '/api/payment-metadata'
+      path: '/api/payment-metadata'
+      fullPath: '/api/payment-metadata'
+      preLoaderRoute: typeof ApiPaymentMetadataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   TradesRoute: TradesRoute,
   TransactionsRoute: TransactionsRoute,
   WalletRoute: WalletRoute,
+  ApiPaymentMetadataRoute: ApiPaymentMetadataRoute,
   OfferIdRoute: OfferIdRoute,
   ProductIdRoute: ProductIdRoute,
   TradeIdRoute: TradeIdRoute,
