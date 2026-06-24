@@ -476,9 +476,10 @@ async function handleCallback(cb: Record<string, unknown>) {
   }
 
   // ---- Trade action callbacks (v1|action|short|sig) ----
-  if (data.startsWith("v1|") && from?.id) {
+  if ((data.startsWith("v2|") || data.startsWith("v1|")) && from?.id) {
     const v = verifyCb(data, from.id);
-    if (!v) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Invalid or expired button", show_alert: true });
+    if (!v) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Invalid button (please use the latest message)", show_alert: true });
+    if ("expired" in v) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Button expired — open the trade on the web or run the typed command.", show_alert: true });
     const { data: prof } = await supabaseAdmin
       .from("profiles").select("user_id, is_banned").eq("telegram_user_id", from.id).maybeSingle();
     if (!prof?.user_id) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Link your account first", show_alert: true });
