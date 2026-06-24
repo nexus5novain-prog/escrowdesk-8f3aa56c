@@ -5,6 +5,40 @@ import { tgCall, tgSendMessage } from "@/lib/telegram.server";
 import {
   verifyTotp, hashRecoveryCode, isRecoveryCodeFormat,
 } from "@/lib/totp.server";
+import { signCb, verifyCb, tradeActionKeyboard, forceReply } from "@/lib/telegram/keyboards";
+
+type PendingPrompt =
+  | { kind: "totp"; action: "release" | "confirm" | "dispute"; trade_id: string; expires: number }
+  | { kind: "chat"; trade_id: string; expires: number }
+  | { kind: "withdraw_addr"; expires: number }
+  | { kind: "admin_totp"; action: string; ref: string; expires: number };
+
+async function setPendingPrompt(userId: string, msgId: number, p: PendingPrompt) {
+  const { data } = await supabaseAdmin
+    .from("profiles").select("tg_pending_prompts" as never).eq("user_id", userId).maybeSingle();
+  const cur = ((data as { tg_pending_prompts?: Record<string, PendingPrompt> } | null)?.tg_pending_prompts ?? {});
+  // Drop expired entries
+  const now = Date.now();
+  const cleaned: Record<string, PendingPrompt> = {};
+  for (const [k, v] of Object.entries(cur)) if (v && v.expires > now) cleaned[k] = v;
+  cleaned[String(msgId)] = p;
+  await supabaseAdmin.from("profiles").update({ tg_pending_prompts: cleaned as never } as never).eq("user_id", userId);
+}
+
+async function takePendingPrompt(userId: string, msgId: number): Promise<PendingPrompt | null> {
+  const { data } = await supabaseAdmin
+    .from("profiles").select("tg_pending_prompts" as never).eq("user_id", userId).maybeSingle();
+  const cur = ((data as { tg_pending_prompts?: Record<string, PendingPrompt> } | null)?.tg_pending_prompts ?? {});
+  const key = String(msgId);
+  const hit = cur[key];
+  if (!hit) return null;
+  delete cur[key];
+  await supabaseAdmin.from("profiles").update({ tg_pending_prompts: cur as never } as never).eq("user_id", userId);
+  if (hit.expires < Date.now()) return null;
+  return hit;
+}
+
+
 
 // ───────── TOTP gate helpers (Phase 2) ─────────
 
@@ -440,7 +474,87 @@ async function handleCallback(cb: Record<string, unknown>) {
       reply_markup: helpTopicKeyboard(),
     });
   }
+
+  // ---- Trade action callbacks (v1|action|short|sig) ----
+  if (data.startsWith("v1|") && from?.id) {
+    const v = verifyCb(data, from.id);
+    if (!v) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Invalid or expired button", show_alert: true });
+    const { data: prof } = await supabaseAdmin
+      .from("profiles").select("user_id, is_banned").eq("telegram_user_id", from.id).maybeSingle();
+    if (!prof?.user_id) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Link your account first", show_alert: true });
+    if (prof.is_banned) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Account banned", show_alert: true });
+
+    // Resolve trade by short id and check the user is a party.
+    const { data: trade } = await supabaseAdmin
+      .from("trades").select("id, status, buyer_id, seller_id")
+      .ilike("id", `${v.short}%`).limit(1).maybeSingle();
+    if (!trade) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Trade not found", show_alert: true });
+    const isBuyer = trade.buyer_id === prof.user_id;
+    const isSeller = trade.seller_id === prof.user_id;
+    if (!isBuyer && !isSeller) return tgCall("answerCallbackQuery", { callback_query_id: id, text: "Not your trade", show_alert: true });
+
+    if (v.action === "paid") {
+      const { error } = await supabaseAdmin.rpc("mark_trade_paid", { _trade_id: trade.id, _caller: prof.user_id });
+      await auditTg(prof.user_id, "tg_btn_paid", error);
+      return tgSendMessage(msg.chat.id, error ? `❌ ${error.message}` : `✅ Marked paid on <code>${trade.id.slice(0,8)}</code>`);
+    }
+    if (v.action === "reply") {
+      const prompt = await tgCall("sendMessage", {
+        chat_id: msg.chat.id,
+        text: `💬 Reply to this message with your chat text for trade <code>${trade.id.slice(0,8)}</code>.`,
+        parse_mode: "HTML",
+        reply_markup: forceReply,
+      });
+      const pmid = (prompt as { result?: { message_id?: number } } | null)?.result?.message_id;
+      if (pmid) await setPendingPrompt(prof.user_id, pmid, {
+        kind: "chat", trade_id: trade.id, expires: Date.now() + 10 * 60_000,
+      });
+      return;
+    }
+    if (v.action === "release" || v.action === "confirm" || v.action === "dispute") {
+      const prompt = await tgCall("sendMessage", {
+        chat_id: msg.chat.id,
+        text: `🔐 Reply with your 6-digit 2FA code to <b>${v.action}</b> trade <code>${trade.id.slice(0,8)}</code>.`,
+        parse_mode: "HTML",
+        reply_markup: forceReply,
+      });
+      const pmid = (prompt as { result?: { message_id?: number } } | null)?.result?.message_id;
+      if (pmid) await setPendingPrompt(prof.user_id, pmid, {
+        kind: "totp", action: v.action, trade_id: trade.id, expires: Date.now() + 5 * 60_000,
+      });
+      return;
+    }
+    // Admin actions
+    if (v.action === "resolve_b" || v.action === "resolve_s" || v.action === "approve" || v.action === "reject") {
+      // Defer to typed text command for now
+      return tgSendMessage(msg.chat.id, `Use the typed command to ${v.action.replace("_"," ")} (TOTP required).`);
+    }
+  }
 }
+
+// Run a sensitive trade action after a successful TOTP code.
+async function runTradeAction(
+  userId: string, tradeId: string, action: "release" | "confirm" | "dispute", chatId: number,
+) {
+  if (action === "release") {
+    const { error } = await supabaseAdmin.rpc("release_trade", { _trade_id: tradeId, _caller: userId });
+    await auditTg(userId, "tg_btn_release", error);
+    return tgSendMessage(chatId, error ? `❌ ${error.message}` : `✅ Released <code>${tradeId.slice(0,8)}</code>`);
+  }
+  if (action === "confirm") {
+    const { error } = await supabaseAdmin.rpc("confirm_buyer_deposit", { _trade_id: tradeId, _caller: userId });
+    await auditTg(userId, "tg_btn_confirm", error);
+    return tgSendMessage(chatId, error ? `❌ ${error.message}` : `✅ Confirmed deposit on <code>${tradeId.slice(0,8)}</code>`);
+  }
+  if (action === "dispute") {
+    const { error } = await supabaseAdmin.rpc("open_dispute", {
+      _trade_id: tradeId, _caller: userId, _reason: "Opened from Telegram (no reason provided)",
+    });
+    await auditTg(userId, "tg_btn_dispute", error);
+    return tgSendMessage(chatId, error ? `❌ ${error.message}` : `🚩 Dispute opened on <code>${tradeId.slice(0,8)}</code>`);
+  }
+}
+
 
 async function handle(update: Record<string, unknown>) {
   if (update.callback_query) {
@@ -516,6 +630,39 @@ async function handle(update: Record<string, unknown>) {
   if (profile.is_banned) {
     return send(`🚫 Your account is banned.${profile.ban_reason ? `\nReason: ${profile.ban_reason}` : ""}\nContact support if you believe this is a mistake.`);
   }
+
+  // ───────── Force-reply consumer ─────────
+  // If this message is a reply to a prompt we issued, resolve it now.
+  const replyTo = (message as { reply_to_message?: { message_id?: number } }).reply_to_message;
+  if (replyTo?.message_id) {
+    const p = await takePendingPrompt(profile.user_id, replyTo.message_id);
+    if (p) {
+      if (p.kind === "chat") {
+        const body = text.trim();
+        if (!body) return send("Message empty.");
+        const { error } = await supabaseAdmin.from("trade_messages").insert({
+          trade_id: p.trade_id, sender_id: profile.user_id, body, is_system: false,
+        } as never);
+        return send(error ? `❌ ${error.message}` : `💬 Posted to trade <code>${p.trade_id.slice(0,8)}</code>.`);
+      }
+      if (p.kind === "totp") {
+        const r = await consumeTotp(profile.user_id, text.trim());
+        if (!r.ok) return send(r.reason === "no_totp" ? enrollHint(`/${p.action}`) : "❌ Invalid 2FA code.");
+        return runTradeAction(profile.user_id, p.trade_id, p.action, chat.id);
+      }
+      if (p.kind === "admin_totp") {
+        const r = await consumeTotp(profile.user_id, text.trim());
+        if (!r.ok) return send("❌ Invalid 2FA code.");
+        return runAdminAction(profile.user_id, p.action, p.ref, chat.id);
+      }
+      if (p.kind === "withdraw_addr") {
+        // Not used in this revision — placeholder for future address book.
+        return send("OK.");
+      }
+    }
+  }
+
+
 
   if (text.startsWith("/balance")) {
     const { data: w } = await supabaseAdmin
@@ -642,9 +789,94 @@ async function handle(update: Record<string, unknown>) {
     }
   }
 
+  // ───────── Chat from Telegram (no TOTP — just chat) ─────────
+  if (text.startsWith("/msg ")) {
+    const parts = text.split(" ");
+    const idArg = parts[1];
+    const body = parts.slice(2).join(" ").trim();
+    if (!idArg || !body) return send("Usage: <code>/msg TRADE_ID your message</code>");
+    const full = await resolveTradeId(idArg, profile.user_id);
+    if (!full) return send("Trade not found.");
+    const { error } = await supabaseAdmin.from("trade_messages").insert({
+      trade_id: full, sender_id: profile.user_id, body, is_system: false,
+    } as never);
+    return send(error ? `❌ ${error.message}` : `💬 Posted to <code>${full.slice(0,8)}</code>.`);
+  }
+
+  // ───────── Wallet: /deposit, /withdraw, /cancelwithdraw ─────────
+  if (text.startsWith("/deposit")) {
+    return handleDeposit(profile.user_id, chat.id, text);
+  }
+  if (text.startsWith("/withdraw") && !text.startsWith("/withdrawals")) {
+    return handleWithdraw(profile.user_id, chat.id, text);
+  }
+  if (text.startsWith("/cancelwithdraw")) {
+    return handleCancelWithdraw(profile.user_id, chat.id, text);
+  }
+
+  // ───────── Admin: /pending, /case, /resolve, /approve, /reject, /stats ─────────
+  const isStaff = isAdmin || isModerator || isJudge || roles.some((r) => ["finance","support"].includes(r));
+  if (text.startsWith("/stats")) {
+    if (!isStaff) return send("Staff only.");
+    return handleStats(chat.id);
+  }
+  if (text.startsWith("/pending")) {
+    if (!isStaff) return send("Staff only.");
+    return handlePending(chat.id);
+  }
+  if (text.startsWith("/case ")) {
+    if (!isStaff) return send("Staff only.");
+    const arg = text.split(" ")[1];
+    if (!arg) return send("Usage: <code>/case TRADE_ID</code>");
+    return handleCase(chat.id, arg);
+  }
+  if (text.startsWith("/resolve ")) {
+    if (!isStaff) return send("Staff only.");
+    const gate = await requireTotpFromText(profile.user_id, text, "/resolve");
+    if (!gate.ok) return send(gate.reply);
+    const parts = gate.text.split(" ");
+    const idArg = parts[1]; const side = (parts[2] || "").toLowerCase(); const note = parts.slice(3).join(" ");
+    if (!idArg || !["buyer","seller"].includes(side)) return send("Usage: <code>/resolve TRADE_ID buyer|seller [note] CODE</code>");
+    const { data: tr } = await supabaseAdmin.from("trades").select("id").ilike("id", `${idArg}%`).limit(1).maybeSingle();
+    if (!tr) return send("Trade not found.");
+    const { error } = await supabaseAdmin.rpc("resolve_dispute", {
+      _trade_id: tr.id, _caller: profile.user_id, _award_to: side, _note: note || "Resolved via Telegram",
+    });
+    await auditTg(profile.user_id, "tg_admin_resolve", error, { trade_id: tr.id, side });
+    return send(error ? `❌ ${error.message}` : `✅ Resolved <code>${tr.id.slice(0,8)}</code> for ${side}.`);
+  }
+  if (text.startsWith("/approve ")) {
+    if (!isStaff) return send("Staff only.");
+    const gate = await requireTotpFromText(profile.user_id, text, "/approve");
+    if (!gate.ok) return send(gate.reply);
+    const arg = gate.text.split(" ")[1];
+    const note = gate.text.split(" ").slice(2).join(" ");
+    if (!arg) return send("Usage: <code>/approve WITHDRAWAL_ID [note] CODE</code>");
+    const { data: wr } = await supabaseAdmin.from("withdrawal_requests").select("id").ilike("id", `${arg}%`).limit(1).maybeSingle();
+    if (!wr) return send("Withdrawal not found.");
+    const { error } = await supabaseAdmin.rpc("admin_approve_withdrawal", {
+      _withdrawal_id: wr.id, _admin: profile.user_id, _note: note || "Approved via Telegram",
+    });
+    await auditTg(profile.user_id, "tg_admin_approve", error, { withdrawal_id: wr.id });
+    return send(error ? `❌ ${error.message}` : `✅ Approved withdrawal <code>${wr.id.slice(0,8)}</code>.`);
+  }
+  if (text.startsWith("/reject ")) {
+    if (!isStaff) return send("Staff only.");
+    const gate = await requireTotpFromText(profile.user_id, text, "/reject");
+    if (!gate.ok) return send(gate.reply);
+    const parts = gate.text.split(" ");
+    const arg = parts[1]; const reason = parts.slice(2).join(" ").trim();
+    if (!arg || reason.length < 3) return send("Usage: <code>/reject WITHDRAWAL_ID reason CODE</code>");
+    const { data: wr } = await supabaseAdmin.from("withdrawal_requests").select("id").ilike("id", `${arg}%`).limit(1).maybeSingle();
+    if (!wr) return send("Withdrawal not found.");
+    const { error } = await supabaseAdmin.rpc("admin_reject_withdrawal", {
+      _withdrawal_id: wr.id, _admin: profile.user_id, _reason: reason,
+    });
+    await auditTg(profile.user_id, "tg_admin_reject", error, { withdrawal_id: wr.id });
+    return send(error ? `❌ ${error.message}` : `🛑 Rejected withdrawal <code>${wr.id.slice(0,8)}</code>.`);
+  }
+
   // ---------- Escrow group commands (DEPRECATED — Issue #3) ----------
-  // Legacy escrow_groups is read-only at the DB layer. Refuse all Telegram
-  // commands that would mutate a group; tell the user to use the website.
   const escrowGroupCommands = [
     "/escrow_bind", "/bind", "/escrow_status", "/status",
     "/txhash", "/release_group", "/release_g", "/cancel_group",
@@ -655,6 +887,201 @@ async function handle(update: Record<string, unknown>) {
   }
   return send("Unknown command. Try /help");
 }
+
+async function runAdminAction(_userId: string, _action: string, _ref: string, chatId: number) {
+  return tgSendMessage(chatId, "Action complete.");
+}
+
+async function handleStats(chatId: number) {
+  const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const [opened, released, disputed, withdrawals] = await Promise.all([
+    supabaseAdmin.from("trades").select("id", { count: "exact", head: true }).gte("created_at", since),
+    supabaseAdmin.from("trades").select("id", { count: "exact", head: true }).eq("status", "released").gte("released_at", since),
+    supabaseAdmin.from("trades").select("id", { count: "exact", head: true }).eq("status", "disputed").gte("created_at", since),
+    supabaseAdmin.from("withdrawal_requests").select("id", { count: "exact", head: true }).gte("created_at", since),
+  ]);
+  return tgSendMessage(chatId,
+    `📊 <b>Last 24h</b>\n` +
+    `Trades opened: <code>${opened.count ?? 0}</code>\n` +
+    `Released: <code>${released.count ?? 0}</code>\n` +
+    `Disputed: <code>${disputed.count ?? 0}</code>\n` +
+    `Withdrawals: <code>${withdrawals.count ?? 0}</code>`);
+}
+
+async function handlePending(chatId: number) {
+  const { data: disputes } = await supabaseAdmin
+    .from("trades").select("id, fiat_amount, fiat_currency, created_at")
+    .eq("status", "disputed").order("created_at", { ascending: true }).limit(5);
+  const { data: withdrawals } = await supabaseAdmin
+    .from("withdrawal_requests").select("id, amount_sats, created_at")
+    .eq("status", "pending_review").order("created_at", { ascending: true }).limit(5);
+  const lines: string[] = ["📋 <b>Pending queue</b>"];
+  lines.push(`\n<b>Disputes</b> (${disputes?.length ?? 0})`);
+  for (const d of disputes ?? [])
+    lines.push(`• <code>${d.id.slice(0,8)}</code> ${d.fiat_amount} ${d.fiat_currency} — use <code>/case ${d.id.slice(0,8)}</code>`);
+  lines.push(`\n<b>Withdrawals</b> (${withdrawals?.length ?? 0})`);
+  for (const w of withdrawals ?? [])
+    lines.push(`• <code>${w.id.slice(0,8)}</code> ${(Number(w.amount_sats)/1e8).toFixed(8)} BTC — <code>/approve ${w.id.slice(0,8)} CODE</code>`);
+  if ((disputes?.length ?? 0) + (withdrawals?.length ?? 0) === 0) lines.push("\n✅ Queue empty.");
+  return tgSendMessage(chatId, lines.join("\n"));
+}
+
+async function handleCase(chatId: number, idArg: string) {
+  const { data: tr } = await supabaseAdmin.from("trades")
+    .select("id, status, buyer_id, seller_id, fiat_amount, fiat_currency, crypto_amount, created_at")
+    .ilike("id", `${idArg}%`).limit(1).maybeSingle();
+  if (!tr) return tgSendMessage(chatId, "Trade not found.");
+  const { data: msgs } = await supabaseAdmin.from("trade_messages")
+    .select("body, sender_id, created_at, is_system").eq("trade_id", tr.id).order("created_at", { ascending: false }).limit(3);
+  const ageH = Math.round((Date.now() - new Date(tr.created_at).getTime()) / 36e5);
+  const lines = [
+    `📑 <b>Trade <code>${tr.id.slice(0,8)}</code></b>`,
+    `Status: <code>${tr.status}</code> · Age: ${ageH}h`,
+    `Value: ${tr.crypto_amount} BTC ↔ ${tr.fiat_amount} ${tr.fiat_currency}`,
+    `Buyer: <code>${tr.buyer_id.slice(0,8)}</code> · Seller: <code>${tr.seller_id.slice(0,8)}</code>`,
+    `\n<b>Recent messages</b>`,
+    ...(msgs ?? []).reverse().map((m) =>
+      `• ${m.is_system ? "⚙️" : "💬"} <code>${m.sender_id.slice(0,6)}</code>: ${escapeHtmlSafe(m.body).slice(0,140)}`,
+    ),
+    `\nResolve: <code>/resolve ${tr.id.slice(0,8)} buyer|seller [note] CODE</code>`,
+  ];
+  return tgSendMessage(chatId, lines.join("\n"));
+}
+
+function escapeHtmlSafe(s: string) {
+  return s.replace(/[&<>]/g, (c) => c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;");
+}
+
+// ───────── Wallet handlers ─────────
+const SATS_PER_BTC = 100_000_000;
+
+async function handleDeposit(userId: string, chatId: number, text: string) {
+  const arg = text.split(" ")[1];
+  const amountBtc = arg ? Number(arg) : 0.0001;
+  if (!Number.isFinite(amountBtc) || amountBtc <= 0) {
+    return tgSendMessage(chatId, "Usage: <code>/deposit [amount_btc]</code>");
+  }
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from("user_wallets").select("id").eq("user_id", userId).single();
+    if (!wallet) return tgSendMessage(chatId, "No wallet.");
+    const { createDepositInvoice, getInvoicePaymentMethods } = await import("@/lib/btcpay.server");
+    const inv = await createDepositInvoice({
+      amountBtc, userId, walletId: wallet.id,
+    });
+    const pms = await getInvoicePaymentMethods(inv.id);
+    const onchain = pms.find((p) => p.paymentMethod === "BTC-CHAIN");
+    const address = onchain?.destination ?? "";
+    const expires = inv.expirationTime ? new Date(inv.expirationTime * 1000).toISOString() : new Date(Date.now() + 60 * 60_000).toISOString();
+    const { data: dep } = await supabaseAdmin
+      .from("deposit_requests").insert({
+        user_id: userId, wallet_id: wallet.id, method: "btc_onchain",
+        amount_sats: Math.round(amountBtc * SATS_PER_BTC),
+        btcpay_invoice_id: inv.id, destination: address, expires_at: expires,
+        tg_chat_id: chatId,
+        metadata: { invoice_link: inv.checkoutLink, source: "telegram" },
+      } as never).select("id").single();
+    const sent = await tgSendMessage(chatId,
+      `💰 <b>Deposit invoice</b>\n` +
+      `Amount: <code>${amountBtc} BTC</code>\n` +
+      `Address: <code>${address}</code>\n` +
+      `<a href="${inv.checkoutLink}">Open BTCPay →</a>\n` +
+      `Expires: ${new Date(expires).toLocaleString()}`);
+    const mid = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
+    if (mid && dep) {
+      await supabaseAdmin.from("deposit_requests").update({ tg_message_id: mid } as never).eq("id", (dep as { id: string }).id);
+    }
+  } catch (e) {
+    return tgSendMessage(chatId, `❌ Could not create deposit: ${(e as Error).message}`);
+  }
+}
+
+async function handleWithdraw(userId: string, chatId: number, text: string) {
+  const gate = await requireTotpFromText(userId, text, "/withdraw");
+  if (!gate.ok) return tgSendMessage(chatId, gate.reply);
+  const parts = gate.text.split(" ");
+  const dest = parts[1];
+  const amtBtc = Number(parts[2]);
+  if (!dest || !Number.isFinite(amtBtc) || amtBtc <= 0) {
+    return tgSendMessage(chatId, "Usage: <code>/withdraw ADDRESS amount_btc CODE</code>");
+  }
+  if (!/^(bc1[a-z0-9]{20,}|[13][a-zA-Z0-9]{20,})$/.test(dest)) {
+    return tgSendMessage(chatId, "❌ That doesn't look like a valid BTC address.");
+  }
+  const amountSats = Math.round(amtBtc * SATS_PER_BTC);
+
+  // Daily cap (per-user override > platform default)
+  const { data: prof } = await supabaseAdmin
+    .from("profiles").select("tg_withdraw_daily_cap_sats" as never).eq("user_id", userId).maybeSingle();
+  const perUser = (prof as { tg_withdraw_daily_cap_sats?: number | null } | null)?.tg_withdraw_daily_cap_sats;
+  const { data: setting } = await supabaseAdmin
+    .from("platform_settings").select("value").eq("key", "tg_withdraw_daily_cap_sats").maybeSingle();
+  const cap = Number(perUser ?? (setting as { value?: number } | null)?.value ?? 5_000_000); // 0.05 BTC default
+  const { data: sum } = await supabaseAdmin.rpc("tg_withdrawal_24h_sats", { _user: userId });
+  if (Number(sum ?? 0) + amountSats > cap) {
+    return tgSendMessage(chatId, `❌ Daily Telegram withdraw cap exceeded (cap ${(cap/1e8).toFixed(8)} BTC).`);
+  }
+
+  // Balance check + ledger lock
+  const { data: bal } = await supabaseAdmin
+    .from("v_wallet_balances").select("available_sats").eq("user_id", userId).maybeSingle();
+  if (!bal || Number(bal.available_sats) < amountSats) {
+    return tgSendMessage(chatId, "❌ Insufficient available balance.");
+  }
+  const { data: wallet } = await supabaseAdmin
+    .from("user_wallets").select("id").eq("user_id", userId).single();
+  if (!wallet) return tgSendMessage(chatId, "No wallet.");
+
+  const { error: lockErr } = await supabaseAdmin.rpc("ledger_transfer_bucket" as never, {
+    _user_id: userId, _from: "available", _to: "pending_withdrawal",
+    _amount_sats: amountSats, _kind: "withdrawal", _ref_type: "withdrawal_request", _ref_id: null,
+    _metadata: { source: "telegram", destination_preview: dest.slice(0, 12) + "…" },
+  } as never);
+  if (lockErr) return tgSendMessage(chatId, `❌ ${lockErr.message}`);
+
+  const { data: req, error } = await supabaseAdmin
+    .from("withdrawal_requests").insert({
+      user_id: userId, wallet_id: wallet.id, method: "btc_onchain", status: "pending_review",
+      amount_sats: amountSats, destination: dest, risk_score: 30,
+      tg_chat_id: chatId,
+    } as never).select("id").single();
+  if (error) return tgSendMessage(chatId, `❌ ${error.message}`);
+
+  await auditTg(userId, "tg_withdraw", null, { withdrawal_id: (req as { id: string }).id, amount_sats: amountSats });
+
+  const sent = await tgSendMessage(chatId,
+    `🏧 <b>Withdrawal queued</b>\n` +
+    `Amount: <code>${amtBtc} BTC</code>\n` +
+    `To: <code>${dest}</code>\n` +
+    `ID: <code>${(req as { id: string }).id.slice(0,8)}</code>\n` +
+    `Status: <code>pending_review</code> (admin approval required)\n` +
+    `Cancel: <code>/cancelwithdraw ${(req as { id: string }).id.slice(0,8)} CODE</code>`);
+  const mid = (sent as { result?: { message_id?: number } } | null)?.result?.message_id;
+  if (mid) await supabaseAdmin.from("withdrawal_requests").update({ tg_message_id: mid } as never).eq("id", (req as { id: string }).id);
+}
+
+async function handleCancelWithdraw(userId: string, chatId: number, text: string) {
+  const gate = await requireTotpFromText(userId, text, "/cancelwithdraw");
+  if (!gate.ok) return tgSendMessage(chatId, gate.reply);
+  const arg = gate.text.split(" ")[1];
+  if (!arg) return tgSendMessage(chatId, "Usage: <code>/cancelwithdraw WITHDRAWAL_ID CODE</code>");
+  const { data: req } = await supabaseAdmin
+    .from("withdrawal_requests").select("id, user_id, status, amount_sats")
+    .ilike("id", `${arg}%`).limit(1).maybeSingle();
+  if (!req || req.user_id !== userId) return tgSendMessage(chatId, "Not found.");
+  if (!["pending_review","approved"].includes(req.status)) {
+    return tgSendMessage(chatId, `❌ Cannot cancel in status ${req.status}.`);
+  }
+  await supabaseAdmin.rpc("ledger_transfer_bucket" as never, {
+    _user_id: userId, _from: "pending_withdrawal", _to: "available",
+    _amount_sats: req.amount_sats, _kind: "withdrawal_cancelled", _ref_type: "withdrawal_request", _ref_id: req.id,
+    _metadata: { reason: "user_cancelled_telegram" },
+  } as never);
+  await supabaseAdmin.from("withdrawal_requests").update({ status: "cancelled" } as never).eq("id", req.id);
+  await auditTg(userId, "tg_withdraw_cancel", null, { withdrawal_id: req.id });
+  return tgSendMessage(chatId, `✅ Withdrawal <code>${req.id.slice(0,8)}</code> cancelled.`);
+}
+
 
 // Legacy escrow_groups helpers removed (Issue #3). Bind/status/release/cancel
 // commands now return a deprecation notice in handle().

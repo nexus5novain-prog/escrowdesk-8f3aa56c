@@ -1,151 +1,151 @@
-# Phase 2 — Per-action TOTP for Telegram
+# Phase 3 — Telegram as a first-class mobile client
 
-Re-open the fund-moving and admin commands in the bot, but require a fresh
-authenticator code as the last argument of every sensitive command. No
-TOTP, no execution — and the website remains the only place where the TOTP
-secret is ever seen.
+Four streams shipped together. All sensitive actions reuse the Phase-2
+TOTP gate (`consumeTotp`) — no new auth model. Everything still lives in
+`src/routes/api/public/telegram/webhook.ts` plus a few small helpers; no
+new tables for streams 1–3, two small tables for stream 4.
 
-## What the user sees
+## 1. Inline trade actions (buttons on notifications)
 
-### Web — enable 2FA once
-`/settings` gains a **Two-Factor Authentication** card:
-1. Click **Enable 2FA** → server generates a base32 secret + otpauth URL.
-2. UI shows a QR code (`qrcode.react`, already in deps) + the secret text for
-   manual entry into Google Authenticator / Authy / 1Password.
-3. User types the 6-digit code → server verifies, stores secret, marks
-   `totp_enabled_at`, and shows **8 one-time recovery codes** (display once,
-   hashed at rest).
-4. Card afterwards shows status + **Disable 2FA** (requires a code) and
-   **Regenerate recovery codes** (requires a code).
+When `notify.server.ts` pushes a trade event to Telegram, also send an
+inline keyboard scoped to that trade + recipient role:
 
-### Telegram — use 2FA per action
-After enabling, sensitive commands take the code as the final argument:
+- Buyer (status=`pending_payment`): **I've paid** · **Open dispute**
+- Seller (status=`paid`): **Release funds** · **Open dispute**
+- Either (status=`awaiting_seller_confirm`, seller): **Confirm deposit**
+
+Callback data is short and signed:
 
 ```
-/release TRADE_ID 123456
-/dispute TRADE_ID reason text… 123456
-/confirm TRADE_ID 123456
-/sign    TRADE_ID PHRASE 123456
-/terms   TRADE_ID terms text… 123456
-/ban     USER_ID reason… 123456
-/unban   USER_ID 123456
-/warn    USER_ID severity reason… 123456
-/fee     BPS 123456
+v1|<action>|<trade_short_id>|<sig8>
 ```
 
-- Missing/invalid code → friendly reply explaining how to enroll on the web.
-- A 6-digit token = TOTP. An 8-char alphanumeric token = recovery code.
-- Recovery codes are single-use; using one warns the user to regenerate.
+- `action` ∈ `paid | release | confirm | dispute`
+- `trade_short_id` = first 8 chars of trade uuid
+- `sig8` = first 8 chars of `hmac_sha256(TELEGRAM_API_KEY, action|trade|user)`
+  → prevents another user from replaying buttons forwarded to them.
 
-## Security model
+Handler (`answerCallbackQuery` + edit message):
+1. Verify `sig8`, resolve full trade id, check the caller is the right
+   party for the action.
+2. If action ∈ {release, confirm, dispute}: reply with a force-reply
+   prompt asking for the TOTP (`Reply with your 6-digit code`). The
+   subsequent message is matched by `reply_to_message.message_id` and
+   runs the existing `consumeTotp` + RPC path.
+3. `paid` action runs `mark_trade_paid` straight away (already
+   non-fund-moving in Phase 2).
+4. On success, edit the original notification text to append
+   `✅ Released by you at 12:34 UTC` etc., remove the keyboard.
 
-- **TOTP**: RFC 6238, SHA-1, 30-second period, 6 digits, ±1 step tolerance
-  (so a code is valid for at most ~90s). Pure-JS HMAC via Node `crypto` —
-  no new dependency.
-- **Replay protection**: `totp_used_steps(user_id, step)` UNIQUE — a code
-  can be redeemed at most once per user, even within its tolerance window.
-- **Recovery codes**: 8 codes, format `XXXX-XXXX` (Crockford base32),
-  stored as `sha256` hashes; consumed by deleting the matching hash row.
-- **Secret storage**: `profiles.totp_secret` is `text`, restricted to
-  `service_role` (revoke from `authenticated`/`anon`); never selected
-  client-side. The server fn that enrolls returns the secret only on
-  enrollment and never again.
-- **Audit**: every sensitive Telegram command writes
-  `user_security_events` with `kind` like `tg_release`, `tg_ban`,
-  including success/failure and (on failure) the reason
-  (`no_totp_enrolled`, `invalid_code`, `replayed_code`,
-  `recovery_code_used`).
-- **Banned users**: still blocked before the TOTP gate runs.
-- **Brute-force**: 5 failed TOTP attempts within 15 minutes locks the
-  Telegram bot for that user for 15 minutes (rolling). Tracked in
-  `user_security_events`, no extra table needed.
+## 2. Admin console commands
 
-## Technical details
+New staff-only command surface (gated by `is_staff(auth.uid())`, already in
+DB). All write commands take a trailing TOTP like Phase 2.
 
-### Migration `…_phase2_totp.sql`
+- `/pending` — top 10 open disputes / withdrawals awaiting approval,
+  each with inline **Open** button that deep-links to
+  `escrowdesk.lovable.app/disputes/<id>` and a `/case <short>` shortcut.
+- `/case <id>` — case summary: parties, value, age, last 3 messages.
+- `/assign <id> <code>` — claims a dispute (sets `assigned_to`).
+- `/resolve <id> buyer|seller <code>` — runs `resolve_dispute` RPC.
+- `/approve <withdrawal_short> <code>` — `admin_approve_withdrawal`.
+- `/reject  <withdrawal_short> reason <code>` — `admin_reject_withdrawal`.
+- `/stats` — 24h counters: trades opened, released, disputed,
+  withdrawals approved, drift count (from `reconciliation_runs`).
+
+Each write command writes `user_security_events(kind='tg_admin_*')`
+with the resolved entity id.
+
+## 3. Group / escrow chat bridge
+
+For every active trade, mirror `trade_messages` ↔ a private Telegram
+thread between the two parties (and arbiter when assigned).
+
+- Web → Telegram: extend `notify.server.ts` so that on
+  `trade_message:insert` (non-system, non-bridge), each other
+  participant who linked Telegram gets the body as a regular
+  `sendMessage` with a `[T]` prefix and inline **Reply** that triggers
+  force-reply.
+- Telegram → web: when bot receives a force-reply matching a tracked
+  trade prompt (`reply_to_message.message_id` keyed in
+  `tg_pending_prompts` jsonb on `profiles`, no new table), insert into
+  `trade_messages(sender_id, trade_id, body, is_system=false)` after a
+  ban check.
+- Attachments: photo/document → call `getFile` → upload to existing
+  `trade-evidence` Supabase Storage bucket → attach link in the
+  inserted message. No new schema; reuses bucket from disputes.
+- No history sync: only messages from the moment both sides have
+  linked Telegram are mirrored.
+
+## 4. Deposit / withdraw flows
+
+Reuse existing `deposit_requests` + `withdrawal_requests` RPCs. Two
+small migrations:
+
 ```sql
+-- Track which Telegram message owns a pending request, so we can edit
+-- the message in place when status changes (paid/expired/rejected).
+alter table public.deposit_requests
+  add column tg_chat_id    bigint,
+  add column tg_message_id bigint;
+
+alter table public.withdrawal_requests
+  add column tg_chat_id    bigint,
+  add column tg_message_id bigint;
+
+-- Per-user daily withdraw cap when initiated from Telegram. Defaults via
+-- platform_settings('tg_withdraw_daily_cap_sats'); per-user override here.
 alter table public.profiles
-  add column totp_secret      text,
-  add column totp_enabled_at  timestamptz,
-  add column totp_last_step   bigint;
-
-revoke select (totp_secret) on public.profiles from authenticated, anon;
-
-create table public.totp_recovery_codes (
-  user_id     uuid not null references auth.users(id) on delete cascade,
-  code_hash   text not null,
-  created_at  timestamptz not null default now(),
-  primary key (user_id, code_hash)
-);
-grant all on public.totp_recovery_codes to service_role;
-alter table public.totp_recovery_codes enable row level security;
--- no policies → only service_role (which bypasses RLS) can read/write
-
-create table public.totp_used_steps (
-  user_id  uuid not null references auth.users(id) on delete cascade,
-  step     bigint not null,
-  used_at  timestamptz not null default now(),
-  primary key (user_id, step)
-);
-grant all on public.totp_used_steps to service_role;
-alter table public.totp_used_steps enable row level security;
-
--- house-keeping: prune steps older than 5 minutes opportunistically
-create index on public.totp_used_steps (used_at);
+  add column tg_withdraw_daily_cap_sats bigint;
 ```
 
-### New files
-- `src/lib/totp.server.ts` — pure-JS TOTP: `generateSecret()`,
-  `otpauthURL()`, `verifyTotp(secret, code, lastStep)` returning
-  `{ ok, step }`. ~60 LOC, no deps.
-- `src/lib/totp.functions.ts` — `beginTotpEnroll` (returns secret +
-  otpauth URL), `activateTotp({code})` (verifies, persists, returns
-  recovery codes), `disableTotp({code})`, `regenerateRecoveryCodes({code})`.
-  All `.middleware([requireSupabaseAuth])`.
-- `src/components/TwoFactorCard.tsx` — `/settings` card with the QR/
-  enroll/disable/recovery flows.
+Bot:
+- `/deposit [amount_btc]` — creates a `deposit_requests` row via existing
+  `createDepositInvoice` server fn, replies with BTCPay address +
+  amount + QR (rendered server-side as PNG via existing `qrcode`
+  package, sent as photo). Edits message on settle.
+- `/withdraw <btc_address> <amount_btc> <code>` — TOTP-gated, validates
+  address (bech32/legacy regex), enforces daily cap, creates
+  `withdrawal_requests` in `pending_review`, replies with the request
+  id and the standard "awaiting admin approval" copy. Status changes
+  edit the message.
+- `/cancelwithdraw <short> <code>` — sets status `cancelled` via existing
+  `cancel_withdrawal_request` server fn (TOTP-gated) while still in
+  `pending_review`.
 
-### Bot — `src/routes/api/public/telegram/webhook.ts`
-Replace the Phase-2 gate block with a `requireTotp(profile, text)` helper
-that:
-1. Splits off the trailing token (6 digits or `XXXX-XXXX`).
-2. Strips it from `text` so the existing command parsers run unchanged.
-3. Calls `consumeTotp(user_id, token)` (service role) which:
-   - rejects if `totp_enabled_at` is null,
-   - tries TOTP first (verify + `totp_used_steps` insert; on conflict →
-     `replayed_code`),
-   - falls back to recovery code (`delete from totp_recovery_codes
-     where user_id=$1 and code_hash=$2 returning 1`),
-   - rate-limits via `user_security_events` counts,
-   - writes the audit row.
-4. On any failure returns a clear Telegram reply. Each gated command in
-   the bot becomes a 3-line wrapper around the existing call.
+Out of scope:
+- Address book / saved payout addresses.
+- Lightning invoices from Telegram (`/deposit` is on-chain only).
+- Pushing balance changes proactively without an explicit command (the
+  existing `wallet_credited` notification kind already covers it).
 
-The bot help text (`HELP_TOPICS` for `release`, `dispute`, `confirm`,
-`sign`, `terms`, `ban`, `unban`, `warn`, `fee`) is updated to show the
-TOTP argument and a one-liner: "Enable 2FA at escrowdesk.lovable.app →
-Settings → Two-Factor Authentication."
+## File map
 
-### Notifications
-`notify.server.ts` already exists. Add two new `NotificationKind`s used
-by enrollment + recovery-code-used events so users see them in-app and
-on Telegram (`security_2fa_enabled`, `security_recovery_code_used`).
-
-## Out of scope (Phase 2)
-- No SMS/email 2FA. Authenticator-app only.
-- No WebAuthn / passkeys.
-- TOTP is **not** required for `/balance`, `/trades`, `/help`, `/link`
-  (read-only commands stay frictionless).
-- Web app sign-in still uses email/password + Google as today; this PR
-  only protects Telegram-initiated sensitive actions. Adding TOTP to web
-  sign-in is a separate scope.
+- `src/routes/api/public/telegram/webhook.ts` — add `callback_query`
+  handler, force-reply tracker, inline-keyboard builders, new command
+  parsers. Stays under ~1.2k LOC; extract pure helpers to
+  `src/lib/telegram/*.ts`:
+  - `keyboards.ts` (button builders + `sign/verify` for callback data)
+  - `commands/admin.ts`, `commands/wallet.ts`
+  - `bridge.ts` (force-reply tracking, trade-message mirroring)
+- `src/lib/notify.server.ts` — when sending Telegram, also attach the
+  right keyboard via new `tgSendMessage(..., reply_markup)`.
+- `supabase/migrations/…_phase3_telegram.sql` — the two `alter table`s
+  above + a tiny `tg_pending_prompts jsonb` column on `profiles`.
 
 ## Verification
-1. Build passes.
-2. Enroll 2FA from `/settings`, scan QR with an authenticator app.
-3. From Telegram, `/release TRADE 123456` works; `/release TRADE` shows
-   the enroll-hint; replaying the same code shows "code already used".
-4. After 5 wrong codes, the bot locks the user for 15 min.
-5. Use a recovery code in place of a TOTP — succeeds once, then fails on
-   re-use; user gets a "recovery code used" notification on both web and
-   Telegram.
+
+1. Build passes; types regenerated for the three new columns.
+2. Open a trade as buyer on web → Telegram notification shows
+   **I've paid** button → tap → trade flips to `paid`, message edits.
+3. As seller, tap **Release** → bot force-replies for TOTP → reply
+   with 6 digits → release runs, message edits to ✅.
+4. As admin, `/pending` lists open disputes, `/resolve <id> buyer 123456`
+   resolves it; security event row written.
+5. Mirror: from Telegram, reply to a `[T] <buyer message>` line —
+   appears in the web trade chat under your name.
+6. `/deposit 0.001` returns address + QR; settling it on BTCPay edits
+   the message to "✅ 0.001 BTC credited".
+7. `/withdraw bc1q… 0.0005 123456` creates a `pending_review`
+   withdrawal visible in the admin queue; bot blocks a second
+   withdraw that would exceed the daily cap.
