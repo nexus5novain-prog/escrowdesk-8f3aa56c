@@ -1,66 +1,151 @@
-# Plan: Threads management, ban enforcement, profile filters, order-book recognition, nav move
+# Phase 2 — Per-action TOTP for Telegram
 
-Six related changes, grouped so each ships verifiable end-to-end.
+Re-open the fund-moving and admin commands in the bot, but require a fresh
+authenticator code as the last argument of every sensitive command. No
+TOTP, no execution — and the website remains the only place where the TOTP
+secret is ever seen.
 
-## 1. `/my-threads` — author self-service page
+## What the user sees
 
-New route `src/routes/my-threads.tsx` under the `_authenticated` umbrella (gated; sign-in required to manage own posts). Added to the header right after **P2P Order-book** as a sub-link, plus mobile nav entry.
+### Web — enable 2FA once
+`/settings` gains a **Two-Factor Authentication** card:
+1. Click **Enable 2FA** → server generates a base32 secret + otpauth URL.
+2. UI shows a QR code (`qrcode.react`, already in deps) + the secret text for
+   manual entry into Google Authenticator / Authy / 1Password.
+3. User types the 6-digit code → server verifies, stores secret, marks
+   `totp_enabled_at`, and shows **8 one-time recovery codes** (display once,
+   hashed at rest).
+4. Card afterwards shows status + **Disable 2FA** (requires a code) and
+   **Regenerate recovery codes** (requires a code).
 
-- Server fn `listMyThreads` (in `marketplace.functions.ts`, `requireSupabaseAuth`) returns every listing where `author_id = userId` regardless of status, with counts (views, offers if available).
-- Server fns `updateMyThread` (title, body, price, category, status toggle active/paused) and `deleteMyThread` (soft → `status='deleted'`).
-- UI: table with inline edit dialog (reusing existing `PostListing` form fields), delete confirm, status pill, "view public" link.
+### Telegram — use 2FA per action
+After enabling, sensitive commands take the code as the final argument:
 
-## 2. Ban enforcement (site-wide + admin multi-select)
+```
+/release TRADE_ID 123456
+/dispute TRADE_ID reason text… 123456
+/confirm TRADE_ID 123456
+/sign    TRADE_ID PHRASE 123456
+/terms   TRADE_ID terms text… 123456
+/ban     USER_ID reason… 123456
+/unban   USER_ID 123456
+/warn    USER_ID severity reason… 123456
+/fee     BPS 123456
+```
 
-### DB migration
-- `listings` policies: replace the existing INSERT policy with one that also requires `NOT public.is_user_banned(auth.uid())`.
-- Add `public.is_user_banned(uuid) returns boolean security definer` reading `profiles.is_banned`.
-- `listCategoryThreads`, `listMyThreads`, `getPublicProfile`, `TopAuthors`: filter out rows where author `is_banned = true` for non-admins. Admin queries keep them but flag visually.
+- Missing/invalid code → friendly reply explaining how to enroll on the web.
+- A 6-digit token = TOTP. An 8-char alphanumeric token = recovery code.
+- Recovery codes are single-use; using one warns the user to regenerate.
 
-### Server fns
-- `createListing` / `postListing` (and any other thread-create paths) call `is_user_banned` first → throw "Your account has been suspended".
-- Extend `adminBanThreadAuthor` already exists; add `adminBulkAction({ userIds, action: 'ban'|'unban'|'suspend'|'delete' })`:
-  - `ban` → `profiles.is_banned = true` + flip their listings to `inactive`.
-  - `unban` → `is_banned = false`.
-  - `suspend` → `profiles.suspended_until = now() + interval` (new column).
-  - `delete` → `auth.admin.deleteUser()` via supabaseAdmin loaded inside handler.
+## Security model
 
-### Admin UI
-New **Users** tab in `admin.tsx` (or extend existing Threads panel author column): paginated user table with checkboxes, search by display name / telegram / email, bulk action bar (Ban / Unban / Suspend 7d / Delete) with confirm dialog. Surface ban/suspend state in `ThreadsPanel` author cell.
+- **TOTP**: RFC 6238, SHA-1, 30-second period, 6 digits, ±1 step tolerance
+  (so a code is valid for at most ~90s). Pure-JS HMAC via Node `crypto` —
+  no new dependency.
+- **Replay protection**: `totp_used_steps(user_id, step)` UNIQUE — a code
+  can be redeemed at most once per user, even within its tolerance window.
+- **Recovery codes**: 8 codes, format `XXXX-XXXX` (Crockford base32),
+  stored as `sha256` hashes; consumed by deleting the matching hash row.
+- **Secret storage**: `profiles.totp_secret` is `text`, restricted to
+  `service_role` (revoke from `authenticated`/`anon`); never selected
+  client-side. The server fn that enrolls returns the secret only on
+  enrollment and never again.
+- **Audit**: every sensitive Telegram command writes
+  `user_security_events` with `kind` like `tg_release`, `tg_ban`,
+  including success/failure and (on failure) the reason
+  (`no_totp_enrolled`, `invalid_code`, `replayed_code`,
+  `recovery_code_used`).
+- **Banned users**: still blocked before the TOTP gate runs.
+- **Brute-force**: 5 failed TOTP attempts within 15 minutes locks the
+  Telegram bot for that user for 15 minutes (rolling). Tracked in
+  `user_security_events`, no extra table needed.
 
-DB migration adds `profiles.suspended_until timestamptz`.
+## Technical details
 
-## 3. Public profile `/u/$userId` — sort, filter, pagination
+### Migration `…_phase2_totp.sql`
+```sql
+alter table public.profiles
+  add column totp_secret      text,
+  add column totp_enabled_at  timestamptz,
+  add column totp_last_step   bigint;
 
-Update `src/routes/u.$userId.tsx`:
-- URL search params via `validateSearch`: `sort` (`newest` | `active` | `pinned`), `kind` (`all` | `selling` | `seeking`), `page` (number, default 1, 10 per page).
-- Extend `getPublicProfile` server fn to accept `{ userId, sort, kind, page, pageSize }` and return `{ threads, totalCount }`.
-  - `newest` → `created_at DESC`
-  - `active` → `last_bumped_at DESC NULLS LAST, created_at DESC`
-  - `pinned` → `is_pinned DESC, created_at DESC`
-- Controls row above thread list: sort `Select`, kind `Tabs`, prev/next pagination footer.
+revoke select (totp_secret) on public.profiles from authenticated, anon;
 
-## 4. Order-book product cards — author recognition
+create table public.totp_recovery_codes (
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  code_hash   text not null,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, code_hash)
+);
+grant all on public.totp_recovery_codes to service_role;
+alter table public.totp_recovery_codes enable row level security;
+-- no policies → only service_role (which bypasses RLS) can read/write
 
-In `src/routes/order-book.tsx` product/listing cards (and marketplace product cards if the same shape):
-- Extend whichever server fn lists order-book entries to join `profiles` (avatar, display_name, is_premium, is_trusted, rating_sum, rating_count).
-- Card footer adds: avatar (32px) + display name (link to `/u/$userId`) + trust icon + ★ rating (1 decimal) + "(N)" review count. Same treatment for Selling / Seeking / Services tabs.
+create table public.totp_used_steps (
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  step     bigint not null,
+  used_at  timestamptz not null default now(),
+  primary key (user_id, step)
+);
+grant all on public.totp_used_steps to service_role;
+alter table public.totp_used_steps enable row level security;
 
-## 5. Move Disputes under Trades
+-- house-keeping: prune steps older than 5 minutes opportunistically
+create index on public.totp_used_steps (used_at);
+```
 
-- New route file `src/routes/trades.disputes.tsx` and `trades.disputes.$id.tsx` (re-export the existing component bodies from `disputes.tsx` / `disputes.$id.tsx`).
-- Convert `src/routes/trades.tsx` to a layout: render `<Outlet />` plus a sub-tab strip ("My Trades" → `/trades` index, "Disputes" → `/trades/disputes`). Move existing trades content to `trades.index.tsx`.
-- Header: remove top-level **Disputes** link; it now lives inside Trades. Add 301-style redirect from old `/disputes` → `/trades/disputes` via a `beforeLoad` throw redirect on the old route file (keep file as redirect-only) so deep links still work.
-- Mobile nav updated to match.
+### New files
+- `src/lib/totp.server.ts` — pure-JS TOTP: `generateSecret()`,
+  `otpauthURL()`, `verifyTotp(secret, code, lastStep)` returning
+  `{ ok, step }`. ~60 LOC, no deps.
+- `src/lib/totp.functions.ts` — `beginTotpEnroll` (returns secret +
+  otpauth URL), `activateTotp({code})` (verifies, persists, returns
+  recovery codes), `disableTotp({code})`, `regenerateRecoveryCodes({code})`.
+  All `.middleware([requireSupabaseAuth])`.
+- `src/components/TwoFactorCard.tsx` — `/settings` card with the QR/
+  enroll/disable/recovery flows.
 
-## 6. Verification
+### Bot — `src/routes/api/public/telegram/webhook.ts`
+Replace the Phase-2 gate block with a `requireTotp(profile, text)` helper
+that:
+1. Splits off the trailing token (6 digits or `XXXX-XXXX`).
+2. Strips it from `text` so the existing command parsers run unchanged.
+3. Calls `consumeTotp(user_id, token)` (service role) which:
+   - rejects if `totp_enabled_at` is null,
+   - tries TOTP first (verify + `totp_used_steps` insert; on conflict →
+     `replayed_code`),
+   - falls back to recovery code (`delete from totp_recovery_codes
+     where user_id=$1 and code_hash=$2 returning 1`),
+   - rate-limits via `user_security_events` counts,
+   - writes the audit row.
+4. On any failure returns a clear Telegram reply. Each gated command in
+   the bot becomes a 3-line wrapper around the existing call.
 
-- `bun run build` (auto by harness).
-- Playwright: open `/order-book`, confirm avatar + rating in card; click "My Threads" → listing shows my posts; admin → users tab → bulk ban → confirm author's listings disappear from public order-book; profile page sort/filter changes URL and reorders; `/disputes/abc` redirects to `/trades/disputes/abc`.
+The bot help text (`HELP_TOPICS` for `release`, `dispute`, `confirm`,
+`sign`, `terms`, `ban`, `unban`, `warn`, `fee`) is updated to show the
+TOTP argument and a one-liner: "Enable 2FA at escrowdesk.lovable.app →
+Settings → Two-Factor Authentication."
 
-## Technical notes
-- All new server fns gating writes call `is_user_banned` first.
-- Listings query filter: `LEFT JOIN profiles … WHERE coalesce(profiles.is_banned,false) = false` on every public read.
-- Migration order: add `is_user_banned` fn + `suspended_until` col + listings INSERT policy update in one migration; do code edits after approval.
+### Notifications
+`notify.server.ts` already exists. Add two new `NotificationKind`s used
+by enrollment + recovery-code-used events so users see them in-app and
+on Telegram (`security_2fa_enabled`, `security_recovery_code_used`).
 
-Out of scope: shoutbox ban behavior, wallet/escrow changes, trade flow changes, new tables beyond column additions.
+## Out of scope (Phase 2)
+- No SMS/email 2FA. Authenticator-app only.
+- No WebAuthn / passkeys.
+- TOTP is **not** required for `/balance`, `/trades`, `/help`, `/link`
+  (read-only commands stay frictionless).
+- Web app sign-in still uses email/password + Google as today; this PR
+  only protects Telegram-initiated sensitive actions. Adding TOTP to web
+  sign-in is a separate scope.
+
+## Verification
+1. Build passes.
+2. Enroll 2FA from `/settings`, scan QR with an authenticator app.
+3. From Telegram, `/release TRADE 123456` works; `/release TRADE` shows
+   the enroll-hint; replaying the same code shows "code already used".
+4. After 5 wrong codes, the bot locks the user for 15 min.
+5. Use a recovery code in place of a TOTP — succeeds once, then fails on
+   re-use; user gets a "recovery code used" notification on both web and
+   Telegram.
