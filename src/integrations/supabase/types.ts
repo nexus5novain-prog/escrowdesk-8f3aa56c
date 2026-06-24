@@ -2544,6 +2544,10 @@ export type Database = {
         Args: { _caller: string; _reason: string; _target: string }
         Returns: undefined
       }
+      buy_marketplace_product: {
+        Args: { _btc_rate: number; _buyer: string; _product_id: string }
+        Returns: string
+      }
       cancel_trade: {
         Args: { _caller: string; _trade_id: string }
         Returns: undefined
@@ -2661,6 +2665,10 @@ export type Database = {
       mark_trade_paid: {
         Args: { _caller: string; _trade_id: string }
         Returns: undefined
+      }
+      marketplace_products_fiat_currency_or_default: {
+        Args: { _currency: string }
+        Returns: string
       }
       notify_user: {
         Args: {
