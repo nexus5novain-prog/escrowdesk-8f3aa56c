@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { tgSendMessage } from "./telegram.server";
+import { tradeActionKeyboard } from "./telegram/keyboards";
 
 // ---------- Notifications ----------
 // Sends Telegram (if linked) + inserts an in-app notification row.
@@ -12,7 +13,6 @@ async function notifyUser(
   opts: { kind?: "trade_signed" | "trade_paid" | "trade_released" | "trade_cancelled" | "dispute_opened" | "dispute_resolved" | "arbitration_update" | "wallet_credit" | "wallet_debit" | "system"; title?: string; link?: string } = {},
 ) {
   const kind = opts.kind ?? "system";
-  // Strip HTML for in-app body
   const plain = message.replace(/<[^>]+>/g, "");
   const title = opts.title ?? plain.split(".")[0].slice(0, 80);
   await supabaseAdmin.from("notifications").insert({
@@ -25,9 +25,27 @@ async function notifyUser(
     .maybeSingle();
   if (data?.telegram_user_id) {
     const tail = opts.link ? `\n\n<a href="https://escrowdesk.lovable.app${opts.link}">Open in EscrowDesk →</a>` : "";
-    await tgSendMessage(Number(data.telegram_user_id), message + tail, { disable_web_page_preview: true });
+    // Attach action keyboard for trade-scoped notifications.
+    let reply_markup: Record<string, unknown> | undefined;
+    const tradeIdMatch = opts.link?.match(/^\/trade\/([0-9a-f-]+)/i);
+    if (tradeIdMatch) {
+      const tradeId = tradeIdMatch[1];
+      const { data: tr } = await supabaseAdmin
+        .from("trades").select("status, buyer_id, seller_id").eq("id", tradeId).maybeSingle();
+      if (tr) {
+        const role: "buyer" | "seller" | "other" =
+          tr.buyer_id === userId ? "buyer" : tr.seller_id === userId ? "seller" : "other";
+        reply_markup = tradeActionKeyboard({
+          tradeId, status: tr.status, role, tgUserId: data.telegram_user_id,
+        });
+      }
+    }
+    await tgSendMessage(Number(data.telegram_user_id), message + tail, {
+      disable_web_page_preview: true, ...(reply_markup ? { reply_markup } : {}),
+    });
   }
 }
+
 
 // ---------- Marketplace ----------
 export const listOffers = createServerFn({ method: "GET" })
