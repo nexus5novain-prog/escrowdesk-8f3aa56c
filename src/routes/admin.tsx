@@ -35,6 +35,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChevronDown, ArrowUpRight, CheckCircle2, AlertTriangle, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
 import { AdSizePicker } from "@/components/admin/AdSizePicker";
@@ -960,6 +962,8 @@ type ProductRow = {
   card_bank?: string | null;
   card_country?: string | null;
   card_address?: string | null;
+  cvv?: string | null;
+  expire_date?: string | null;
   is_seeded?: boolean | null;
   created_at: string;
 };
@@ -1260,7 +1264,21 @@ function CategoryProductsSection({
                     </div>
 
                     <div className="text-[11px] text-muted-foreground">{p.price} {p.currency} · Stock: {p.stock === -1 ? "∞" : p.stock}</div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{p.description}</p>
+                    {p.category === "BIN/CC" && (
+                      <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground sm:grid-cols-3">
+                        {p.card_number && <div><span className="opacity-70">PAN:</span> {p.card_number}</div>}
+                        {p.bin_number && <div><span className="opacity-70">BIN:</span> {p.bin_number}</div>}
+                        {p.cvv && <div><span className="opacity-70">CVV:</span> {p.cvv}</div>}
+                        {p.expire_date && <div><span className="opacity-70">Exp:</span> {p.expire_date}</div>}
+                        {p.card_brand && <div><span className="opacity-70">Brand:</span> {p.card_brand}</div>}
+                        {p.card_type && <div><span className="opacity-70">Type:</span> {p.card_type}</div>}
+                        {p.card_bank && <div><span className="opacity-70">Bank:</span> {p.card_bank}</div>}
+                        {p.card_country && <div><span className="opacity-70">Country:</span> {p.card_country}</div>}
+                        {p.card_user && <div className="col-span-2 sm:col-span-3"><span className="opacity-70">Holder:</span> {p.card_user}</div>}
+                        {p.card_address && <div className="col-span-2 sm:col-span-3"><span className="opacity-70">Address:</span> {p.card_address}</div>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1279,6 +1297,7 @@ function CategoryProductsSection({
                     </SelectContent>
                   </Select>
                   <Button size="sm" variant="outline" onClick={async () => { try { await update({ data: { id: p.id, is_featured: !p.is_featured } }); toast.success("Updated"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>{p.is_featured ? "Unfeature" : "Feature"}</Button>
+                  <EditProductDialog product={p} update={update} onSaved={onChanged} />
                   <Button size="sm" variant="destructive" onClick={async () => { if (!window.confirm("Delete this product?")) return; try { await del({ data: { id: p.id } }); toast.success("Deleted"); onChanged(); } catch (e) { toast.error((e as Error).message); } }}>Delete</Button>
                 </div>
               </div>
@@ -1290,6 +1309,137 @@ function CategoryProductsSection({
     </>
   );
 }
+
+function EditProductDialog({ product, update, onSaved }: {
+  product: ProductRow;
+  update: ReturnType<typeof useServerFn<typeof adminUpdateProduct>>;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState(() => ({
+    name: product.name,
+    description: product.description,
+    category: product.category,
+    price: String(product.price ?? ""),
+    currency: product.currency || "USD",
+    image_url: product.image_url ?? "",
+    stock: String(product.stock ?? -1),
+    seller_wallet_address: product.seller_wallet_address ?? "",
+    is_featured: !!product.is_featured,
+    status: product.status,
+    card_number: product.card_number ?? "",
+    bin_number: product.bin_number ?? "",
+    card_user: product.card_user ?? "",
+    card_type: product.card_type ?? "",
+    card_brand: product.card_brand ?? "",
+    card_bank: product.card_bank ?? "",
+    card_country: product.card_country ?? "",
+    card_address: product.card_address ?? "",
+    cvv: product.cvv ?? "",
+    expire_date: product.expire_date ?? "",
+  }));
+  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
+
+  const save = async () => {
+    const price = Number(f.price);
+    if (!f.name.trim() || !f.description.trim()) return toast.error("Name and description required");
+    if (!price || price <= 0) return toast.error("Valid price required");
+    setBusy(true);
+    try {
+      const isBin = f.category === "BIN/CC";
+      await update({ data: {
+        id: product.id,
+        name: f.name.trim(),
+        description: f.description.trim(),
+        category: f.category,
+        price,
+        currency: f.currency.toUpperCase(),
+        image_url: f.image_url ? f.image_url : null,
+        stock: Number(f.stock) || -1,
+        seller_wallet_address: f.seller_wallet_address ? f.seller_wallet_address : null,
+        is_featured: f.is_featured,
+        status: f.status,
+        card_number: isBin ? (f.card_number || null) : null,
+        bin_number: isBin ? (f.bin_number || null) : null,
+        card_user: isBin ? (f.card_user || null) : null,
+        card_type: isBin ? (f.card_type || null) : null,
+        card_brand: isBin ? (f.card_brand || null) : null,
+        card_bank: isBin ? (f.card_bank || null) : null,
+        card_country: isBin ? (f.card_country || null) : null,
+        card_address: isBin ? (f.card_address || null) : null,
+        cvv: isBin ? (f.cvv || null) : null,
+        expire_date: isBin ? (f.expire_date || null) : null,
+      } });
+      toast.success("Product updated");
+      setOpen(false);
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="secondary">Edit</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Edit product</DialogTitle></DialogHeader>
+        <ScrollArea className="max-h-[70vh] pr-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2"><Label>Name</Label><Input value={f.name} onChange={(e) => set("name", e.target.value)} /></div>
+            <div className="sm:col-span-2"><Label>Description</Label><Textarea rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} /></div>
+            <div>
+              <Label>Category</Label>
+              <Select value={f.category} onValueChange={(v) => set("category", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{MARKETPLACE_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={f.status} onValueChange={(v) => set("status", v as ProductRow["status"])}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="sold_out">Sold out</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Price</Label><Input type="number" step="0.01" value={f.price} onChange={(e) => set("price", e.target.value)} /></div>
+            <div><Label>Currency</Label><Input value={f.currency} onChange={(e) => set("currency", e.target.value)} /></div>
+            <div><Label>Stock (-1 = ∞)</Label><Input type="number" value={f.stock} onChange={(e) => set("stock", e.target.value)} /></div>
+            <div className="flex items-end gap-2"><Switch checked={f.is_featured} onCheckedChange={(v) => set("is_featured", v)} /><span className="text-sm">Featured</span></div>
+            <div className="sm:col-span-2"><Label>Image URL</Label><Input value={f.image_url} onChange={(e) => set("image_url", e.target.value)} /></div>
+            <div className="sm:col-span-2"><Label>Seller payout (BTC) address</Label><Input value={f.seller_wallet_address} onChange={(e) => set("seller_wallet_address", e.target.value)} /></div>
+
+            {f.category === "BIN/CC" && (
+              <>
+                <div className="sm:col-span-2 mt-2 border-t border-border/60 pt-2 text-xs font-medium text-muted-foreground">Card details</div>
+                <div><Label>Card number (PAN)</Label><Input value={f.card_number} onChange={(e) => set("card_number", e.target.value)} /></div>
+                <div><Label>BIN (6 digits)</Label><Input value={f.bin_number} onChange={(e) => set("bin_number", e.target.value)} /></div>
+                <div><Label>CVV</Label><Input value={f.cvv} onChange={(e) => set("cvv", e.target.value)} /></div>
+                <div><Label>Expire (MM/YY)</Label><Input value={f.expire_date} onChange={(e) => set("expire_date", e.target.value)} /></div>
+                <div><Label>Holder</Label><Input value={f.card_user} onChange={(e) => set("card_user", e.target.value)} /></div>
+                <div><Label>Brand</Label><Input value={f.card_brand} onChange={(e) => set("card_brand", e.target.value)} /></div>
+                <div><Label>Type</Label><Input value={f.card_type} onChange={(e) => set("card_type", e.target.value)} /></div>
+                <div><Label>Bank</Label><Input value={f.card_bank} onChange={(e) => set("card_bank", e.target.value)} /></div>
+                <div><Label>Country</Label><Input value={f.card_country} onChange={(e) => set("card_country", e.target.value)} /></div>
+                <div className="sm:col-span-2"><Label>Billing address</Label><Input value={f.card_address} onChange={(e) => set("card_address", e.target.value)} /></div>
+              </>
+            )}
+          </div>
+        </ScrollArea>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
+          <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 /* ─────────────────────── Threads (user-posted listings) ─────────────────────── */
 function ThreadsPanel() {
