@@ -129,6 +129,14 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
               });
             } catch (e) { console.warn("[wallet-dep] notify", e); }
           }
+          if (deliveryId) {
+            await supabaseAdmin.from("webhook_deliveries" as never).insert({
+              source: "btcpay", delivery_id: deliveryId, webhook_id: evt.webhookId ?? null,
+              event_type: evt.type, invoice_id: evt.invoiceId,
+              payload: JSON.parse(JSON.stringify(evt)),
+              result: { kind: "wallet_deposit", status: nextDepStatus, paid_sats: paidSats },
+            } as never);
+          }
           return Response.json({ ok: true, kind: "wallet_deposit" });
         }
 
