@@ -1880,3 +1880,56 @@ function NewsletterPanel() {
     </div>
   );
 }
+
+// ---- EditProductDialog: BIN section with auto-lookup ----
+type EditBinFields = {
+  card_number: string; bin_number: string; cvv: string; expire_date: string;
+  card_user: string; card_brand: string; card_type: string; card_bank: string;
+  card_country: string; card_address: string; name: string; description: string;
+};
+function EditBinSection({ f, set }: {
+  f: EditBinFields;
+  set: <K extends keyof EditBinFields>(k: K, v: EditBinFields[K]) => void;
+}) {
+  const binLookup = useServerFn(lookupBinMetadata);
+  const [note, setNote] = useState("Edit BIN or card number to auto-fill metadata.");
+  const runLookup = async (source: "card" | "bin") => {
+    const raw = (source === "card" ? f.card_number : f.bin_number).replace(/\D/g, "");
+    if (raw.length < 6) return;
+    setNote("Looking up BIN…");
+    try {
+      const r = await binLookup({ data: source === "card" ? { card_number: f.card_number } : { bin: raw.slice(0, 6) } });
+      const m = r.metadata;
+      if (!m) { setNote("No BIN metadata found."); return; }
+      if (m.bin_number) set("bin_number", m.bin_number);
+      if (m.card_brand) set("card_brand", m.card_brand);
+      if (m.card_type) set("card_type", m.card_type);
+      if (m.card_bank) set("card_bank", m.card_bank);
+      if (m.card_country) set("card_country", m.card_country);
+      if (!f.card_address && m.card_address) set("card_address", m.card_address);
+      if (!f.name.trim() && m.suggested_name) set("name", m.suggested_name);
+      if (!f.description.trim() && m.auto_description) set("description", m.auto_description);
+      setNote(`BIN ${m.bin_number} — ${m.card_bank ?? "Unknown bank"} (${m.card_country ?? "??"})`);
+    } catch {
+      setNote("BIN lookup failed.");
+    }
+  };
+  return (
+    <>
+      <div className="sm:col-span-2 mt-2 flex items-center justify-between border-t border-border/60 pt-2">
+        <span className="text-xs font-medium text-muted-foreground">Card details</span>
+        <span className="text-[10px] text-muted-foreground">{note}</span>
+      </div>
+      <div><Label>Card number (PAN)</Label><Input value={f.card_number} onChange={(e) => set("card_number", e.target.value)} onBlur={() => runLookup("card")} className="font-mono" /></div>
+      <div><Label>BIN (6 digits)</Label><Input value={f.bin_number} onChange={(e) => set("bin_number", e.target.value)} onBlur={() => runLookup("bin")} /></div>
+      <div><Label>CVV</Label><Input value={f.cvv} onChange={(e) => set("cvv", e.target.value)} /></div>
+      <div><Label>Expire (MM/YY)</Label><Input value={f.expire_date} onChange={(e) => set("expire_date", e.target.value)} /></div>
+      <div><Label>Holder</Label><Input value={f.card_user} onChange={(e) => set("card_user", e.target.value)} /></div>
+      <div><Label>Brand</Label><Input value={f.card_brand} onChange={(e) => set("card_brand", e.target.value)} /></div>
+      <div><Label>Type</Label><Input value={f.card_type} onChange={(e) => set("card_type", e.target.value)} /></div>
+      <div><Label>Bank</Label><Input value={f.card_bank} onChange={(e) => set("card_bank", e.target.value)} /></div>
+      <div><Label>Country</Label><Input value={f.card_country} onChange={(e) => set("card_country", e.target.value)} /></div>
+      <div className="sm:col-span-2"><Label>Billing address</Label><Input value={f.card_address} onChange={(e) => set("card_address", e.target.value)} /></div>
+    </>
+  );
+}
