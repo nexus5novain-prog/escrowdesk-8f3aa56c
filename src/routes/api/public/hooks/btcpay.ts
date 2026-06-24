@@ -58,12 +58,20 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
         // Pull live confirmations + totals once (used by both branches).
         let confirmations = 0;
         let paidBtc = 0;
+        let lightningPaymentHash: string | null = null;
         try {
           const pms = await getInvoicePaymentMethods(evt.invoiceId);
           confirmations = pms.flatMap((p) => p.payments ?? []).reduce(
             (m, p) => Math.max(m, p.confirmations ?? 0), 0,
           );
           paidBtc = pms.reduce((s, p) => s + Number(p.totalPaid ?? 0), 0);
+          // Lightning payment hash: BTCPay returns it as the payment id for BTC-LN method,
+          // and the bolt11 invoice destination for the LN payment method.
+          const lnMethod = pms.find((p) => /LN|LIGHTNING/i.test(p.paymentMethod ?? ""));
+          if (lnMethod) {
+            const firstPayment = (lnMethod.payments ?? [])[0];
+            lightningPaymentHash = firstPayment?.id ?? lnMethod.destination ?? null;
+          }
         } catch (e) {
           console.warn("[btcpay-webhook] pm fetch", e);
         }
