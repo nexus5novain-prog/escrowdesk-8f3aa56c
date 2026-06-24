@@ -809,23 +809,19 @@ export type Database = {
           amount: number
           asset: Database["public"]["Enums"]["asset_type"]
           bin_number: string | null
-          card_address: string | null
           card_bank: string | null
           card_brand: string | null
           card_country: string | null
-          card_number: string | null
           card_type: string | null
           card_user: string | null
           counterparty_id: string | null
           created_at: string
           creator_id: string
-          cvv: string | null
           deposit_tx_hash: string | null
           deposit_verified_at: string | null
           deprecated_at: string
           escrow_address: string | null
           escrow_address_chain: string | null
-          expire_date: string | null
           fiat_amount: number | null
           fiat_currency: string
           id: string
@@ -845,23 +841,19 @@ export type Database = {
           amount: number
           asset: Database["public"]["Enums"]["asset_type"]
           bin_number?: string | null
-          card_address?: string | null
           card_bank?: string | null
           card_brand?: string | null
           card_country?: string | null
-          card_number?: string | null
           card_type?: string | null
           card_user?: string | null
           counterparty_id?: string | null
           created_at?: string
           creator_id: string
-          cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
           deprecated_at?: string
           escrow_address?: string | null
           escrow_address_chain?: string | null
-          expire_date?: string | null
           fiat_amount?: number | null
           fiat_currency?: string
           id?: string
@@ -881,23 +873,19 @@ export type Database = {
           amount?: number
           asset?: Database["public"]["Enums"]["asset_type"]
           bin_number?: string | null
-          card_address?: string | null
           card_bank?: string | null
           card_brand?: string | null
           card_country?: string | null
-          card_number?: string | null
           card_type?: string | null
           card_user?: string | null
           counterparty_id?: string | null
           created_at?: string
           creator_id?: string
-          cvv?: string | null
           deposit_tx_hash?: string | null
           deposit_verified_at?: string | null
           deprecated_at?: string
           escrow_address?: string | null
           escrow_address_chain?: string | null
-          expire_date?: string | null
           fiat_amount?: number | null
           fiat_currency?: string
           id?: string
