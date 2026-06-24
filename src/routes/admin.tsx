@@ -1127,7 +1127,7 @@ function CategoryProductsSection({
     if (!form.name.trim() || !form.description.trim()) return toast.error("Name and description required");
     const price = Number(form.price);
     if (!price || price <= 0) return toast.error("Valid price required");
-    if (category === "BIN/CC" && !form.card_number.trim()) return toast.error("Card number is required for BIN listings");
+    if (category === "BIN/CC" && !form.bin_number.trim()) return toast.error("BIN is required for BIN listings");
     setBusy(true);
     try {
       await create({ data: {
