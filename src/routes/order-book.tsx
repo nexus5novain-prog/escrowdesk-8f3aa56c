@@ -233,7 +233,7 @@ function ListingTable({ title, tone, rows, loading, emptyText }: {
 function ListingCard({ row }: { row: ListingRow }) {
   const { user } = useAuth();
   const nav = useNavigate();
-  const createGroup = useServerFn(createEscrowGroup);
+  const buyFn = useServerFn(buyListing);
   const [busy, setBusy] = useState(false);
   const tg = row.contact_telegram?.replace(/^@/, "");
   const tgLink = tg ? `https://t.me/${tg}` : row.profile?.telegram_username ? `https://t.me/${row.profile.telegram_username.replace(/^@/, "")}` : null;
@@ -252,16 +252,9 @@ function ListingCard({ row }: { row: ListingRow }) {
     }
     setBusy(true);
     try {
-      const fiat = row.amount != null ? Number(row.amount) : 0;
-      const res = await createGroup({ data: {
-        asset: "BTC",
-        amount: fiat > 0 ? fiat : 1,
-        fiat_amount: fiat > 0 ? fiat : undefined,
-        fiat_currency: row.currency || "USD",
-        listing_id: row.id,
-      } });
-      toast.success("Escrow group created");
-      nav({ to: "/escrow/$id", params: { id: res.id } });
+      const res = await buyFn({ data: { listing_id: row.id } });
+      toast.success("Escrow trade opened");
+      nav({ to: "/trade/$id", params: { id: res.trade_id } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
