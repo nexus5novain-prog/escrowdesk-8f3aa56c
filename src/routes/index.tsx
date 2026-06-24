@@ -100,6 +100,9 @@ function Hero() {
             <Button asChild size="lg" className="gap-2">
               <Link to="/marketplace">Enter Marketplace <ArrowRight className="h-4 w-4" /></Link>
             </Button>
+            <Button asChild size="lg" variant="secondary" className="gap-2">
+              <a href="#bin-lookup">Free BIN Lookup <Search className="h-4 w-4" /></a>
+            </Button>
             <Button asChild size="lg" variant="outline" className="gap-2">
               <Link to="/auth">Create account</Link>
             </Button>
