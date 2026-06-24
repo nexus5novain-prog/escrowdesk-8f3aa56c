@@ -321,10 +321,9 @@ async function handle(update: Record<string, unknown>) {
   if (text.startsWith("/start")) {
     const arg = text.split(" ")[1];
     if (arg) {
-      // Disambiguate: 6-char alnum = link code, 24-char hex = escrow group token
+      // 24-char hex = legacy escrow group token (deprecated, Issue #3)
       if (/^[0-9a-f]{24}$/i.test(arg)) {
-        if (!profile) return send("⚠️ Link your account first: /link CODE (from web Settings → Telegram).");
-        return handleEscrowBind(chat.id, arg, profile.user_id);
+        return send("⚠️ Legacy escrow group invites are no longer supported. Please open a trade on the website.");
       }
       return handleLink(chat.id, tgId, from, arg);
     }
