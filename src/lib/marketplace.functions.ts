@@ -79,35 +79,35 @@ export const listTopAuthors = createServerFn({ method: "GET" })
     if (!ids.length) return { authors: [] as TopAuthor[] };
     const { data: profs } = await supabaseAdmin
       .from("profiles")
-      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count,btc_volume_usd")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count,btc_volume_usd")
       .in("user_id", ids);
-    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
-    const authors: TopAuthor[] = ids.map((uid) => {
+    const now = Date.now();
+    const visible = (profs ?? []).filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
+    const authors: TopAuthor[] = ids.filter((uid) => pm.has(uid)).map((uid) => {
       const counts = byUser.get(uid)!;
-      const p = pm.get(uid);
-      const profile = p
-        ? {
-            display_name: p.display_name ?? "Anon",
-            avatar_url: p.avatar_url,
-            telegram_username: p.telegram_username,
-            is_premium: !!p.is_premium,
-            is_trusted: !!p.is_trusted,
-            trades_completed: p.trades_completed ?? 0,
-            rating_sum: p.rating_sum ?? 0,
-            rating_count: p.rating_count ?? 0,
-          }
-        : null;
+      const p = pm.get(uid)!;
+      const profile = {
+        display_name: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url,
+        telegram_username: p.telegram_username,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_sum: p.rating_sum ?? 0,
+        rating_count: p.rating_count ?? 0,
+      };
       return {
         user_id: uid,
-        display_name: p?.display_name ?? "Anon",
-        avatar_url: p?.avatar_url ?? null,
-        telegram_username: p?.telegram_username ?? null,
-        is_premium: !!p?.is_premium,
-        is_trusted: !!p?.is_trusted,
-        trades_completed: p?.trades_completed ?? 0,
-        rating_sum: p?.rating_sum ?? 0,
-        rating_count: p?.rating_count ?? 0,
-        btc_volume_usd: Number(p?.btc_volume_usd ?? 0),
+        display_name: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url ?? null,
+        telegram_username: p.telegram_username ?? null,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_sum: p.rating_sum ?? 0,
+        rating_count: p.rating_count ?? 0,
+        btc_volume_usd: Number(p.btc_volume_usd ?? 0),
         active_threads: counts.selling + counts.seeking,
         selling_count: counts.selling,
         seeking_count: counts.seeking,
