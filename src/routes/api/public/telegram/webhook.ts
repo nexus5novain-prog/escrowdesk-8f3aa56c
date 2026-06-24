@@ -472,11 +472,18 @@ async function handle(update: Record<string, unknown>) {
     return send(error ? `❌ ${error.message}` : `⚠️ Warned <code>${target.slice(0,8)}</code> (${severity})`);
   }
 
-  // ---------- Escrow group commands ----------
-  // Resolve which escrow group this chat is bound to (if any)
-  const { data: boundGroup } = await supabaseAdmin
-    .from("escrow_groups").select("id, status, creator_id, counterparty_id, escrow_address, asset, amount")
-    .eq("telegram_chat_id", chat.id).maybeSingle();
+  // ---------- Escrow group commands (DEPRECATED — Issue #3) ----------
+  // Legacy escrow_groups is read-only at the DB layer. Refuse all Telegram
+  // commands that would mutate a group; tell the user to use the website.
+  const escrowGroupCommands = [
+    "/escrow_bind", "/bind", "/escrow_status", "/status",
+    "/txhash", "/release_group", "/release_g", "/cancel_group",
+    "/invite_moderator", "/invite_mod", "/judge",
+  ];
+  if (escrowGroupCommands.some((c) => text.startsWith(c))) {
+    return send("⚠️ Legacy escrow groups are deprecated. Open a trade on the website to use the ledger-backed escrow flow.");
+  }
+  const boundGroup: { id: string; status: string; creator_id: string; counterparty_id: string; escrow_address: string | null; asset: string; amount: number } | null = null;
 
   if (text.startsWith("/escrow_bind") || text.startsWith("/bind")) {
     const token = text.split(" ")[1]?.trim();
