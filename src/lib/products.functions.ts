@@ -351,6 +351,36 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
   });
 
 /* ─────────────────────── Buy → ledger-backed escrow trade ─────────────────────── */
+// Ledger-backed purchase for an order-book listing (selling thread).
+export const buyListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ listing_id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { data: l, error: lErr } = await supabaseAdmin
+      .from("listings")
+      .select("id, kind, status, amount, currency, user_id, name")
+      .eq("id", data.listing_id)
+      .maybeSingle();
+    if (lErr) throw new Error(lErr.message);
+    if (!l) throw new Error("Listing not found");
+    if (l.status !== "active") throw new Error("Listing unavailable");
+    if (l.kind !== "selling") throw new Error("Only selling listings can be bought");
+    if (l.user_id === userId) throw new Error("Cannot trade your own listing");
+    if (!l.amount || Number(l.amount) <= 0) throw new Error("Listing has no price");
+
+    const rate = await fetchBtcRate(l.currency || "USD");
+
+    const { data: tradeId, error } = await supabaseAdmin.rpc("buy_listing", {
+      _listing_id: l.id,
+      _buyer: userId,
+      _btc_rate: rate,
+    });
+    if (error) throw new Error(error.message);
+    return { trade_id: tradeId as unknown as string };
+  });
+
+
 // Fetches a live BTC quote and opens a ledger-backed trade by calling the
 // SECURITY DEFINER `buy_marketplace_product` RPC, which mints a one-shot
 // internal offer and immediately runs `start_trade` (locks the buyer's
