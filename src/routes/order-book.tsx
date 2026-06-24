@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listMarketplace, type ListingRow, type Tier } from "@/lib/marketplace.functions";
 import { listAdsForPlacement } from "@/lib/ads.functions";
-import { createEscrowGroup } from "@/lib/escrow-groups.functions";
+import { buyListing } from "@/lib/products.functions";
 import { MediatorBot } from "@/components/MediatorBot";
 import { AdBanner } from "@/components/AdBanner";
 import { useAuth } from "@/hooks/use-auth";
