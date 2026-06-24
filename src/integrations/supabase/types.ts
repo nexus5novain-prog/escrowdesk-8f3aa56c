@@ -628,6 +628,8 @@ export type Database = {
           payment_hash: string | null
           settled_at: string | null
           status: Database["public"]["Enums"]["deposit_status"]
+          tg_chat_id: number | null
+          tg_message_id: number | null
           updated_at: string
           user_id: string
           wallet_id: string
@@ -647,6 +649,8 @@ export type Database = {
           payment_hash?: string | null
           settled_at?: string | null
           status?: Database["public"]["Enums"]["deposit_status"]
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           updated_at?: string
           user_id: string
           wallet_id: string
@@ -666,6 +670,8 @@ export type Database = {
           payment_hash?: string | null
           settled_at?: string | null
           status?: Database["public"]["Enums"]["deposit_status"]
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           updated_at?: string
           user_id?: string
           wallet_id?: string
@@ -1539,6 +1545,8 @@ export type Database = {
           suspended_until: string | null
           telegram_user_id: number | null
           telegram_username: string | null
+          tg_pending_prompts: Json
+          tg_withdraw_daily_cap_sats: number | null
           timezone: string
           totp_enabled_at: string | null
           totp_last_step: number | null
@@ -1574,6 +1582,8 @@ export type Database = {
           suspended_until?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
+          tg_pending_prompts?: Json
+          tg_withdraw_daily_cap_sats?: number | null
           timezone?: string
           totp_enabled_at?: string | null
           totp_last_step?: number | null
@@ -1609,6 +1619,8 @@ export type Database = {
           suspended_until?: string | null
           telegram_user_id?: number | null
           telegram_username?: string | null
+          tg_pending_prompts?: Json
+          tg_withdraw_daily_cap_sats?: number | null
           timezone?: string
           totp_enabled_at?: string | null
           totp_last_step?: number | null
@@ -2500,6 +2512,8 @@ export type Database = {
           requires_2fa: boolean
           risk_score: number
           status: Database["public"]["Enums"]["withdrawal_status"]
+          tg_chat_id: number | null
+          tg_message_id: number | null
           two_fa_verified_at: string | null
           tx_hash: string | null
           updated_at: string
@@ -2522,6 +2536,8 @@ export type Database = {
           requires_2fa?: boolean
           risk_score?: number
           status?: Database["public"]["Enums"]["withdrawal_status"]
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           two_fa_verified_at?: string | null
           tx_hash?: string | null
           updated_at?: string
@@ -2544,6 +2560,8 @@ export type Database = {
           requires_2fa?: boolean
           risk_score?: number
           status?: Database["public"]["Enums"]["withdrawal_status"]
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           two_fa_verified_at?: string | null
           tx_hash?: string | null
           updated_at?: string
@@ -2873,6 +2891,7 @@ export type Database = {
         }
         Returns: string
       }
+      tg_withdrawal_24h_sats: { Args: { _user: string }; Returns: number }
       unban_user: {
         Args: { _caller: string; _target: string }
         Returns: undefined

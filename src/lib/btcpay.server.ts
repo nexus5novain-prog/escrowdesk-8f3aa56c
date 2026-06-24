@@ -78,6 +78,33 @@ export async function createInvoice(args: {
   });
 }
 
+export async function createDepositInvoice(args: {
+  amountBtc: number;
+  userId: string;
+  walletId: string;
+  expirySeconds?: number;
+}): Promise<BTCPayInvoice> {
+  const { store } = env();
+  return btcpay<BTCPayInvoice>(`/api/v1/stores/${store}/invoices`, {
+    method: "POST",
+    body: JSON.stringify({
+      amount: args.amountBtc.toFixed(8),
+      currency: "BTC",
+      metadata: {
+        depositType: "btc_onchain",
+        userId: args.userId,
+        walletId: args.walletId,
+        orderId: `DEP-${args.userId.slice(0, 8).toUpperCase()}-${Date.now()}`,
+      },
+      checkout: {
+        expirationMinutes: Math.round((args.expirySeconds ?? 60 * 60) / 60),
+        speedPolicy: "MediumSpeed",
+        paymentMethods: ["BTC-CHAIN"],
+      },
+    }),
+  });
+}
+
 export async function getInvoice(invoiceId: string): Promise<BTCPayInvoice> {
   const { store } = env();
   return btcpay<BTCPayInvoice>(`/api/v1/stores/${store}/invoices/${invoiceId}`);

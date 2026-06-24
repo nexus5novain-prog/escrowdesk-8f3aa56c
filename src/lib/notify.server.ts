@@ -2,6 +2,7 @@
 // the user's preferences) and optionally sends a Telegram message with a deep link.
 
 import { tgSendMessage } from "@/lib/telegram.server";
+import { tradeActionKeyboard } from "@/lib/telegram/keyboards";
 
 export type NotificationKind =
   | "escrow_invoice_created"
@@ -12,6 +13,7 @@ export type NotificationKind =
   | "trade_paid"
   | "trade_released"
   | "trade_cancelled"
+  | "trade_message"
   | "dispute_opened"
   | "dispute_resolved"
   | "arbitration_update"
@@ -39,7 +41,7 @@ export async function notifyUser(args: {
       .from("notification_preferences")
       .select("in_app, telegram")
       .eq("user_id", args.userId)
-      .eq("kind", args.kind)
+      .eq("kind", args.kind as never)
       .maybeSingle(),
     supabaseAdmin
       .from("profiles")
@@ -54,7 +56,7 @@ export async function notifyUser(args: {
   if (inAppEnabled) {
     await supabaseAdmin.from("notifications").insert({
       user_id: args.userId,
-      kind: args.kind,
+      kind: args.kind as never,
       title: args.title,
       body: args.body ?? null,
       link: args.link ?? null,
@@ -69,8 +71,24 @@ export async function notifyUser(args: {
       `<b>${escapeHtml(args.title)}</b>` +
       (args.body ? `\n${escapeHtml(args.body)}` : "") +
       `\n\n<a href="${url}">Open in EscrowDesk →</a>`;
+
+    // Inline action keyboard for trade-scoped notifications.
+    let reply_markup: Record<string, unknown> | undefined;
+    const p = args.payload ?? {};
+    const tradeId = typeof p.trade_id === "string" ? p.trade_id : undefined;
+    const status = typeof p.trade_status === "string" ? p.trade_status : undefined;
+    const role = (p.role === "buyer" || p.role === "seller") ? p.role : "other";
+    if (tradeId && status) {
+      reply_markup = tradeActionKeyboard({
+        tradeId, status, role: role as "buyer" | "seller" | "other", tgUserId: tgId,
+      });
+    }
+
     try {
-      await tgSendMessage(tgId, text, { disable_web_page_preview: true });
+      await tgSendMessage(tgId, text, {
+        disable_web_page_preview: true,
+        ...(reply_markup ? { reply_markup } : {}),
+      });
     } catch (e) {
       console.warn("[notify] telegram send failed", e);
     }
