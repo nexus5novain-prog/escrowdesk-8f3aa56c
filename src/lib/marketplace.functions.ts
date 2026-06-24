@@ -129,9 +129,15 @@ export type CategoryThread = {
   currency: string | null;
   status: "active" | "inactive" | "sold";
   created_at: string;
+  is_pinned: boolean;
   author: string;
+  avatar_url: string | null;
+  telegram_username: string | null;
   is_premium: boolean;
   is_trusted: boolean;
+  trades_completed: number;
+  rating_avg: number | null;
+  rating_count: number;
 };
 
 export const listCategoryThreads = createServerFn({ method: "GET" })
@@ -139,7 +145,7 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: rows, error } = await supabaseAdmin
       .from("listings")
-      .select("id,user_id,kind,name,category,amount,currency,status,created_at")
+      .select("id,user_id,kind,name,category,amount,currency,status,created_at,is_pinned")
       .eq("status", "active")
       .ilike("category", `${data.section}%`)
       .order("created_at", { ascending: false })
@@ -148,12 +154,13 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
     const ids = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
     const { data: profs } = ids.length
       ? await supabaseAdmin.from("profiles")
-          .select("user_id,display_name,is_premium,is_trusted")
+          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
           .in("user_id", ids)
-      : { data: [] as Array<{ user_id: string; display_name: string; is_premium: boolean; is_trusted: boolean }> };
+      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; trades_completed: number; rating_sum: number; rating_count: number }> };
     const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
     const threads: CategoryThread[] = (rows ?? []).map((r) => {
       const p = pm.get(r.user_id);
+      const ratingCount = p?.rating_count ?? 0;
       return {
         id: r.id,
         user_id: r.user_id,
@@ -164,19 +171,27 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
         currency: r.currency as string | null,
         status: r.status as "active" | "inactive" | "sold",
         created_at: r.created_at,
+        is_pinned: !!(r as { is_pinned?: boolean }).is_pinned,
         author: p?.display_name ?? "Anon",
+        avatar_url: p?.avatar_url ?? null,
+        telegram_username: p?.telegram_username ?? null,
         is_premium: !!p?.is_premium,
         is_trusted: !!p?.is_trusted,
+        trades_completed: p?.trades_completed ?? 0,
+        rating_avg: ratingCount > 0 ? (p!.rating_sum ?? 0) / ratingCount : null,
+        rating_count: ratingCount,
       };
     });
-    // Sort by author tier first (premium > trusted > regular), then recency
+    // Pinned first, then tier (premium > trusted > regular), then recency.
     threads.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
       const tier = (t: CategoryThread) => (t.is_premium ? 2 : t.is_trusted ? 1 : 0);
       const d = tier(b) - tier(a);
       return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
     });
     return { threads };
   });
+
 
 export const listMarketplace = createServerFn({ method: "GET" })
   .inputValidator(
