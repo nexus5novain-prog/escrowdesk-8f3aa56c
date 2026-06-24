@@ -1488,3 +1488,204 @@ function ShoutboxPanel() {
     </div>
   );
 }
+
+/* ---------------- Support Panel ---------------- */
+function SupportPanel() {
+  const list = useServerFn(listSupportTickets);
+  const respond = useServerFn(respondToSupportTicket);
+  const { data, refetch } = useQuery({ queryKey: ["support-tickets"], queryFn: () => list() });
+  const tickets = (data?.tickets ?? []) as Array<{ id: string; email: string; subject: string; message: string; status: string; admin_response: string | null; responded_at: string | null; created_at: string }>;
+  const [replies, setReplies] = useState<Record<string, string>>({});
+  return (
+    <div className="surface p-5">
+      <h2 className="font-semibold">Support tickets</h2>
+      <p className="text-xs text-muted-foreground">From the support form on Settings & Escrow pages. Responses notify the user in-app.</p>
+      <div className="mt-4 space-y-3">
+        {tickets.length === 0 && <p className="text-xs text-muted-foreground">No tickets yet.</p>}
+        {tickets.map((t) => (
+          <div key={t.id} className="rounded-md border border-border/60 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>{t.email} · {new Date(t.created_at).toLocaleString()}</span>
+              <Badge variant={t.status === "open" ? "destructive" : "secondary"}>{t.status}</Badge>
+            </div>
+            <p className="mt-2 text-sm font-semibold">{t.subject}</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs">{t.message}</p>
+            {t.admin_response && (
+              <div className="mt-2 rounded border border-primary/30 bg-primary/5 p-2 text-xs">
+                <p className="text-[10px] uppercase tracking-wider text-primary">Reply · {t.responded_at && new Date(t.responded_at).toLocaleString()}</p>
+                <p className="whitespace-pre-wrap">{t.admin_response}</p>
+              </div>
+            )}
+            {t.status !== "closed" && (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <Textarea
+                  className="flex-1"
+                  rows={2}
+                  placeholder="Write a reply (sent as in-app notification)…"
+                  value={replies[t.id] ?? ""}
+                  onChange={(e) => setReplies((r) => ({ ...r, [t.id]: e.target.value }))}
+                />
+                <div className="flex sm:flex-col gap-2">
+                  <Button size="sm" onClick={async () => {
+                    const v = (replies[t.id] ?? "").trim(); if (!v) return;
+                    try { await respond({ data: { id: t.id, response: v, status: "responded" } }); toast.success("Reply sent"); setReplies((r) => ({ ...r, [t.id]: "" })); refetch(); }
+                    catch (e) { toast.error((e as Error).message); }
+                  }}>Reply</Button>
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    try { await respond({ data: { id: t.id, response: replies[t.id] || "Closed by admin", status: "closed" } }); toast.success("Closed"); refetch(); }
+                    catch (e) { toast.error((e as Error).message); }
+                  }}>Close</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Announcements Panel ---------------- */
+function AnnouncementsPanel() {
+  const list = useServerFn(adminListAnnouncements);
+  const create = useServerFn(adminCreateAnnouncement);
+  const toggle = useServerFn(adminToggleAnnouncement);
+  const remove = useServerFn(adminDeleteAnnouncement);
+  const { data, refetch } = useQuery({ queryKey: ["admin-announcements"], queryFn: () => list() });
+  const items = (data?.announcements ?? []) as Array<{ id: string; title: string; body: string; link: string | null; is_active: boolean; published_at: string }>;
+  const [form, setForm] = useState({ title: "", body: "", link: "", broadcast_inapp: true, broadcast_telegram: true });
+  return (
+    <div className="space-y-4">
+      <div className="surface p-5">
+        <h2 className="font-semibold">Create announcement</h2>
+        <p className="text-xs text-muted-foreground">Shows as a banner on landing & home. Optionally fans out as in-app notifications and Telegram messages to every user.</p>
+        <div className="mt-3 grid gap-3">
+          <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Textarea placeholder="Body" rows={3} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+          <Input placeholder="Optional link (https://…)" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+          <div className="flex flex-wrap gap-4 text-xs">
+            <label className="flex items-center gap-2"><Checkbox checked={form.broadcast_inapp} onCheckedChange={(v) => setForm({ ...form, broadcast_inapp: !!v })} /> Send as in-app notification</label>
+            <label className="flex items-center gap-2"><Checkbox checked={form.broadcast_telegram} onCheckedChange={(v) => setForm({ ...form, broadcast_telegram: !!v })} /> Send to Telegram</label>
+          </div>
+          <Button onClick={async () => {
+            try { const r = await create({ data: form }); toast.success(`Published — ${r.notified} notified`); setForm({ title: "", body: "", link: "", broadcast_inapp: true, broadcast_telegram: true }); refetch(); }
+            catch (e) { toast.error((e as Error).message); }
+          }}>Publish</Button>
+        </div>
+      </div>
+
+      <div className="surface p-5">
+        <h2 className="font-semibold">Past announcements</h2>
+        <div className="mt-3 space-y-2">
+          {items.map((a) => (
+            <div key={a.id} className="rounded-md border border-border/60 p-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{new Date(a.published_at).toLocaleString()}</span>
+                <div className="flex items-center gap-2">
+                  <Switch checked={a.is_active} onCheckedChange={async (v) => { try { await toggle({ data: { id: a.id, is_active: v } }); refetch(); } catch (e) { toast.error((e as Error).message); } }} />
+                  <Button size="sm" variant="ghost" onClick={async () => { if (!confirm("Delete?")) return; try { await remove({ data: { id: a.id } }); refetch(); } catch (e) { toast.error((e as Error).message); } }}>Delete</Button>
+                </div>
+              </div>
+              <p className="mt-1 text-sm font-semibold">{a.title}</p>
+              <p className="text-xs text-muted-foreground">{a.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Broadcast (DM) Panel ---------------- */
+function BroadcastPanel() {
+  const send = useServerFn(adminSendUserMessage);
+  const listUsers = useServerFn(adminListUsersLite);
+  const { data: udata } = useQuery({ queryKey: ["admin-users-lite"], queryFn: () => listUsers() });
+  const users = (udata?.users ?? []) as Array<{ user_id: string; display_name: string | null; telegram_username: string | null }>;
+  const [target, setTarget] = useState<"all" | "selected">("all");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [filter, setFilter] = useState("");
+  const [form, setForm] = useState({ title: "", body: "", link: "", also_telegram: false });
+  const filtered = users.filter((u) => !filter || (u.display_name ?? "").toLowerCase().includes(filter.toLowerCase()));
+  return (
+    <div className="surface p-5 space-y-3">
+      <h2 className="font-semibold">Direct message users</h2>
+      <p className="text-xs text-muted-foreground">Delivered as in-app notification. Optionally also via Telegram to linked accounts.</p>
+      <div className="grid gap-3">
+        <Select value={target} onValueChange={(v) => setTarget(v as "all" | "selected")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All users</SelectItem>
+            <SelectItem value="selected">Pick specific users</SelectItem>
+          </SelectContent>
+        </Select>
+        {target === "selected" && (
+          <div className="rounded-md border border-border/60 p-3">
+            <Input placeholder="Filter by name…" value={filter} onChange={(e) => setFilter(e.target.value)} className="mb-2" />
+            <div className="max-h-56 space-y-1 overflow-y-auto">
+              {filtered.map((u) => (
+                <label key={u.user_id} className="flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={picked.includes(u.user_id)}
+                    onCheckedChange={(v) => setPicked((p) => v ? [...p, u.user_id] : p.filter((x) => x !== u.user_id))}
+                  />
+                  <span>{u.display_name || u.user_id.slice(0, 8)}</span>
+                  {u.telegram_username && <span className="text-muted-foreground">· @{u.telegram_username}</span>}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">{picked.length} selected</p>
+          </div>
+        )}
+        <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <Textarea placeholder="Message" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+        <Input placeholder="Optional link (https://…)" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+        <label className="flex items-center gap-2 text-xs"><Checkbox checked={form.also_telegram} onCheckedChange={(v) => setForm({ ...form, also_telegram: !!v })} /> Also send via Telegram (email gateway not configured yet)</label>
+        <Button onClick={async () => {
+          try {
+            const r = await send({ data: { ...form, target, user_ids: picked } });
+            toast.success(`Sent to ${r.recipients} user(s)`);
+            setForm({ title: "", body: "", link: "", also_telegram: false }); setPicked([]);
+          } catch (e) { toast.error((e as Error).message); }
+        }}>Send</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Newsletter Panel ---------------- */
+function NewsletterPanel() {
+  const list = useServerFn(listNewsletterSubscribers);
+  const broadcast = useServerFn(broadcastNewsletter);
+  const { data, refetch } = useQuery({ queryKey: ["newsletter-subs"], queryFn: () => list() });
+  const subs = (data?.subscribers ?? []) as Array<{ id: string; email: string; source: string | null; subscribed_at: string; unsubscribed_at: string | null }>;
+  const [form, setForm] = useState({ title: "", body: "", link: "" });
+  return (
+    <div className="space-y-4">
+      <div className="surface p-5">
+        <h2 className="font-semibold">Broadcast newsletter</h2>
+        <p className="text-xs text-muted-foreground">Goes to every signed-in user as in-app notification (email gateway not yet configured).</p>
+        <div className="mt-3 grid gap-3">
+          <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <Textarea placeholder="Body" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+          <Input placeholder="Optional link" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+          <Button onClick={async () => {
+            try { const r = await broadcast({ data: form }); toast.success(`Sent to ${r.recipients} users`); setForm({ title: "", body: "", link: "" }); refetch(); }
+            catch (e) { toast.error((e as Error).message); }
+          }}>Send broadcast</Button>
+        </div>
+      </div>
+      <div className="surface p-5">
+        <h2 className="font-semibold">Subscribers ({subs.length})</h2>
+        <div className="mt-3 max-h-96 overflow-y-auto space-y-1">
+          {subs.map((s) => (
+            <div key={s.id} className="flex items-center justify-between rounded border border-border/60 px-3 py-2 text-xs">
+              <span className="font-mono">{s.email}</span>
+              <span className="text-muted-foreground">{s.source} · {new Date(s.subscribed_at).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
