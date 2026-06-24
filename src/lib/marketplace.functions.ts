@@ -396,6 +396,7 @@ export const getPublicProfile = createServerFn({ method: "GET" })
     };
   });
 
+export const createListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
