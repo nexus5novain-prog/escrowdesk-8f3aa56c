@@ -79,6 +79,7 @@ function Admin() {
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="broadcast">Broadcast</TabsTrigger>
           <TabsTrigger value="newsletter">Newsletter</TabsTrigger>
+          <TabsTrigger value="bins">BIN Catalog</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="disputes" className="mt-4"><DisputesPanel /></TabsContent>
