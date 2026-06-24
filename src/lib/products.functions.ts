@@ -457,16 +457,12 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
     seller_wallet_asset: z.enum(ASSETS).optional(),
     is_featured: z.boolean().optional(),
     status: z.enum(["active", "inactive", "sold_out"]).optional(),
-    card_number: z.string().trim().min(12).max(32).nullable().optional(),
     bin_number: z.string().trim().min(6).max(6).nullable().optional(),
     card_user: z.string().trim().max(120).nullable().optional(),
     card_type: z.string().trim().max(120).nullable().optional(),
     card_brand: z.string().trim().max(120).nullable().optional(),
     card_bank: z.string().trim().max(120).nullable().optional(),
     card_country: z.string().trim().max(120).nullable().optional(),
-    card_address: z.string().trim().max(300).nullable().optional(),
-    cvv: z.string().trim().min(3).max(4).nullable().optional(),
-    expire_date: z.string().trim().min(5).max(5).nullable().optional(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
