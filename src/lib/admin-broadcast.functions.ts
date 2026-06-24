@@ -38,12 +38,17 @@ export const adminSendUserMessage = createServerFn({ method: "POST" })
     const { tgSendMessage } = await import("@/lib/telegram.server");
     let sent = 0;
     for (const r of recipients) {
-      await supabaseAdmin.from("notifications").insert({
-        user_id: r.user_id, kind: "system" as never,
-        title: data.title, body: data.body, link: data.link || null,
-      }).then(() => { sent++; }).catch(() => null);
+      try {
+        await supabaseAdmin.from("notifications").insert({
+          user_id: r.user_id, kind: "system" as never,
+          title: data.title, body: data.body, link: data.link || null,
+        });
+        sent++;
+      } catch { /* ignore */ }
       if (data.also_telegram && r.telegram_user_id) {
-        await tgSendMessage(r.telegram_user_id, `<b>${escape(data.title)}</b>\n${escape(data.body)}${data.link ? `\n${data.link}` : ""}`).catch(() => null);
+        try {
+          await tgSendMessage(r.telegram_user_id, `<b>${escape(data.title)}</b>\n${escape(data.body)}${data.link ? `\n${data.link}` : ""}`);
+        } catch { /* ignore */ }
       }
     }
     return { ok: true, recipients: sent };

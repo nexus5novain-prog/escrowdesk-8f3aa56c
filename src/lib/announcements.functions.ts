@@ -71,13 +71,18 @@ export const adminCreateAnnouncement = createServerFn({ method: "POST" })
       for (const p of profs ?? []) {
         const row = p as { user_id: string; telegram_user_id: number | null };
         if (data.broadcast_inapp) {
-          await admin.from("notifications").insert({
-            user_id: row.user_id, kind: "system" as never,
-            title: data.title, body: data.body, link: data.link || null,
-          }).then(() => { sent++; }).catch(() => null);
+          try {
+            await admin.from("notifications").insert({
+              user_id: row.user_id, kind: "system" as never,
+              title: data.title, body: data.body, link: data.link || null,
+            });
+            sent++;
+          } catch { /* ignore */ }
         }
         if (data.broadcast_telegram && row.telegram_user_id) {
-          await tgSendMessage(row.telegram_user_id, `<b>${escapeHtml(data.title)}</b>\n${escapeHtml(data.body)}${data.link ? `\n${data.link}` : ""}`).catch(() => null);
+          try {
+            await tgSendMessage(row.telegram_user_id, `<b>${escapeHtml(data.title)}</b>\n${escapeHtml(data.body)}${data.link ? `\n${data.link}` : ""}`);
+          } catch { /* ignore */ }
         }
       }
     }
