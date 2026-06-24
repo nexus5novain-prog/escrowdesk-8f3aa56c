@@ -1148,6 +1148,33 @@ function CategoryProductsSection({
     </>
   );
 
+  const runLookup = async (source: "card" | "bin") => {
+    const raw = (source === "card" ? form.card_number : form.bin_number).replace(/\D/g, "");
+    if (raw.length < 6) return;
+    setLookupNote("Looking up BIN metadata…");
+    try {
+      const r = await binLookup({ data: source === "card" ? { card_number: form.card_number } : { bin: raw.slice(0, 6) } });
+      const m = r.metadata;
+      if (!m) { setLookupNote("No BIN metadata found. Complete fields manually."); return; }
+      setForm((prev) => ({
+        ...prev,
+        bin_number: m.bin_number ?? prev.bin_number,
+        card_brand: m.card_brand ?? prev.card_brand,
+        card_type: m.card_type ?? prev.card_type,
+        card_bank: m.card_bank ?? prev.card_bank,
+        card_country: m.card_country ?? prev.card_country,
+        card_address: prev.card_address || m.card_address || "",
+        // Auto-fill name + description when the user hasn't entered them yet,
+        // so seeded BIN data drops straight into a postable product.
+        name: prev.name.trim() ? prev.name : (m.suggested_name ?? prev.name),
+        description: prev.description.trim() ? prev.description : (m.auto_description ?? prev.description),
+      }));
+      setLookupNote(`BIN ${m.bin_number} — ${m.card_bank ?? "Unknown bank"} (${m.card_country ?? "??"}). Name + description auto-filled.`);
+    } catch {
+      setLookupNote("BIN lookup failed. Please enter metadata manually.");
+    }
+  };
+
   const binFields = (
     <>
       <div className="md:col-span-2">
@@ -1155,31 +1182,7 @@ function CategoryProductsSection({
         <Input
           value={form.card_number}
           onChange={(e) => setForm({ ...form, card_number: e.target.value })}
-          onBlur={async () => {
-            const digits = form.card_number.replace(/\D/g, "");
-            if (digits.length >= 16) {
-              setLookupNote("Looking up BIN metadata…");
-              try {
-                const r = await binLookup({ data: { card_number: form.card_number } });
-                if (r.metadata) {
-                  setForm((prev) => ({
-                    ...prev,
-                    bin_number: r.metadata?.bin_number ?? prev.bin_number,
-                    card_brand: r.metadata?.card_brand ?? prev.card_brand,
-                    card_type: r.metadata?.card_type ?? prev.card_type,
-                    card_bank: r.metadata?.card_bank ?? prev.card_bank,
-                    card_country: r.metadata?.card_country ?? prev.card_country,
-                    card_address: r.metadata?.card_address ?? prev.card_address,
-                  }));
-                  setLookupNote("BIN metadata filled from database.");
-                } else {
-                  setLookupNote("No BIN metadata found. Complete fields manually.");
-                }
-              } catch {
-                setLookupNote("BIN lookup failed. Please enter metadata manually.");
-              }
-            }
-          }}
+          onBlur={() => runLookup("card")}
           placeholder="1234 5678 9012 3456"
           className="font-mono"
         />
@@ -1187,7 +1190,12 @@ function CategoryProductsSection({
       </div>
       <div>
         <Label className="text-xs uppercase text-muted-foreground">BIN / first six digits</Label>
-        <Input value={form.bin_number} onChange={(e) => setForm({ ...form, bin_number: e.target.value })} placeholder="412345" />
+        <Input
+          value={form.bin_number}
+          onChange={(e) => setForm({ ...form, bin_number: e.target.value })}
+          onBlur={() => runLookup("bin")}
+          placeholder="412345"
+        />
       </div>
       <div>
         <Label className="text-xs uppercase text-muted-foreground">Cardholder</Label>
