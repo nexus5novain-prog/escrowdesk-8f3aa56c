@@ -1,0 +1,2 @@
+ALTER TABLE public.listings ADD COLUMN IF NOT EXISTS is_pinned boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS listings_pinned_active_idx ON public.listings (is_pinned DESC, created_at DESC) WHERE status = 'active';

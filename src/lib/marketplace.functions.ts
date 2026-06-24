@@ -129,9 +129,15 @@ export type CategoryThread = {
   currency: string | null;
   status: "active" | "inactive" | "sold";
   created_at: string;
+  is_pinned: boolean;
   author: string;
+  avatar_url: string | null;
+  telegram_username: string | null;
   is_premium: boolean;
   is_trusted: boolean;
+  trades_completed: number;
+  rating_avg: number | null;
+  rating_count: number;
 };
 
 export const listCategoryThreads = createServerFn({ method: "GET" })
@@ -139,7 +145,7 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: rows, error } = await supabaseAdmin
       .from("listings")
-      .select("id,user_id,kind,name,category,amount,currency,status,created_at")
+      .select("id,user_id,kind,name,category,amount,currency,status,created_at,is_pinned")
       .eq("status", "active")
       .ilike("category", `${data.section}%`)
       .order("created_at", { ascending: false })
@@ -148,12 +154,13 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
     const ids = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
     const { data: profs } = ids.length
       ? await supabaseAdmin.from("profiles")
-          .select("user_id,display_name,is_premium,is_trusted")
+          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
           .in("user_id", ids)
-      : { data: [] as Array<{ user_id: string; display_name: string; is_premium: boolean; is_trusted: boolean }> };
+      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; trades_completed: number; rating_sum: number; rating_count: number }> };
     const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
     const threads: CategoryThread[] = (rows ?? []).map((r) => {
       const p = pm.get(r.user_id);
+      const ratingCount = p?.rating_count ?? 0;
       return {
         id: r.id,
         user_id: r.user_id,
@@ -164,19 +171,27 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
         currency: r.currency as string | null,
         status: r.status as "active" | "inactive" | "sold",
         created_at: r.created_at,
+        is_pinned: !!(r as { is_pinned?: boolean }).is_pinned,
         author: p?.display_name ?? "Anon",
+        avatar_url: p?.avatar_url ?? null,
+        telegram_username: p?.telegram_username ?? null,
         is_premium: !!p?.is_premium,
         is_trusted: !!p?.is_trusted,
+        trades_completed: p?.trades_completed ?? 0,
+        rating_avg: ratingCount > 0 ? (p!.rating_sum ?? 0) / ratingCount : null,
+        rating_count: ratingCount,
       };
     });
-    // Sort by author tier first (premium > trusted > regular), then recency
+    // Pinned first, then tier (premium > trusted > regular), then recency.
     threads.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
       const tier = (t: CategoryThread) => (t.is_premium ? 2 : t.is_trusted ? 1 : 0);
       const d = tier(b) - tier(a);
       return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
     });
     return { threads };
   });
+
 
 export const listMarketplace = createServerFn({ method: "GET" })
   .inputValidator(
@@ -228,30 +243,78 @@ export const listMarketplace = createServerFn({ method: "GET" })
   });
 
 // Admin: list every thread (any status) for moderation.
+// Admin: list every thread (any status) for moderation, with author info.
+export type AdminThreadRow = {
+  id: string;
+  user_id: string;
+  kind: "selling" | "seeking";
+  name: string;
+  category: string;
+  amount: number | null;
+  currency: string | null;
+  status: "active" | "inactive" | "sold";
+  created_at: string;
+  is_pinned: boolean;
+  author: string;
+  avatar_url: string | null;
+  is_premium: boolean;
+  is_trusted: boolean;
+  is_banned: boolean;
+};
+
+async function assertStaff(userId: string) {
+  const { data: role } = await supabaseAdmin
+    .from("user_roles").select("role").eq("user_id", userId)
+    .in("role", ["admin", "moderator"]).maybeSingle();
+  if (!role) throw new Error("Staff only");
+}
+
 export const adminListThreads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data: role } = await supabaseAdmin
-      .from("user_roles").select("role").eq("user_id", context.userId)
-      .in("role", ["admin", "moderator"]).maybeSingle();
-    if (!role) throw new Error("Staff only");
+  .handler(async ({ context }): Promise<{ threads: AdminThreadRow[] }> => {
+    await assertStaff(context.userId);
     const { data, error } = await supabaseAdmin
       .from("listings")
-      .select("id,user_id,kind,name,category,amount,currency,status,created_at")
+      .select("id,user_id,kind,name,category,amount,currency,status,created_at,is_pinned")
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
-    return { threads: data ?? [] };
+    const ids = Array.from(new Set((data ?? []).map((r) => r.user_id)));
+    const { data: profs } = ids.length
+      ? await supabaseAdmin.from("profiles")
+          .select("user_id,display_name,avatar_url,is_premium,is_trusted,is_banned")
+          .in("user_id", ids)
+      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; is_premium: boolean; is_trusted: boolean; is_banned: boolean }> };
+    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
+    const threads: AdminThreadRow[] = (data ?? []).map((r) => {
+      const p = pm.get(r.user_id);
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        kind: r.kind as "selling" | "seeking",
+        name: r.name,
+        category: r.category,
+        amount: r.amount as number | null,
+        currency: r.currency as string | null,
+        status: r.status as "active" | "inactive" | "sold",
+        created_at: r.created_at,
+        is_pinned: !!(r as { is_pinned?: boolean }).is_pinned,
+        author: p?.display_name ?? "Anon",
+        avatar_url: p?.avatar_url ?? null,
+        is_premium: !!p?.is_premium,
+        is_trusted: !!p?.is_trusted,
+        is_banned: !!p?.is_banned,
+      };
+    });
+    return { threads };
   });
 
 export const adminSetThreadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid(), status: z.enum(["active", "inactive", "sold"]) }))
   .handler(async ({ data, context }) => {
-    const { data: role } = await supabaseAdmin
-      .from("user_roles").select("role").eq("user_id", context.userId)
-      .in("role", ["admin", "moderator"]).maybeSingle();
-    if (!role) throw new Error("Staff only");
+    await assertStaff(context.userId);
     const { error } = await supabaseAdmin.from("listings").update({ status: data.status }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -261,13 +324,76 @@ export const adminDeleteThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
-    const { data: role } = await supabaseAdmin
-      .from("user_roles").select("role").eq("user_id", context.userId)
-      .in("role", ["admin", "moderator"]).maybeSingle();
-    if (!role) throw new Error("Staff only");
+    await assertStaff(context.userId);
     const { error } = await supabaseAdmin.from("listings").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const adminPinThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), pinned: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context.userId);
+    const { error } = await supabaseAdmin.from("listings").update({ is_pinned: data.pinned }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminBanThreadAuthor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid(), reason: z.string().trim().min(2).max(500) }))
+  .handler(async ({ data, context }) => {
+    await assertStaff(context.userId);
+    const { data: listing, error: lerr } = await supabaseAdmin
+      .from("listings").select("user_id").eq("id", data.id).maybeSingle();
+    if (lerr) throw new Error(lerr.message);
+    if (!listing) throw new Error("Thread not found");
+    const { error: berr } = await supabaseAdmin.rpc("ban_user", {
+      _target: listing.user_id, _caller: context.userId, _reason: data.reason,
+    });
+    if (berr) throw new Error(berr.message);
+    await supabaseAdmin.from("listings")
+      .update({ status: "inactive" }).eq("user_id", listing.user_id);
+    return { ok: true };
+  });
+
+export const getPublicProfile = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ userId: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const { data: p, error } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,trades_completed,rating_sum,rating_count,btc_volume_usd,created_at")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!p) throw new Error("Profile not found");
+    const { data: rows } = await supabaseAdmin
+      .from("listings")
+      .select("id,kind,name,category,amount,currency,status,created_at,is_pinned")
+      .eq("user_id", data.userId)
+      .eq("status", "active")
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const ratingCount = p.rating_count ?? 0;
+    return {
+      profile: {
+        user_id: p.user_id,
+        display_name: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url,
+        telegram_username: p.telegram_username,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        is_banned: !!p.is_banned,
+        trades_completed: p.trades_completed ?? 0,
+        rating_avg: ratingCount > 0 ? (p.rating_sum ?? 0) / ratingCount : null,
+        rating_count: ratingCount,
+        btc_volume_usd: Number(p.btc_volume_usd ?? 0),
+        joined_at: p.created_at,
+      },
+      threads: rows ?? [],
+    };
   });
 
 export const createListing = createServerFn({ method: "POST" })

@@ -22,6 +22,7 @@ import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UUserIdRouteImport } from './routes/u.$userId'
 import { Route as TradeIdRouteImport } from './routes/trade.$id'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as OfferIdRouteImport } from './routes/offer.$id'
@@ -97,6 +98,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UUserIdRoute = UUserIdRouteImport.update({
+  id: '/u/$userId',
+  path: '/u/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TradeIdRoute = TradeIdRouteImport.update({
   id: '/trade/$id',
   path: '/trade/$id',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
+  '/u/$userId': typeof UUserIdRoute
   '/api/public/hooks/btc-confirm-poll': typeof ApiPublicHooksBtcConfirmPollRoute
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/u/$userId'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/u/$userId'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
+    | '/u/$userId'
     | '/api/public/hooks/btc-confirm-poll'
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   OfferIdRoute: typeof OfferIdRoute
   ProductIdRoute: typeof ProductIdRoute
   TradeIdRoute: typeof TradeIdRoute
+  UUserIdRoute: typeof UUserIdRoute
   ApiPublicHooksBtcConfirmPollRoute: typeof ApiPublicHooksBtcConfirmPollRoute
   ApiPublicHooksBtcpayRoute: typeof ApiPublicHooksBtcpayRoute
   ApiPublicHooksReconcileRoute: typeof ApiPublicHooksReconcileRoute
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$userId': {
+      id: '/u/$userId'
+      path: '/u/$userId'
+      fullPath: '/u/$userId'
+      preLoaderRoute: typeof UUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trade/$id': {
       id: '/trade/$id'
       path: '/trade/$id'
@@ -506,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   OfferIdRoute: OfferIdRoute,
   ProductIdRoute: ProductIdRoute,
   TradeIdRoute: TradeIdRoute,
+  UUserIdRoute: UUserIdRoute,
   ApiPublicHooksBtcConfirmPollRoute: ApiPublicHooksBtcConfirmPollRoute,
   ApiPublicHooksBtcpayRoute: ApiPublicHooksBtcpayRoute,
   ApiPublicHooksReconcileRoute: ApiPublicHooksReconcileRoute,

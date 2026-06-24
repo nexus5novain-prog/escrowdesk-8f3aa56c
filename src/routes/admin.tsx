@@ -19,7 +19,7 @@ import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata, adminUploadProductImage } from "@/lib/products.functions";
-import { adminListThreads, adminSetThreadStatus, adminDeleteThread } from "@/lib/marketplace.functions";
+import { adminListThreads, adminSetThreadStatus, adminDeleteThread, adminPinThread, adminBanThreadAuthor } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
 import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
@@ -1484,13 +1484,35 @@ function ThreadsPanel() {
   const list = useServerFn(adminListThreads);
   const setStatus = useServerFn(adminSetThreadStatus);
   const del = useServerFn(adminDeleteThread);
-  const { data, refetch, isFetching } = useQuery({ queryKey: ["admin-threads"], queryFn: () => list() });
+  const pin = useServerFn(adminPinThread);
+  const banAuthor = useServerFn(adminBanThreadAuthor);
+  const { data, refetch, isFetching } = useQuery({
+    queryKey: ["admin-threads"],
+    queryFn: () => list(),
+    refetchInterval: 20_000,
+  });
   const threads = data?.threads ?? [];
   const [cat, setCat] = useState<string>("All");
+  const [q, setQ] = useState("");
   const cats = ["All", ...THREAD_SECTIONS.map((s) => s.label)];
+
+  // Live: refetch on any listings/profile change
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-threads-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => refetch())
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, () => refetch())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [refetch]);
+
   const filtered = threads.filter((t) => {
-    if (cat === "All") return true;
-    return sectionOf(t.category) === cat;
+    if (cat !== "All" && sectionOf(t.category) !== cat) return false;
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      if (!t.name.toLowerCase().includes(needle) && !t.author.toLowerCase().includes(needle)) return false;
+    }
+    return true;
   });
   return (
     <div className="surface p-4 space-y-4">
@@ -1501,30 +1523,55 @@ function ThreadsPanel() {
           <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>Refresh</Button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">Threads are user-posted selling/seeking offers from the order book. Moderate categories, deactivate, mark sold, or remove.</p>
-      <div className="flex flex-wrap gap-1.5">
-        {cats.map((c) => (
-          <button key={c} onClick={() => setCat(c)}
-            className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${cat === c ? "border-primary bg-primary/15 text-primary" : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60"}`}>
-            {c}
-          </button>
-        ))}
+      <p className="text-xs text-muted-foreground">Threads are user-posted selling/seeking offers. Pin to feature, deactivate, mark sold, ban the author, or remove. Updates live.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input placeholder="Search thread or author…" value={q} onChange={(e) => setQ(e.target.value)} className="h-8 w-64 max-w-full" />
+        <div className="flex flex-wrap gap-1.5">
+          {cats.map((c) => (
+            <button key={c} onClick={() => setCat(c)}
+              className={`rounded-md border px-3 py-1 text-xs font-medium transition-colors ${cat === c ? "border-primary bg-primary/15 text-primary" : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60"}`}>
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-            <tr><th className="px-2 py-1.5">Thread</th><th className="px-2 py-1.5">Kind</th><th className="px-2 py-1.5">Category</th><th className="px-2 py-1.5">Amount</th><th className="px-2 py-1.5">Status</th><th className="px-2 py-1.5">Actions</th></tr>
+            <tr>
+              <th className="px-2 py-1.5">Thread</th>
+              <th className="px-2 py-1.5">Author</th>
+              <th className="px-2 py-1.5">Kind</th>
+              <th className="px-2 py-1.5">Category</th>
+              <th className="px-2 py-1.5">Amount</th>
+              <th className="px-2 py-1.5">Status</th>
+              <th className="px-2 py-1.5">Actions</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
             {filtered.map((t) => (
-              <tr key={t.id} className="hover:bg-background/40">
-                <td className="px-2 py-2 max-w-[280px] truncate font-medium">{t.name}</td>
+              <tr key={t.id} className={`hover:bg-background/40 ${t.is_pinned ? "bg-primary/5" : ""}`}>
+                <td className="px-2 py-2 max-w-[260px] truncate font-medium">
+                  {t.is_pinned && <span className="mr-1 text-primary">📌</span>}{t.name}
+                </td>
+                <td className="px-2 py-2">
+                  <Link to="/u/$userId" params={{ userId: t.user_id }} className="flex items-center gap-1.5 hover:text-foreground">
+                    {t.avatar_url
+                      ? <img src={t.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      : <span className="grid h-5 w-5 place-items-center rounded-full bg-secondary text-[9px] font-semibold">{(t.author || "A").slice(0, 1).toUpperCase()}</span>}
+                    <span className="truncate max-w-[120px]">{t.author}</span>
+                    {t.is_banned && <Badge variant="destructive" className="text-[9px]">banned</Badge>}
+                  </Link>
+                </td>
                 <td className="px-2 py-2 uppercase font-mono text-[10px]">{t.kind}</td>
                 <td className="px-2 py-2"><Badge variant="outline" className="text-[10px]">{t.category}</Badge></td>
                 <td className="px-2 py-2 font-mono tabular-nums">{t.amount ? `${Number(t.amount).toFixed(2)} ${t.currency ?? ""}` : "—"}</td>
                 <td className="px-2 py-2"><Badge variant={t.status === "active" ? "default" : "secondary"} className="text-[10px]">{t.status}</Badge></td>
                 <td className="px-2 py-2">
                   <div className="flex flex-wrap gap-1">
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await pin({ data: { id: t.id, pinned: !t.is_pinned } }); toast.success(t.is_pinned ? "Unpinned" : "Pinned"); refetch(); }}>
+                      {t.is_pinned ? "Unpin" : "Pin"}
+                    </Button>
                     {t.status !== "active" && (
                       <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await setStatus({ data: { id: t.id, status: "active" } }); toast.success("Activated"); refetch(); }}>Activate</Button>
                     )}
@@ -1534,13 +1581,21 @@ function ThreadsPanel() {
                     {t.status !== "sold" && (
                       <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => { await setStatus({ data: { id: t.id, status: "sold" } }); toast.success("Marked sold"); refetch(); }}>Mark sold</Button>
                     )}
+                    {!t.is_banned && (
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={async () => {
+                        const reason = prompt(`Ban author "${t.author}"? Enter reason:`);
+                        if (!reason || reason.trim().length < 2) return;
+                        try { await banAuthor({ data: { id: t.id, reason: reason.trim() } }); toast.success("Author banned"); refetch(); }
+                        catch (e) { toast.error((e as Error).message); }
+                      }}>Ban author</Button>
+                    )}
                     <Button size="sm" variant="destructive" className="h-7 px-2 text-[11px]" onClick={async () => { if (!confirm("Delete this thread?")) return; await del({ data: { id: t.id } }); toast.success("Deleted"); refetch(); }}>Delete</Button>
                   </div>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-2 py-6 text-center text-muted-foreground">No threads match this filter.</td></tr>
+              <tr><td colSpan={7} className="px-2 py-6 text-center text-muted-foreground">No threads match this filter.</td></tr>
             )}
           </tbody>
         </table>
@@ -1548,6 +1603,7 @@ function ThreadsPanel() {
     </div>
   );
 }
+
 
 /* ─────────────────── Ad media uploader (uploads to `ads` storage bucket) ─────────────────── */
 function AdMediaUploader({ accept, onUploaded }: { accept: string; onUploaded: (url: string) => void }) {
