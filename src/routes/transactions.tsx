@@ -46,7 +46,9 @@ function TransactionsPage() {
   const fetchStats = useServerFn(getMyPortfolioStats);
   const { data, isLoading } = useQuery({ queryKey: ["my-portfolio"], queryFn: () => fetchStats(), refetchInterval: 30_000 });
   const s = data?.stats;
-  const purchases = (data?.purchases ?? []) as Purchase[];
+  const allPurchases = (data?.purchases ?? []) as Purchase[];
+  // Only finished & successful purchases from marketplace + P2P order-book
+  const purchases = allPurchases.filter((p) => p.status === "released");
 
   const downloadAll = () => {
     if (!purchases.length) return;
@@ -94,7 +96,7 @@ function TransactionsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Bought products & services</h2>
-            <p className="text-xs text-muted-foreground">Full record of every escrow group you opened — view details or download a copy any time.</p>
+            <p className="text-xs text-muted-foreground">Only finished & successful purchases from the marketplace and P2P order-book.</p>
           </div>
           <Button size="sm" variant="outline" onClick={downloadAll} disabled={!purchases.length}>
             <Download className="mr-1 h-3 w-3" /> Export all (CSV)

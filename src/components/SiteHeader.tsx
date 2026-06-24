@@ -48,7 +48,7 @@ export function SiteHeader() {
         <nav className="hidden flex-1 items-center justify-center gap-1 sm:flex md:gap-2">
           <Link to="/" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Home</Link>
           <Link to="/marketplace" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Marketplace</Link>
-          <Link to="/order-book" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Threads</Link>
+          <Link to="/order-book" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>P2P Order-book</Link>
           {user && (
             <>
               <Link to="/trades" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Trades</Link>
