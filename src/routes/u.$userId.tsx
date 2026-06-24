@@ -113,14 +113,14 @@ function ProfilePage() {
             Threads ({data.totalCount ?? 0})
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={kind} onValueChange={(v) => nav({ search: (s) => ({ ...s, kind: v as typeof kind, page: 1 }) })}>
+            <Tabs value={kind} onValueChange={(v) => nav({ search: (s: ProfileSearch) => ({ ...s, kind: v as typeof kind, page: 1 }) })}>
               <TabsList className="h-8">
                 <TabsTrigger value="all" className="h-6 text-xs">All</TabsTrigger>
                 <TabsTrigger value="selling" className="h-6 text-xs">Selling</TabsTrigger>
                 <TabsTrigger value="seeking" className="h-6 text-xs">Seeking</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Select value={sort} onValueChange={(v) => nav({ search: (s) => ({ ...s, sort: v as typeof sort, page: 1 }) })}>
+            <Select value={sort} onValueChange={(v) => nav({ search: (s: ProfileSearch) => ({ ...s, sort: v as typeof sort, page: 1 }) })}>
               <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pinned">Pinned first</SelectItem>
@@ -158,11 +158,11 @@ function ProfilePage() {
             <span>Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={page <= 1}
-                onClick={() => nav({ search: (s) => ({ ...s, page: page - 1 }) })}>
+                onClick={() => nav({ search: (s: ProfileSearch) => ({ ...s, page: page - 1 }) })}>
                 <ChevronLeft className="h-3 w-3" /> Prev
               </Button>
               <Button size="sm" variant="outline" disabled={page >= totalPages}
-                onClick={() => nav({ search: (s) => ({ ...s, page: page + 1 }) })}>
+                onClick={() => nav({ search: (s: ProfileSearch) => ({ ...s, page: page + 1 }) })}>
                 Next <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
