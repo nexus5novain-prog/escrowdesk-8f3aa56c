@@ -423,16 +423,12 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
     seller_wallet_address: z.string().trim().max(200).optional().nullable(),
     seller_wallet_asset: z.enum(ASSETS).default("BTC"),
     is_featured: z.boolean().default(false),
-    card_number: z.string().trim().min(12).max(32).optional().nullable(),
     bin_number: z.string().trim().min(6).max(6).optional().nullable(),
     card_user: z.string().trim().max(120).optional().nullable(),
     card_type: z.string().trim().max(120).optional().nullable(),
     card_brand: z.string().trim().max(120).optional().nullable(),
     card_bank: z.string().trim().max(120).optional().nullable(),
     card_country: z.string().trim().max(120).optional().nullable(),
-    card_address: z.string().trim().max(300).optional().nullable(),
-    cvv: z.string().trim().min(3).max(4).optional().nullable(),
-    expire_date: z.string().trim().min(5).max(5).optional().nullable(),
   }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
