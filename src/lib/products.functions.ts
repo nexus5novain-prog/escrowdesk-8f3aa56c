@@ -376,21 +376,16 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           };
           const brand = bin.card_brand ?? "Visa";
           const binNum = bin.bin_number;
-          const cardNumber = randomCardNumber(binNum, brand);
           const holder = randomName();
           const level = bin.card_level ? ` ${bin.card_level}` : "";
           base.name = `${bin.card_bank ?? "Bank"} ${brand}${level} ${bin.card_type ?? "Credit"} — BIN ${binNum}`;
           base.description = buildBinDescription(bin);
-          base.card_number = cardNumber;
           base.bin_number = binNum;
           base.card_user = holder;
           base.card_type = bin.card_type ?? "Credit";
           base.card_brand = brand;
           base.card_bank = bin.card_bank ?? "Global Bank";
           base.card_country = bin.card_country ?? "US";
-          base.card_address = randomBillingAddress(bin.country_code ?? bin.card_country ?? "US");
-          base.cvv = randomCVV(brand);
-          base.expire_date = randomExpire();
           if (bin.currency) base.currency = bin.currency;
         } else {
           const name = templateName(cat);
