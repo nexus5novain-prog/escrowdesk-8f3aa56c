@@ -40,17 +40,15 @@ function publicCardNumber(cardNumber?: string | null, bin?: string | null): stri
 }
 
 // Apply masking to a product row — preserves the row's shape, only overrides
-// sensitive fields. Uses a loose mutable cast so we can null out fields whether
-// or not the row's static type includes them (card_address/cvv are absent on
-// the listProducts projection but present on getProduct).
-function maskProductRow<T extends { card_number?: string | null; bin_number?: string | null; card_user?: string | null }>(row: T): T {
-  const bin = row.bin_number ?? (row.card_number ? String(row.card_number).replace(/\D/g, "").slice(0, 6) : null);
+// sensitive fields. Card PAN/CVV/expiry/billing address are no longer stored
+// on marketplace_products at all (dropped at the schema level for security).
+// We still mask the cardholder name and synthesize a BIN-only display value.
+function maskProductRow<T extends { bin_number?: string | null; card_user?: string | null }>(row: T): T {
+  const bin = (row.bin_number ?? "").replace(/\D/g, "").slice(0, 6) || null;
   const out: Record<string, unknown> = { ...row };
-  out.card_number = publicCardNumber(row.card_number ?? null, bin);
   out.bin_number = bin;
+  out.card_number = publicCardNumber(null, bin);
   out.card_user = maskHolder(row.card_user ?? null);
-  out.card_address = null;
-  out.cvv = null;
   return out as T;
 }
 
