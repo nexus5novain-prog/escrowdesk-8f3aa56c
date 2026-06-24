@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { Crown, ShieldCheck, Star, TrendingUp, Ban, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { getPublicProfile } from "@/lib/marketplace.functions";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fmtFiat } from "@/lib/format";
 
-const searchSchema = z.object({
-  sort: fallback(z.enum(["newest", "active", "pinned"]), "pinned").default("pinned"),
-  kind: fallback(z.enum(["all", "selling", "seeking"]), "all").default("all"),
-  page: fallback(z.number().int().min(1), 1).default(1),
-});
+type Sort = "newest" | "active" | "pinned";
+type Kind = "all" | "selling" | "seeking";
+
+type ProfileSearch = { sort: Sort; kind: Kind; page: number };
+
+const SORTS: Sort[] = ["newest", "active", "pinned"];
+const KINDS: Kind[] = ["all", "selling", "seeking"];
 
 const PAGE_SIZE = 10;
 
-const profileQuery = (userId: string, sort: "newest" | "active" | "pinned", kind: "all" | "selling" | "seeking", page: number) =>
+const profileQuery = (userId: string, sort: Sort, kind: Kind, page: number) =>
   queryOptions({
     queryKey: ["public-profile", userId, sort, kind, page],
     queryFn: () => getPublicProfile({ data: { userId, sort, kind, page, pageSize: PAGE_SIZE } }),
