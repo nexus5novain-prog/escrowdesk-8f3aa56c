@@ -862,7 +862,7 @@ export const getMyPortfolioStats = createServerFn({ method: "GET" })
         .or(`buyer_id.eq.${uid},seller_id.eq.${uid}`),
       supabaseAdmin
         .from("escrow_groups")
-        .select("id,creator_id,counterparty_id,status,fiat_amount,fiat_currency,amount,asset,listing_id,listing_name,listing_category,created_at,card_number,bin_number,card_user,card_type,card_brand,card_bank,card_country,card_address,cvv,expire_date")
+        .select("id,creator_id,counterparty_id,status,fiat_amount,fiat_currency,amount,asset,listing_id,listing_name,listing_category,created_at,bin_number,card_user,card_type,card_brand,card_bank,card_country")
         .or(`creator_id.eq.${uid},counterparty_id.eq.${uid}`),
       supabaseAdmin.from("user_warnings").select("id").eq("user_id", uid),
     ]);
