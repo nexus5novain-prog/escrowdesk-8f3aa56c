@@ -1,62 +1,66 @@
-## Goal
-Make thread (listing) authors visibly recognizable, keep the threads listing live across the site, and give admins richer in-row moderation controls.
+# Plan: Threads management, ban enforcement, profile filters, order-book recognition, nav move
 
-## 1. Author recognition on threads
+Six related changes, grouped so each ships verifiable end-to-end.
 
-**`src/lib/marketplace.functions.ts` — `listCategoryThreads`**
-- Extend the profile select to include `avatar_url`, `telegram_username`, `trades_completed`, `rating_sum`, `rating_count`.
-- Extend `CategoryThread` type with `avatar_url`, `telegram_username`, `trades_completed`, `rating_avg`.
+## 1. `/my-threads` — author self-service page
 
-**`src/components/CategoryFeed.tsx` — `Row`**
-- Render an `<Avatar>` (shadcn) with initials fallback in the Author cell.
-- Show display name, premium/trusted icons, and a small "★ rating · N trades" sub-line.
-- Wrap the author cell in a link to `/u/{user_id}` (new public profile route, see §3).
+New route `src/routes/my-threads.tsx` under the `_authenticated` umbrella (gated; sign-in required to manage own posts). Added to the header right after **P2P Order-book** as a sub-link, plus mobile nav entry.
 
-## 2. Live data across the website
+- Server fn `listMyThreads` (in `marketplace.functions.ts`, `requireSupabaseAuth`) returns every listing where `author_id = userId` regardless of status, with counts (views, offers if available).
+- Server fns `updateMyThread` (title, body, price, category, status toggle active/paused) and `deleteMyThread` (soft → `status='deleted'`).
+- UI: table with inline edit dialog (reusing existing `PostListing` form fields), delete confirm, status pill, "view public" link.
 
-**`CategoryFeed`** — already invalidates on `listings` changes. Add:
-- A `postgres_changes` subscription on `profiles` (filtered to UPDATE) so badge/avatar changes propagate.
-- Lower `refetchInterval` to `15_000` and `refetchOnWindowFocus: true` as a safety net.
+## 2. Ban enforcement (site-wide + admin multi-select)
 
-**`src/routes/order-book.tsx`** — find the main listings list and wire the same realtime + query invalidation pattern (single channel per page, unsubscribed on unmount) so all order-book views update without reload.
+### DB migration
+- `listings` policies: replace the existing INSERT policy with one that also requires `NOT public.is_user_banned(auth.uid())`.
+- Add `public.is_user_banned(uuid) returns boolean security definer` reading `profiles.is_banned`.
+- `listCategoryThreads`, `listMyThreads`, `getPublicProfile`, `TopAuthors`: filter out rows where author `is_banned = true` for non-admins. Admin queries keep them but flag visually.
 
-**`src/components/TopAuthors.tsx`** — add a realtime subscription on `listings` and `profiles` to refresh the leaderboard live.
+### Server fns
+- `createListing` / `postListing` (and any other thread-create paths) call `is_user_banned` first → throw "Your account has been suspended".
+- Extend `adminBanThreadAuthor` already exists; add `adminBulkAction({ userIds, action: 'ban'|'unban'|'suspend'|'delete' })`:
+  - `ban` → `profiles.is_banned = true` + flip their listings to `inactive`.
+  - `unban` → `is_banned = false`.
+  - `suspend` → `profiles.suspended_until = now() + interval` (new column).
+  - `delete` → `auth.admin.deleteUser()` via supabaseAdmin loaded inside handler.
 
-**`src/routes/admin.tsx` — `ThreadsPanel`** — add a `listings` realtime subscription that calls `refetch()` so admins always see the current state.
+### Admin UI
+New **Users** tab in `admin.tsx` (or extend existing Threads panel author column): paginated user table with checkboxes, search by display name / telegram / email, bulk action bar (Ban / Unban / Suspend 7d / Delete) with confirm dialog. Surface ban/suspend state in `ThreadsPanel` author cell.
 
-## 3. Public author profile (recognition target)
+DB migration adds `profiles.suspended_until timestamptz`.
 
-New route `src/routes/u.$userId.tsx` (public, SSR):
-- Server fn `getPublicProfile({ userId })` returning `display_name`, `avatar_url`, `is_premium`, `is_trusted`, `trades_completed`, `rating_avg`, `joined_at`, plus their active threads via the existing listings query.
-- Page shows avatar, name, badges, stats, and their threads list reusing `CategoryFeed`-style rows.
-- Used as the link target from every thread author cell, the admin threads panel, and `TopAuthors`.
+## 3. Public profile `/u/$userId` — sort, filter, pagination
 
-## 4. Admin controls (extend, don't replace)
+Update `src/routes/u.$userId.tsx`:
+- URL search params via `validateSearch`: `sort` (`newest` | `active` | `pinned`), `kind` (`all` | `selling` | `seeking`), `page` (number, default 1, 10 per page).
+- Extend `getPublicProfile` server fn to accept `{ userId, sort, kind, page, pageSize }` and return `{ threads, totalCount }`.
+  - `newest` → `created_at DESC`
+  - `active` → `last_bumped_at DESC NULLS LAST, created_at DESC`
+  - `pinned` → `is_pinned DESC, created_at DESC`
+- Controls row above thread list: sort `Select`, kind `Tabs`, prev/next pagination footer.
 
-**`src/lib/marketplace.functions.ts`** — add two server fns (admin/moderator gated, same role check pattern already used):
-- `adminPinThread({ id, pinned })` — toggles a new `is_pinned` boolean on `listings`.
-- `adminBanThreadAuthor({ id, reason })` — looks up `user_id` from the listing and calls existing `ban_user` RPC; also flips all that user's listings to `inactive`.
+## 4. Order-book product cards — author recognition
 
-**Migration** (new file under `supabase/migrations/`):
-- `ALTER TABLE public.listings ADD COLUMN is_pinned boolean NOT NULL DEFAULT false;`
-- Index `CREATE INDEX listings_pinned_active_idx ON public.listings (is_pinned DESC, created_at DESC) WHERE status = 'active';`
-- No new tables → no GRANT block needed.
+In `src/routes/order-book.tsx` product/listing cards (and marketplace product cards if the same shape):
+- Extend whichever server fn lists order-book entries to join `profiles` (avatar, display_name, is_premium, is_trusted, rating_sum, rating_count).
+- Card footer adds: avatar (32px) + display name (link to `/u/$userId`) + trust icon + ★ rating (1 decimal) + "(N)" review count. Same treatment for Selling / Seeking / Services tabs.
 
-**`ThreadsPanel` in `src/routes/admin.tsx`** — add to each row:
-- Author cell (avatar + display_name) with a link to `/u/{user_id}` — requires `adminListThreads` to also return author profile fields (extend the select + return shape).
-- "Pin / Unpin" button calling `adminPinThread`.
-- "Ban author" button (confirm dialog) calling `adminBanThreadAuthor`.
-- Search box filtering by thread name or author display name (client-side, on the already-loaded list).
+## 5. Move Disputes under Trades
 
-**`CategoryFeed` sort** — pinned threads first, then existing tier/recency order.
+- New route file `src/routes/trades.disputes.tsx` and `trades.disputes.$id.tsx` (re-export the existing component bodies from `disputes.tsx` / `disputes.$id.tsx`).
+- Convert `src/routes/trades.tsx` to a layout: render `<Outlet />` plus a sub-tab strip ("My Trades" → `/trades` index, "Disputes" → `/trades/disputes`). Move existing trades content to `trades.index.tsx`.
+- Header: remove top-level **Disputes** link; it now lives inside Trades. Add 301-style redirect from old `/disputes` → `/trades/disputes` via a `beforeLoad` throw redirect on the old route file (keep file as redirect-only) so deep links still work.
+- Mobile nav updated to match.
 
-## 5. Out of scope
-- No changes to shoutbox, trades, escrow, or wallet flows.
-- No new tables; only one nullable-safe column added to `listings`.
-- No changes to RLS policies (listings already readable; admin fns are SECURITY DEFINER via service role and gated by role check).
+## 6. Verification
 
-## Verification
-- Build passes; `tsgo` clean.
-- Open `/order-book` in two browser tabs, post a listing in one → row appears in the other within seconds with avatar + badges.
-- Admin → Threads: pin a row, confirm it sticks to top of `CategoryFeed` on the home/order-book view.
-- Click an author name anywhere → lands on `/u/{userId}` with their threads.
+- `bun run build` (auto by harness).
+- Playwright: open `/order-book`, confirm avatar + rating in card; click "My Threads" → listing shows my posts; admin → users tab → bulk ban → confirm author's listings disappear from public order-book; profile page sort/filter changes URL and reorders; `/disputes/abc` redirects to `/trades/disputes/abc`.
+
+## Technical notes
+- All new server fns gating writes call `is_user_banned` first.
+- Listings query filter: `LEFT JOIN profiles … WHERE coalesce(profiles.is_banned,false) = false` on every public read.
+- Migration order: add `is_user_banned` fn + `suspended_until` col + listings INSERT policy update in one migration; do code edits after approval.
+
+Out of scope: shoutbox ban behavior, wallet/escrow changes, trade flow changes, new tables beyond column additions.
