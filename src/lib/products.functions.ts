@@ -268,14 +268,38 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const cats = (data.category ? [data.category] : ["BIN/CC", "ENROLL", "SCANNER", "COMBO", "OTHERS"]) as Array<"BIN/CC"|"ENROLL"|"SCANNER"|"COMBO"|"OTHERS">;
 
-    // Preload real BIN reference data for realistic card seeding
-    const { data: binRows } = await supabaseAdmin
-      .from("bin_metadata")
-      .select("bin_number,card_brand,card_type,card_bank,card_country");
-    const bins = (binRows ?? []) as Array<{
+    // Preload BIN data from BOTH catalogs and merge by BIN — gives the seeder
+    // access to card_level / currency / country_code from the richer `bins` table.
+    const [{ data: metaRows }, { data: rawRows }] = await Promise.all([
+      supabaseAdmin.from("bin_metadata").select("bin_number,card_brand,card_type,card_bank,card_country"),
+      supabaseAdmin.from("bins").select("bin,bank,brand,card_type,card_level,country,country_code,currency"),
+    ]);
+    const byBin = new Map<string, {
       bin_number: string; card_brand: string | null; card_type: string | null;
       card_bank: string | null; card_country: string | null;
-    }>;
+      card_level: string | null; currency: string | null; country_code: string | null;
+    }>();
+    for (const m of metaRows ?? []) {
+      byBin.set(m.bin_number, {
+        bin_number: m.bin_number,
+        card_brand: m.card_brand, card_type: m.card_type, card_bank: m.card_bank, card_country: m.card_country,
+        card_level: null, currency: null, country_code: null,
+      });
+    }
+    for (const r of rawRows ?? []) {
+      const prev = byBin.get(r.bin);
+      byBin.set(r.bin, {
+        bin_number: r.bin,
+        card_brand: prev?.card_brand ?? r.brand,
+        card_type: prev?.card_type ?? r.card_type,
+        card_bank: prev?.card_bank ?? r.bank,
+        card_country: prev?.card_country ?? r.country,
+        card_level: r.card_level,
+        currency: r.currency,
+        country_code: r.country_code,
+      });
+    }
+    const bins = Array.from(byBin.values());
 
     const rows: Array<Record<string, unknown>> = [];
     for (const cat of cats) {
@@ -294,30 +318,41 @@ export const adminSeedSampleProducts = createServerFn({ method: "POST" })
           created_by: context.userId,
         };
         if (cat === "BIN/CC") {
-          const bin = bins.length ? pick(bins) : null;
-          const brand = bin?.card_brand ?? "Visa";
-          const binNum = bin?.bin_number ?? "414720";
+          const bin = bins.length ? pick(bins) : {
+            bin_number: "414720", card_brand: "Visa", card_type: "Credit",
+            card_bank: "Global Bank", card_country: "US",
+            card_level: null, currency: "USD", country_code: "US",
+          };
+          const brand = bin.card_brand ?? "Visa";
+          const binNum = bin.bin_number;
           const cardNumber = randomCardNumber(binNum, brand);
           const holder = randomName();
-          base.name = `${bin?.card_bank ?? "Bank"} ${brand} ${bin?.card_type ?? "Credit"} — BIN ${binNum}`;
-          base.description = `Real-BIN demo card from ${bin?.card_bank ?? "Issuer"} (${bin?.card_country ?? "US"}). Seeded for testing — purchase to reveal full PAN/CVV via escrow.`;
+          const level = bin.card_level ? ` ${bin.card_level}` : "";
+          base.name = `${bin.card_bank ?? "Bank"} ${brand}${level} ${bin.card_type ?? "Credit"} — BIN ${binNum}`;
+          base.description = buildBinDescription(bin);
           base.card_number = cardNumber;
           base.bin_number = binNum;
           base.card_user = holder;
-          base.card_type = bin?.card_type ?? "Credit";
+          base.card_type = bin.card_type ?? "Credit";
           base.card_brand = brand;
-          base.card_bank = bin?.card_bank ?? "Global Bank";
-          base.card_country = bin?.card_country ?? "US";
-          base.card_address = null;
+          base.card_bank = bin.card_bank ?? "Global Bank";
+          base.card_country = bin.card_country ?? "US";
+          base.card_address = randomBillingAddress(bin.country_code ?? bin.card_country ?? "US");
           base.cvv = randomCVV(brand);
           base.expire_date = randomExpire();
+          if (bin.currency) base.currency = bin.currency;
         } else {
-          base.name = templateName(cat);
-          base.description = `[SEEDED DEMO] ${base.name} — replace with a real listing from the admin panel.`;
+          const name = templateName(cat);
+          base.name = name;
+          base.description = buildCategoryDescription(cat, name);
         }
         rows.push(base);
       }
     }
+    const { error } = await supabaseAdmin.from("marketplace_products").insert(rows as never);
+    if (error) throw new Error(error.message);
+    return { inserted: rows.length };
+  });
     const { error } = await supabaseAdmin.from("marketplace_products").insert(rows as never);
     if (error) throw new Error(error.message);
     return { inserted: rows.length };
