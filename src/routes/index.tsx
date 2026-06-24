@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AnnouncementBanner as AdminAnnouncements } from "@/components/AnnouncementBanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
