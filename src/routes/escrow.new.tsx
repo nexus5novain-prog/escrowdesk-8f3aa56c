@@ -1,122 +1,35 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AuthGate } from "@/components/AuthGate";
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { z } from "zod";
-import { createEscrowGroup } from "@/lib/escrow-groups.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AlertTriangle } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { Users2, Send } from "lucide-react";
 
 export const Route = createFileRoute("/escrow/new")({
-  validateSearch: z.object({ listing: z.string().uuid().optional() }),
-  component: () => (<AuthGate><NewEscrow /></AuthGate>),
+  head: () => ({ meta: [{ title: "Escrow groups deprecated — EscrowDesk" }] }),
+  component: DeprecatedNewEscrow,
 });
 
-function NewEscrow() {
-  const nav = useNavigate();
-  const { listing } = Route.useSearch();
-  const create = useServerFn(createEscrowGroup);
-  const [mode, setMode] = useState<"site"|"telegram">("site");
-  const asset = "BTC" as const;
-  const [amount, setAmount] = useState("");
-  const [fiat, setFiat] = useState("");
-  const [username, setUsername] = useState("");
-  const [tg, setTg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [listingMeta, setListingMeta] = useState<{ name: string; seller: string | null } | null>(null);
-
-  useEffect(() => {
-    if (!listing) return;
-    (async () => {
-      const { data: l } = await supabase.from("listings").select("name, amount, currency, user_id").eq("id", listing).maybeSingle();
-      if (!l) return;
-      const { data: p } = await supabase.from("profiles").select("display_name").eq("user_id", l.user_id).maybeSingle();
-      setListingMeta({ name: l.name, seller: p?.display_name ?? null });
-      if (l.amount != null) setFiat(String(l.amount));
-      if (p?.display_name) setUsername(p.display_name);
-    })();
-  }, [listing]);
-
-  const submit = async () => {
-    const amt = Number(amount);
-    if (!amt || amt <= 0) return toast.error("Enter a valid crypto amount");
-    if (!listing && mode === "site" && !username.trim()) return toast.error("Enter the seller's site username");
-    if (!listing && mode === "telegram" && !tg.trim()) return toast.error("Enter the seller's Telegram username");
-    setBusy(true);
-    try {
-      const res = await create({ data: {
-        asset, amount: amt,
-        fiat_amount: fiat ? Number(fiat) : undefined,
-        fiat_currency: "USD",
-        listing_id: listing,
-        counterparty_username: !listing && mode === "site" ? username.trim() : undefined,
-        counterparty_telegram: !listing && mode === "telegram" ? tg.trim() : undefined,
-      } });
-      toast.success("Escrow group created");
-      nav({ to: "/escrow/$id", params: { id: res.id } });
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); }
-  };
-
+function DeprecatedNewEscrow() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Create an escrow group</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {listingMeta
-            ? <>Trading on listing <b>{listingMeta.name}</b>{listingMeta.seller ? <> with seller <b>{listingMeta.seller}</b></> : null}. Pick the crypto and amount to escrow.</>
-            : <>Invite a seller you want to trade with. The group holds the chat, escrow address, deposit hash, and a button to bring in a moderator if anything goes sideways.</>}
-        </p>
-      </div>
-
-      <div className="surface p-6 space-y-4">
-        {!listing && (<>
-        <div className="flex items-center gap-2 text-sm font-semibold"><Users2 className="h-4 w-4" /> Counterparty</div>
-
-        <Tabs value={mode} onValueChange={(v) => setMode(v as "site"|"telegram")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="site">Site username</TabsTrigger>
-            <TabsTrigger value="telegram">Telegram username</TabsTrigger>
-          </TabsList>
-          <TabsContent value="site" className="mt-3">
-            <Label className="text-xs uppercase text-muted-foreground">Their site username</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. johndoe" />
-          </TabsContent>
-          <TabsContent value="telegram" className="mt-3">
-            <Label className="text-xs uppercase text-muted-foreground">Their Telegram @username</Label>
-            <Input value={tg} onChange={(e) => setTg(e.target.value)} placeholder="@johndoe" />
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              The seller must have linked their Telegram to the bot (Settings → Connect Telegram) for us to match them.
-            </p>
-          </TabsContent>
-        </Tabs>
-        </>)}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Asset</Label>
-            <div className="mt-1 inline-flex h-10 w-full items-center rounded-md border border-input bg-secondary/30 px-3 text-sm font-medium">BTC</div>
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">BTC amount</Label>
-            <Input type="number" step="0.00000001" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.05" />
-          </div>
-          <div>
-            <Label className="text-xs uppercase text-muted-foreground">Fiat value (USD, optional)</Label>
-            <Input type="number" value={fiat} onChange={(e) => setFiat(e.target.value)} placeholder="3000" />
-          </div>
+    <div className="mx-auto max-w-2xl px-4 py-12">
+      <Card className="space-y-4 border-amber-500/40 bg-amber-500/5 p-6">
+        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="h-5 w-5" />
+          <h1 className="text-lg font-semibold">Legacy escrow groups are deprecated</h1>
         </div>
-
-        <Button onClick={submit} disabled={busy} className="w-full">
-          <Send className="mr-2 h-4 w-4" /> {busy ? "Creating…" : listing ? "Create escrow group" : "Create group & invite seller"}
-        </Button>
-      </div>
+        <p className="text-sm text-muted-foreground">
+          The off-ledger "escrow groups" flow has been retired because it operated outside
+          the platform's ledger. All new escrow trades now run through the ledger-backed
+          flow with proper double-entry accounting, reconciliation, and dispute support.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/order-book">Browse the order book</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/trades">View your trades</Link>
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }
