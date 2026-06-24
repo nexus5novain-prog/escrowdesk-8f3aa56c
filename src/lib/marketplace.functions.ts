@@ -363,24 +363,43 @@ export const adminBanThreadAuthor = createServerFn({ method: "POST" })
   });
 
 export const getPublicProfile = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ userId: z.string().uuid() }))
+  .inputValidator(
+    z.object({
+      userId: z.string().uuid(),
+      sort: z.enum(["newest", "active", "pinned"]).default("pinned"),
+      kind: z.enum(["all", "selling", "seeking"]).default("all"),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(50).default(10),
+    }),
+  )
   .handler(async ({ data }) => {
     const { data: p, error } = await supabaseAdmin
       .from("profiles")
-      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,trades_completed,rating_sum,rating_count,btc_volume_usd,created_at")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count,btc_volume_usd,created_at")
       .eq("user_id", data.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!p) throw new Error("Profile not found");
-    const { data: rows } = await supabaseAdmin
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    let q = supabaseAdmin
       .from("listings")
-      .select("id,kind,name,category,amount,currency,status,created_at,is_pinned")
+      .select("id,kind,name,category,amount,currency,status,created_at,is_pinned", { count: "exact" })
       .eq("user_id", data.userId)
-      .eq("status", "active")
-      .order("is_pinned", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .eq("status", "active");
+    if (data.kind !== "all") q = q.eq("kind", data.kind);
+    if (data.sort === "newest") {
+      q = q.order("created_at", { ascending: false });
+    } else if (data.sort === "active") {
+      // most recent activity = created_at (no last_bumped_at column yet)
+      q = q.order("created_at", { ascending: false });
+    } else {
+      q = q.order("is_pinned", { ascending: false }).order("created_at", { ascending: false });
+    }
+    const { data: rows, count } = await q.range(from, to);
     const ratingCount = p.rating_count ?? 0;
+    const now = Date.now();
+    const isBlocked = !!p.is_banned || !!(p.suspended_until && new Date(p.suspended_until).getTime() > now);
     return {
       profile: {
         user_id: p.user_id,
@@ -390,13 +409,16 @@ export const getPublicProfile = createServerFn({ method: "GET" })
         is_premium: !!p.is_premium,
         is_trusted: !!p.is_trusted,
         is_banned: !!p.is_banned,
+        is_blocked: isBlocked,
+        suspended_until: p.suspended_until ?? null,
         trades_completed: p.trades_completed ?? 0,
         rating_avg: ratingCount > 0 ? (p.rating_sum ?? 0) / ratingCount : null,
         rating_count: ratingCount,
         btc_volume_usd: Number(p.btc_volume_usd ?? 0),
         joined_at: p.created_at,
       },
-      threads: rows ?? [],
+      threads: isBlocked ? [] : (rows ?? []),
+      totalCount: isBlocked ? 0 : (count ?? 0),
     };
   });
 
