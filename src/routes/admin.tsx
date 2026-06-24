@@ -98,6 +98,7 @@ function Admin() {
         <TabsContent value="announcements" className="mt-4"><AnnouncementsPanel /></TabsContent>
         <TabsContent value="broadcast" className="mt-4"><BroadcastPanel /></TabsContent>
         <TabsContent value="newsletter" className="mt-4"><NewsletterPanel /></TabsContent>
+        <TabsContent value="bins" className="mt-4"><BinAdminPanel /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel /></TabsContent>
       </Tabs>
     </div>
