@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AuthGate } from "@/components/AuthGate";
@@ -13,14 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getMyTrades, createOffer } from "@/lib/escrow.functions";
+import { THREAD_SECTIONS } from "@/lib/thread-categories";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtCrypto, fmtFiat } from "@/lib/format";
 import { toast } from "sonner";
 import {
-  Plus, ArrowRight, Lock, ListChecks, Scale, Wallet as WalletIcon,
-  Handshake, AlertTriangle, CheckCircle2, Clock,
+  Plus, ArrowRight, ArrowLeft, Lock, ListChecks, Scale, Wallet as WalletIcon,
+  Handshake, AlertTriangle, CheckCircle2, Clock, ShoppingBag, Search,
   ShieldCheck, Zap, FileSignature, Bitcoin, Bot, Eye, Gavel, Server, KeyRound, Activity,
 } from "lucide-react";
 
