@@ -77,7 +77,8 @@ function Trades() {
           { label: "Failed", value: stats.failed, icon: XCircle, accent: "rose" },
         ]}
       />
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <Link to="/transactions"><Badge variant="outline" className="cursor-pointer gap-1">View in portfolio →</Badge></Link>
         <Link to="/escrow/new"><Badge className="cursor-pointer gap-1"><Handshake className="h-3 w-3" /> New escrow</Badge></Link>
       </div>
 
