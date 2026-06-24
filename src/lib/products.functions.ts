@@ -350,65 +350,47 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/* ─────────────────────── Buy → escrow group (reveals full details to parties) ─────────────────────── */
+/* ─────────────────────── Buy → ledger-backed escrow trade ─────────────────────── */
+// Fetches a live BTC quote and opens a ledger-backed trade by calling the
+// SECURITY DEFINER `buy_marketplace_product` RPC, which mints a one-shot
+// internal offer and immediately runs `start_trade` (locks the buyer's
+// available BTC into escrow). Returns the new trade id; the UI navigates
+// to /trade/:id.
+async function fetchBtcRate(fiat: string): Promise<number> {
+  const cur = (fiat || "USD").toLowerCase();
+  const supported = new Set(["usd", "eur", "gbp", "ngn", "cad", "aud", "jpy", "inr", "brl", "zar"]);
+  const vs = supported.has(cur) ? cur : "usd";
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${vs}`;
+  const res = await fetch(url, { headers: { accept: "application/json" } });
+  if (!res.ok) throw new Error(`Rate fetch failed (${res.status})`);
+  const j = (await res.json()) as { bitcoin?: Record<string, number> };
+  const rate = Number(j?.bitcoin?.[vs]);
+  if (!Number.isFinite(rate) || rate <= 0) throw new Error("Invalid BTC rate");
+  return rate;
+}
+
 export const buyProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
-    if (Date.now() > 0) {
-      throw new Error("Marketplace purchases via legacy escrow groups are disabled. Use the ledger-backed escrow flow.");
-    }
     const { userId } = context;
-    const { data: p, error } = await supabaseAdmin
+    const { data: p, error: pErr } = await supabaseAdmin
       .from("marketplace_products")
-      .select("id, price, currency, seller_wallet_address, seller_wallet_asset, status, created_by, name, category, card_number, bin_number, card_user, card_type, card_brand, card_bank, card_country, card_address, cvv, expire_date")
+      .select("id, price, currency, status, created_by")
       .eq("id", data.id)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (pErr) throw new Error(pErr.message);
     if (!p) throw new Error("Product not found");
     if (p.status !== "active") throw new Error("Product unavailable");
     if (p.created_by === userId) throw new Error("Cannot buy your own product");
 
-    const asset = "BTC" as const;
-    const fiatAmount = Number(p.price);
-    const cryptoAmount = fiatAmount;
+    const rate = await fetchBtcRate(p.currency || "USD");
 
-    const { data: g, error: gErr } = await supabaseAdmin.from("escrow_groups").insert({
-      creator_id: userId,
-      counterparty_id: p.created_by,
-      listing_id: p.id,
-      listing_name: p.name,
-      listing_category: p.category,
-      asset,
-      amount: cryptoAmount,
-      fiat_amount: fiatAmount,
-      fiat_currency: p.currency,
-      escrow_address: p.seller_wallet_address || null,
-      escrow_address_chain: "BTC",
-      status: "awaiting_counterparty",
-      card_number: p.card_number || null,
-      bin_number: p.bin_number || null,
-      card_user: p.card_user || null,
-      card_type: p.card_type || null,
-      card_brand: p.card_brand || null,
-      card_bank: p.card_bank || null,
-      card_country: p.card_country || null,
-      card_address: p.card_address || null,
-      cvv: p.cvv || null,
-      expire_date: p.expire_date || null,
-    } as never).select("id").single();
-    if (gErr) throw new Error(gErr.message);
-
-    await supabaseAdmin.from("escrow_group_members").insert([
-      { group_id: g.id, user_id: userId, role: "buyer", accepted_at: new Date().toISOString() },
-      { group_id: g.id, user_id: p.created_by, role: "seller", accepted_at: null },
-    ] as never);
-
-    await supabaseAdmin.from("escrow_group_messages").insert({
-      group_id: g.id,
-      body: `Marketplace purchase opened for "${p.name}" — ${fiatAmount} ${p.currency}.`,
-      is_system: true,
-    } as never);
-
-    return { id: g.id };
+    const { data: tradeId, error } = await supabaseAdmin.rpc("buy_marketplace_product", {
+      _product_id: p.id,
+      _buyer: userId,
+      _btc_rate: rate,
+    });
+    if (error) throw new Error(error.message);
+    return { trade_id: tradeId as unknown as string };
   });
