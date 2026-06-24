@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { TradesSubNav } from "@/components/TradesSubNav";
 
 export const Route = createFileRoute("/disputes")({
   head: () => ({ meta: [{ title: "Disputes — EscrowDesk" }] }),
@@ -62,6 +63,7 @@ function Disputes() {
 
   return (
     <div className="space-y-6">
+      <TradesSubNav />
       <div>
         <h1 className="text-2xl font-semibold">Disputes & Arbitration</h1>
         <p className="text-sm text-muted-foreground">Open a case, track status, and file appeals.</p>

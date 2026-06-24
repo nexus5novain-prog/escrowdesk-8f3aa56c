@@ -12,6 +12,7 @@ import { Activity, CheckCircle2, XCircle, Clock, Handshake } from "lucide-react"
 import { motion } from "framer-motion";
 import { AdBanner } from "@/components/AdBanner";
 import { PortfolioHero } from "@/components/PortfolioHero";
+import { TradesSubNav } from "@/components/TradesSubNav";
 
 export const Route = createFileRoute("/trades")({
   head: () => ({ meta: [{ title: "Trades — EscrowDesk" }] }),
@@ -72,6 +73,7 @@ function Trades() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <TradesSubNav />
       <PortfolioHero
         eyebrow="Escrow trades"
         title="Your escrow activity"

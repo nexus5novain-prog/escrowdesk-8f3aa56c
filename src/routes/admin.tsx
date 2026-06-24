@@ -19,7 +19,7 @@ import { adminSendUserMessage, adminListUsersLite } from "@/lib/admin-broadcast.
 import { adminListAds, adminCreateAd, adminUpdateAd, adminDeleteAd, adminAdAnalytics, adminAdHealth, type AdPlacement } from "@/lib/ads.functions";
 import { adminListShouts, adminReviewShout, adminSetShoutboxBtc, adminTogglePin, adminToggleHide, getShoutboxConfig, type ShoutMsg } from "@/lib/shoutbox.functions";
 import { adminListProducts, adminCreateProduct, adminUpdateProduct, adminDeleteProduct, adminSeedSampleProducts, lookupBinMetadata, adminUploadProductImage } from "@/lib/products.functions";
-import { adminListThreads, adminSetThreadStatus, adminDeleteThread, adminPinThread, adminBanThreadAuthor } from "@/lib/marketplace.functions";
+import { adminListThreads, adminSetThreadStatus, adminDeleteThread, adminPinThread, adminBanThreadAuthor, adminBulkUserAction } from "@/lib/marketplace.functions";
 import { ArbitrationPanel } from "@/components/admin/ArbitrationPanel";
 import { WithdrawalsPanel } from "@/components/admin/WithdrawalsPanel";
 import { MARKETPLACE_CATEGORIES, type MarketplaceCategory } from "@/lib/marketplace-categories";
@@ -411,14 +411,17 @@ function UsersPanel() {
   const assign = useServerFn(adminAssignRole);
   const revoke = useServerFn(adminRevokeRole);
   const unlink = useServerFn(adminUnlinkTelegram);
+  const bulk = useServerFn(adminBulkUserAction);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"ban" | "unban" | "suspend_7d" | "suspend_30d" | "wipe_threads">("ban");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { data, refetch } = useQuery({
     queryKey: ["admin-users", search],
     queryFn: () => listUsers({ data: search ? { search } : {} }),
   });
   const users = (data as { users: AdminUser[] } | undefined)?.users ?? [];
 
-  // Live updates: refetch whenever a profile or role changes anywhere
   useEffect(() => {
     const channel = supabase
       .channel("admin-users-live")
@@ -428,32 +431,93 @@ function UsersPanel() {
     return () => { supabase.removeChannel(channel); };
   }, [refetch]);
 
+  function toggleAll() {
+    if (selected.size === users.length) setSelected(new Set());
+    else setSelected(new Set(users.map((u) => u.user_id)));
+  }
+  function toggleOne(uid: string) {
+    const n = new Set(selected);
+    if (n.has(uid)) n.delete(uid); else n.add(uid);
+    setSelected(n);
+  }
+
+  async function runBulk() {
+    if (selected.size === 0) { toast.error("Select at least one user"); return; }
+    const labels: Record<typeof bulkAction, string> = {
+      ban: `Ban ${selected.size} user(s) and deactivate their threads?`,
+      unban: `Unban ${selected.size} user(s)?`,
+      suspend_7d: `Suspend ${selected.size} user(s) for 7 days?`,
+      suspend_30d: `Suspend ${selected.size} user(s) for 30 days?`,
+      wipe_threads: `Permanently delete ALL threads for ${selected.size} user(s)? This cannot be undone.`,
+    };
+    if (!window.confirm(labels[bulkAction])) return;
+    let reason: string | undefined;
+    if (bulkAction === "ban") {
+      reason = window.prompt("Reason for ban?") ?? undefined;
+      if (!reason) return;
+    }
+    setBulkBusy(true);
+    try {
+      const res = await bulk({ data: { user_ids: Array.from(selected), action: bulkAction, reason } });
+      toast.success(`Applied "${bulkAction}" to ${res.count} user(s)`);
+      setSelected(new Set());
+      refetch();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBulkBusy(false); }
+  }
 
   return (
     <div className="surface p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-semibold">Users</h2>
-        <div className="flex gap-2">
-          <Input placeholder="Search display name…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-semibold">Users {selected.size > 0 && <Badge className="ml-2">{selected.size} selected</Badge>}</h2>
+        <div className="flex flex-wrap gap-2">
+          <Input placeholder="Search display name…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
           <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button>
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-secondary/20 p-2">
+        <Checkbox checked={users.length > 0 && selected.size === users.length} onCheckedChange={toggleAll} />
+        <span className="text-xs text-muted-foreground">Select all</span>
+        <div className="mx-2 h-4 w-px bg-border" />
+        <Select value={bulkAction} onValueChange={(v) => setBulkAction(v as typeof bulkAction)}>
+          <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ban">Ban selected</SelectItem>
+            <SelectItem value="unban">Unban selected</SelectItem>
+            <SelectItem value="suspend_7d">Suspend 7 days</SelectItem>
+            <SelectItem value="suspend_30d">Suspend 30 days</SelectItem>
+            <SelectItem value="wipe_threads">Delete all their threads</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="destructive" onClick={runBulk} disabled={bulkBusy || selected.size === 0}>
+          {bulkBusy ? "Working…" : `Apply to ${selected.size}`}
+        </Button>
+      </div>
+
       <div className="mt-3 space-y-3">
         {users.map((u) => (
           <div key={u.user_id} className="rounded-md border border-border/60 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="font-medium">{u.display_name} {u.is_banned && <Badge variant="destructive" className="ml-1">Banned</Badge>}</div>
-                <div className="text-xs text-muted-foreground font-mono">{u.user_id.slice(0,8)} · trades: {u.trades_completed} · TG: {u.telegram_username ? `@${u.telegram_username}` : "—"}</div>
-                {u.ban_reason && <div className="text-xs text-destructive mt-1">Ban reason: {u.ban_reason}</div>}
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {u.roles.length === 0 && <span className="text-xs text-muted-foreground">no roles</span>}
-                  {u.roles.map((r) => (
-                    <Badge key={r} variant="secondary" className="text-xs">
-                      {r}
-                      <button className="ml-1 opacity-60 hover:opacity-100" onClick={async () => { try { await revoke({ data: { user_id: u.user_id, role: r as typeof ALL_ROLES[number] } }); toast.success("Revoked"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>×</button>
-                    </Badge>
-                  ))}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <Checkbox className="mt-1" checked={selected.has(u.user_id)} onCheckedChange={() => toggleOne(u.user_id)} />
+                <div>
+                  <div className="font-medium">
+                    <Link to="/u/$userId" params={{ userId: u.user_id }} className="hover:underline">{u.display_name}</Link>
+                    {u.is_banned && <Badge variant="destructive" className="ml-1">Banned</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">{u.user_id.slice(0,8)} · trades: {u.trades_completed} · TG: {u.telegram_username ? `@${u.telegram_username}` : "—"}</div>
+                  {u.ban_reason && <div className="text-xs text-destructive mt-1">Ban reason: {u.ban_reason}</div>}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {u.roles.length === 0 && <span className="text-xs text-muted-foreground">no roles</span>}
+                    {u.roles.map((r) => (
+                      <Badge key={r} variant="secondary" className="text-xs">
+                        {r}
+                        <button className="ml-1 opacity-60 hover:opacity-100" onClick={async () => { try { await revoke({ data: { user_id: u.user_id, role: r as typeof ALL_ROLES[number] } }); toast.success("Revoked"); refetch(); } catch (e) { toast.error((e as Error).message); } }}>×</button>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

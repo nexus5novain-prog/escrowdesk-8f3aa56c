@@ -79,35 +79,35 @@ export const listTopAuthors = createServerFn({ method: "GET" })
     if (!ids.length) return { authors: [] as TopAuthor[] };
     const { data: profs } = await supabaseAdmin
       .from("profiles")
-      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count,btc_volume_usd")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count,btc_volume_usd")
       .in("user_id", ids);
-    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
-    const authors: TopAuthor[] = ids.map((uid) => {
+    const now = Date.now();
+    const visible = (profs ?? []).filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
+    const authors: TopAuthor[] = ids.filter((uid) => pm.has(uid)).map((uid) => {
       const counts = byUser.get(uid)!;
-      const p = pm.get(uid);
-      const profile = p
-        ? {
-            display_name: p.display_name ?? "Anon",
-            avatar_url: p.avatar_url,
-            telegram_username: p.telegram_username,
-            is_premium: !!p.is_premium,
-            is_trusted: !!p.is_trusted,
-            trades_completed: p.trades_completed ?? 0,
-            rating_sum: p.rating_sum ?? 0,
-            rating_count: p.rating_count ?? 0,
-          }
-        : null;
+      const p = pm.get(uid)!;
+      const profile = {
+        display_name: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url,
+        telegram_username: p.telegram_username,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_sum: p.rating_sum ?? 0,
+        rating_count: p.rating_count ?? 0,
+      };
       return {
         user_id: uid,
-        display_name: p?.display_name ?? "Anon",
-        avatar_url: p?.avatar_url ?? null,
-        telegram_username: p?.telegram_username ?? null,
-        is_premium: !!p?.is_premium,
-        is_trusted: !!p?.is_trusted,
-        trades_completed: p?.trades_completed ?? 0,
-        rating_sum: p?.rating_sum ?? 0,
-        rating_count: p?.rating_count ?? 0,
-        btc_volume_usd: Number(p?.btc_volume_usd ?? 0),
+        display_name: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url ?? null,
+        telegram_username: p.telegram_username ?? null,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_sum: p.rating_sum ?? 0,
+        rating_count: p.rating_count ?? 0,
+        btc_volume_usd: Number(p.btc_volume_usd ?? 0),
         active_threads: counts.selling + counts.seeking,
         selling_count: counts.selling,
         seeking_count: counts.seeking,
@@ -154,13 +154,15 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
     const ids = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
     const { data: profs } = ids.length
       ? await supabaseAdmin.from("profiles")
-          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
+          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count")
           .in("user_id", ids)
-      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; trades_completed: number; rating_sum: number; rating_count: number }> };
-    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
-    const threads: CategoryThread[] = (rows ?? []).map((r) => {
-      const p = pm.get(r.user_id);
-      const ratingCount = p?.rating_count ?? 0;
+      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; is_banned: boolean; suspended_until: string | null; trades_completed: number; rating_sum: number; rating_count: number }> };
+    const now = Date.now();
+    const visible = (profs ?? []).filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
+    const threads: CategoryThread[] = (rows ?? []).filter((r) => pm.has(r.user_id)).map((r) => {
+      const p = pm.get(r.user_id)!;
+      const ratingCount = p.rating_count ?? 0;
       return {
         id: r.id,
         user_id: r.user_id,
@@ -172,13 +174,13 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
         status: r.status as "active" | "inactive" | "sold",
         created_at: r.created_at,
         is_pinned: !!(r as { is_pinned?: boolean }).is_pinned,
-        author: p?.display_name ?? "Anon",
-        avatar_url: p?.avatar_url ?? null,
-        telegram_username: p?.telegram_username ?? null,
-        is_premium: !!p?.is_premium,
-        is_trusted: !!p?.is_trusted,
-        trades_completed: p?.trades_completed ?? 0,
-        rating_avg: ratingCount > 0 ? (p!.rating_sum ?? 0) / ratingCount : null,
+        author: p.display_name ?? "Anon",
+        avatar_url: p.avatar_url ?? null,
+        telegram_username: p.telegram_username ?? null,
+        is_premium: !!p.is_premium,
+        is_trusted: !!p.is_trusted,
+        trades_completed: p.trades_completed ?? 0,
+        rating_avg: ratingCount > 0 ? (p.rating_sum ?? 0) / ratingCount : null,
         rating_count: ratingCount,
       };
     });
@@ -215,12 +217,14 @@ export const listMarketplace = createServerFn({ method: "GET" })
       ? (
           await supabaseAdmin
             .from("profiles")
-            .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
+            .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count")
             .in("user_id", ids)
         ).data ?? []
       : [];
-    const pm = new Map(profs.map((p) => [p.user_id, p]));
-    const enriched: ListingRow[] = (rows ?? []).map((r) => ({
+    const now = Date.now();
+    const visible = profs.filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
+    const enriched: ListingRow[] = (rows ?? []).filter((r) => pm.has(r.user_id)).map((r) => ({
       ...(r as Omit<ListingRow, "profile">),
       profile: (pm.get(r.user_id) as ListingRow["profile"]) ?? null,
     }));
@@ -359,24 +363,43 @@ export const adminBanThreadAuthor = createServerFn({ method: "POST" })
   });
 
 export const getPublicProfile = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ userId: z.string().uuid() }))
+  .inputValidator(
+    z.object({
+      userId: z.string().uuid(),
+      sort: z.enum(["newest", "active", "pinned"]).default("pinned"),
+      kind: z.enum(["all", "selling", "seeking"]).default("all"),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(50).default(10),
+    }),
+  )
   .handler(async ({ data }) => {
     const { data: p, error } = await supabaseAdmin
       .from("profiles")
-      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,trades_completed,rating_sum,rating_count,btc_volume_usd,created_at")
+      .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count,btc_volume_usd,created_at")
       .eq("user_id", data.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!p) throw new Error("Profile not found");
-    const { data: rows } = await supabaseAdmin
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    let q = supabaseAdmin
       .from("listings")
-      .select("id,kind,name,category,amount,currency,status,created_at,is_pinned")
+      .select("id,kind,name,category,amount,currency,status,created_at,is_pinned", { count: "exact" })
       .eq("user_id", data.userId)
-      .eq("status", "active")
-      .order("is_pinned", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .eq("status", "active");
+    if (data.kind !== "all") q = q.eq("kind", data.kind);
+    if (data.sort === "newest") {
+      q = q.order("created_at", { ascending: false });
+    } else if (data.sort === "active") {
+      // most recent activity = created_at (no last_bumped_at column yet)
+      q = q.order("created_at", { ascending: false });
+    } else {
+      q = q.order("is_pinned", { ascending: false }).order("created_at", { ascending: false });
+    }
+    const { data: rows, count } = await q.range(from, to);
     const ratingCount = p.rating_count ?? 0;
+    const now = Date.now();
+    const isBlocked = !!p.is_banned || !!(p.suspended_until && new Date(p.suspended_until).getTime() > now);
     return {
       profile: {
         user_id: p.user_id,
@@ -386,13 +409,16 @@ export const getPublicProfile = createServerFn({ method: "GET" })
         is_premium: !!p.is_premium,
         is_trusted: !!p.is_trusted,
         is_banned: !!p.is_banned,
+        is_blocked: isBlocked,
+        suspended_until: p.suspended_until ?? null,
         trades_completed: p.trades_completed ?? 0,
         rating_avg: ratingCount > 0 ? (p.rating_sum ?? 0) / ratingCount : null,
         rating_count: ratingCount,
         btc_volume_usd: Number(p.btc_volume_usd ?? 0),
         joined_at: p.created_at,
       },
-      threads: rows ?? [],
+      threads: isBlocked ? [] : (rows ?? []),
+      totalCount: isBlocked ? 0 : (count ?? 0),
     };
   });
 
@@ -414,10 +440,13 @@ export const createListing = createServerFn({ method: "POST" })
     const { userId } = context;
     const { data: prof } = await supabaseAdmin
       .from("profiles")
-      .select("is_banned, telegram_username")
+      .select("is_banned, suspended_until, telegram_username")
       .eq("user_id", userId)
       .maybeSingle();
-    if (prof?.is_banned) throw new Error("Account is banned");
+    if (prof?.is_banned) throw new Error("Your account has been banned and cannot post new threads.");
+    if (prof?.suspended_until && new Date(prof.suspended_until).getTime() > Date.now()) {
+      throw new Error(`Your account is suspended until ${new Date(prof.suspended_until).toLocaleString()}.`);
+    }
     // Auto-assign the linked Telegram username unless user explicitly overrode it
     const tg = (data.contact_telegram?.trim() || prof?.telegram_username || "").replace(/^@/, "");
     const { data: row, error } = await supabaseAdmin
@@ -465,3 +494,84 @@ export const updateListingStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============================== AUTHOR SELF-SERVICE ==============================
+
+export const updateMyThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().trim().min(2).max(120).optional(),
+      description: z.string().trim().min(5).max(2000).optional(),
+      category: z.string().trim().min(2).max(60).optional(),
+      amount: z.number().nonnegative().nullable().optional(),
+      currency: z.string().trim().min(3).max(8).optional(),
+      contact_telegram: z.string().trim().max(60).nullable().optional(),
+      contact_website: z.string().trim().max(200).nullable().optional(),
+      status: z.enum(["active", "inactive", "sold"]).optional(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { data: prof } = await supabaseAdmin
+      .from("profiles").select("is_banned,suspended_until").eq("user_id", context.userId).maybeSingle();
+    if (prof?.is_banned) throw new Error("Your account has been banned.");
+    if (prof?.suspended_until && new Date(prof.suspended_until).getTime() > Date.now()) {
+      throw new Error("Your account is suspended.");
+    }
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+    const { error } = await supabaseAdmin
+      .from("listings").update(clean as never).eq("id", id).eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteMyThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { error } = await supabaseAdmin
+      .from("listings").delete().eq("id", data.id).eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ============================== ADMIN BULK ==============================
+
+export const adminBulkUserAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      user_ids: z.array(z.string().uuid()).min(1).max(200),
+      action: z.enum(["ban", "unban", "suspend_7d", "suspend_30d", "wipe_threads"]),
+      reason: z.string().trim().max(500).optional(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context.userId);
+    const reason = data.reason?.trim() || "Bulk admin action";
+    if (data.action === "ban") {
+      for (const uid of data.user_ids) {
+        await supabaseAdmin.rpc("ban_user", { _target: uid, _caller: context.userId, _reason: reason });
+      }
+      await supabaseAdmin.from("listings").update({ status: "inactive" }).in("user_id", data.user_ids);
+    } else if (data.action === "unban") {
+      for (const uid of data.user_ids) {
+        await supabaseAdmin.rpc("unban_user", { _target: uid, _caller: context.userId });
+      }
+    } else if (data.action === "suspend_7d" || data.action === "suspend_30d") {
+      const days = data.action === "suspend_7d" ? 7 : 30;
+      const until = new Date(Date.now() + days * 24 * 3600_000).toISOString();
+      const { error } = await supabaseAdmin
+        .from("profiles").update({ suspended_until: until }).in("user_id", data.user_ids);
+      if (error) throw new Error(error.message);
+    } else if (data.action === "wipe_threads") {
+      const { error } = await supabaseAdmin
+        .from("listings").delete().in("user_id", data.user_ids);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true, count: data.user_ids.length };
+  });
+
