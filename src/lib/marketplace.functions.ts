@@ -154,10 +154,12 @@ export const listCategoryThreads = createServerFn({ method: "GET" })
     const ids = Array.from(new Set((rows ?? []).map((r) => r.user_id)));
     const { data: profs } = ids.length
       ? await supabaseAdmin.from("profiles")
-          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,trades_completed,rating_sum,rating_count")
+          .select("user_id,display_name,avatar_url,telegram_username,is_premium,is_trusted,is_banned,suspended_until,trades_completed,rating_sum,rating_count")
           .in("user_id", ids)
-      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; trades_completed: number; rating_sum: number; rating_count: number }> };
-    const pm = new Map((profs ?? []).map((p) => [p.user_id, p]));
+      : { data: [] as Array<{ user_id: string; display_name: string; avatar_url: string | null; telegram_username: string | null; is_premium: boolean; is_trusted: boolean; is_banned: boolean; suspended_until: string | null; trades_completed: number; rating_sum: number; rating_count: number }> };
+    const now = Date.now();
+    const visible = (profs ?? []).filter((p) => !p.is_banned && !(p.suspended_until && new Date(p.suspended_until).getTime() > now));
+    const pm = new Map(visible.map((p) => [p.user_id, p]));
     const threads: CategoryThread[] = (rows ?? []).map((r) => {
       const p = pm.get(r.user_id);
       const ratingCount = p?.rating_count ?? 0;
