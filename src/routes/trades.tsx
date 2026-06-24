@@ -73,6 +73,7 @@ function Trades() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <TradesSubNav />
       <PortfolioHero
         eyebrow="Escrow trades"
         title="Your escrow activity"
