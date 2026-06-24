@@ -494,3 +494,84 @@ export const updateListingStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============================== AUTHOR SELF-SERVICE ==============================
+
+export const updateMyThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().trim().min(2).max(120).optional(),
+      description: z.string().trim().min(5).max(2000).optional(),
+      category: z.string().trim().min(2).max(60).optional(),
+      amount: z.number().nonnegative().nullable().optional(),
+      currency: z.string().trim().min(3).max(8).optional(),
+      contact_telegram: z.string().trim().max(60).nullable().optional(),
+      contact_website: z.string().trim().max(200).nullable().optional(),
+      status: z.enum(["active", "inactive", "sold"]).optional(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { data: prof } = await supabaseAdmin
+      .from("profiles").select("is_banned,suspended_until").eq("user_id", context.userId).maybeSingle();
+    if (prof?.is_banned) throw new Error("Your account has been banned.");
+    if (prof?.suspended_until && new Date(prof.suspended_until).getTime() > Date.now()) {
+      throw new Error("Your account is suspended.");
+    }
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) clean[k] = v;
+    const { error } = await supabaseAdmin
+      .from("listings").update(clean).eq("id", id).eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteMyThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { error } = await supabaseAdmin
+      .from("listings").delete().eq("id", data.id).eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ============================== ADMIN BULK ==============================
+
+export const adminBulkUserAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      user_ids: z.array(z.string().uuid()).min(1).max(200),
+      action: z.enum(["ban", "unban", "suspend_7d", "suspend_30d", "wipe_threads"]),
+      reason: z.string().trim().max(500).optional(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStaff(context.userId);
+    const reason = data.reason?.trim() || "Bulk admin action";
+    if (data.action === "ban") {
+      for (const uid of data.user_ids) {
+        await supabaseAdmin.rpc("ban_user", { _target: uid, _caller: context.userId, _reason: reason });
+      }
+      await supabaseAdmin.from("listings").update({ status: "inactive" }).in("user_id", data.user_ids);
+    } else if (data.action === "unban") {
+      for (const uid of data.user_ids) {
+        await supabaseAdmin.rpc("unban_user", { _target: uid, _caller: context.userId });
+      }
+    } else if (data.action === "suspend_7d" || data.action === "suspend_30d") {
+      const days = data.action === "suspend_7d" ? 7 : 30;
+      const until = new Date(Date.now() + days * 24 * 3600_000).toISOString();
+      const { error } = await supabaseAdmin
+        .from("profiles").update({ suspended_until: until }).in("user_id", data.user_ids);
+      if (error) throw new Error(error.message);
+    } else if (data.action === "wipe_threads") {
+      const { error } = await supabaseAdmin
+        .from("listings").delete().in("user_id", data.user_ids);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true, count: data.user_ids.length };
+  });
+
