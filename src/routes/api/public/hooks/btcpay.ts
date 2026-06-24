@@ -44,6 +44,20 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+        // Idempotency: dedupe by BTCPay delivery id. Replays return the cached result.
+        const deliveryId = evt.deliveryId ?? evt.originalDeliveryId ?? null;
+        if (deliveryId) {
+          const { data: prior } = await supabaseAdmin
+            .from("webhook_deliveries" as never)
+            .select("id, result")
+            .eq("source", "btcpay")
+            .eq("delivery_id", deliveryId)
+            .maybeSingle();
+          if (prior) {
+            return Response.json({ ok: true, replay: true, result: (prior as { result: unknown }).result });
+          }
+        }
+
         // Log every webhook receipt (audit)
         await supabaseAdmin.from("escrow_events").insert({
           trade_id: null,
