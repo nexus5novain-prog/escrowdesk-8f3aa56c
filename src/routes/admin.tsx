@@ -1452,16 +1452,12 @@ function EditProductDialog({ product, update, onSaved }: {
         seller_wallet_address: f.seller_wallet_address ? f.seller_wallet_address : null,
         is_featured: f.is_featured,
         status: f.status,
-        card_number: isBin ? (f.card_number || null) : null,
         bin_number: isBin ? (f.bin_number || null) : null,
         card_user: isBin ? (f.card_user || null) : null,
         card_type: isBin ? (f.card_type || null) : null,
         card_brand: isBin ? (f.card_brand || null) : null,
         card_bank: isBin ? (f.card_bank || null) : null,
         card_country: isBin ? (f.card_country || null) : null,
-        card_address: isBin ? (f.card_address || null) : null,
-        cvv: isBin ? (f.cvv || null) : null,
-        expire_date: isBin ? (f.expire_date || null) : null,
       } });
       toast.success("Product updated");
       setOpen(false);
