@@ -1343,6 +1343,28 @@ function EditProductDialog({ product, update, onSaved }: {
   }));
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
 
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Pick an image file");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Image must be ≤ 5 MB");
+    setUploading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      // Chunked base64 to avoid call-stack blow-ups on large files
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const data_base64 = btoa(binary);
+      const res = await uploadImage({ data: { content_type: file.type, filename: file.name, data_base64 } }) as { url: string };
+      set("image_url", res.url);
+      toast.success("Image uploaded");
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setUploading(false); }
+  };
+
   const save = async () => {
     const price = Number(f.price);
     if (!f.name.trim() || !f.description.trim()) return toast.error("Name and description required");
