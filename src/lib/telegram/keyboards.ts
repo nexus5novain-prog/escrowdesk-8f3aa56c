@@ -14,7 +14,7 @@
 import { createHmac } from "crypto";
 
 const SIG_LEN = 8;
-const APP_URL = "https://escrowdesk.lovable.app";
+const APP_URL = "https://escrowdesk.nexorian.shop";
 // Buttons expire 24h after being minted.
 const MAX_AGE_SEC = 24 * 60 * 60;
 
