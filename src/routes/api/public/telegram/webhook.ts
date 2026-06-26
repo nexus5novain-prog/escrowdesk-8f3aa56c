@@ -701,7 +701,7 @@ async function handle(update: Record<string, unknown>) {
     );
   }
 
-  if (text.startsWith("/dispute-status") || text.startsWith("/dispute_status")) {
+  if ((text.startsWith("/dispute-status") || text.startsWith("/dispute_status")) && profile) {
     const idArg = text.split(/\s+/)[1];
     if (!idArg) return send("Usage: <code>/dispute-status TRADE_ID</code>");
     const full = await resolveTradeId(idArg, profile.user_id);
