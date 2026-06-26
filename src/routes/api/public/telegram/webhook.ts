@@ -684,7 +684,7 @@ async function handle(update: Record<string, unknown>) {
       return send(`Unknown help topic <code>${arg}</code>. Try /help`);
   }
 
-  if (text === "/whoami" || text.startsWith("/whoami ")) {
+  if ((text === "/whoami" || text.startsWith("/whoami ")) && profile) {
     const { data: prof } = await supabaseAdmin
       .from("profiles")
       .select("display_name, totp_enabled_at, telegram_username")
