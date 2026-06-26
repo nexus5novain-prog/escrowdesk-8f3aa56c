@@ -23,7 +23,7 @@ export type NotificationKind =
   | "admin_ban"
   | "system";
 
-const APP_URL = "https://escrowdesk.lovable.app";
+const APP_URL = "https://escrowdesk.nexorian.shop";
 
 export async function notifyUser(args: {
   userId: string;

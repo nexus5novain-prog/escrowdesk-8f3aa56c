@@ -24,7 +24,7 @@ async function notifyUser(
     .eq("user_id", userId)
     .maybeSingle();
   if (data?.telegram_user_id) {
-    const tail = opts.link ? `\n\n<a href="https://escrowdesk.lovable.app${opts.link}">Open in EscrowDesk →</a>` : "";
+    const tail = opts.link ? `\n\n<a href="https://escrowdesk.nexorian.shop${opts.link}">Open in EscrowDesk →</a>` : "";
     // Attach action keyboard for trade-scoped notifications.
     let reply_markup: Record<string, unknown> | undefined;
     const tradeIdMatch = opts.link?.match(/^\/trade\/([0-9a-f-]+)/i);

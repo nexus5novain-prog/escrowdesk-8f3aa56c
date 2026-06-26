@@ -131,7 +131,7 @@ async function consumeTotp(
 function enrollHint(cmd: string): string {
   return (
     `🔒 <b>${cmd}</b> requires two-factor authentication.\n\n` +
-    `Enable 2FA at https://escrowdesk.lovable.app → Settings → Security, ` +
+    `Enable 2FA at https://escrowdesk.nexorian.shop → Settings → Security, ` +
     `then append your 6-digit code as the LAST argument.\n\n` +
     `Example: <code>${cmd} ARG 123456</code>`
   );
