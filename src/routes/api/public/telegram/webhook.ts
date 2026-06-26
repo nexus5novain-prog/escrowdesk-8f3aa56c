@@ -682,7 +682,83 @@ async function handle(update: Record<string, unknown>) {
         });
       }
       return send(`Unknown help topic <code>${arg}</code>. Try /help`);
+  }
+
+  if (text === "/whoami" || text.startsWith("/whoami ")) {
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name, totp_enabled_at, telegram_username")
+      .eq("user_id", profile.user_id).maybeSingle();
+    const name = prof?.display_name || prof?.telegram_username || "(no display name)";
+    const totp = prof?.totp_enabled_at ? "✅ enabled" : "❌ not set up";
+    const rolesText = roles.length ? roles.join(", ") : "user";
+    return send(
+      `🪪 <b>Who am I</b>\n` +
+      `Account: <b>${escapeHtmlSafe(name)}</b> (<code>${profile.user_id.slice(0,8)}</code>)\n` +
+      `Roles:   <code>${rolesText}</code>\n` +
+      `2FA:     ${totp}\n` +
+      (prof?.totp_enabled_at ? "" : "\nEnable 2FA at <i>Settings → Security</i> on the web app to use sensitive commands."),
+    );
+  }
+
+  if (text.startsWith("/dispute-status") || text.startsWith("/dispute_status")) {
+    const idArg = text.split(/\s+/)[1];
+    if (!idArg) return send("Usage: <code>/dispute-status TRADE_ID</code>");
+    const full = await resolveTradeId(idArg, profile.user_id);
+    if (!full) return send("Trade not found (or you're not a party).");
+    const { data: tr } = await supabaseAdmin.from("trades")
+      .select("id, status, buyer_id, seller_id").eq("id", full).maybeSingle();
+    if (!tr || (tr.buyer_id !== profile.user_id && tr.seller_id !== profile.user_id)) {
+      return send("You're not a party to this trade.");
     }
+    const { data: kase } = await supabaseAdmin.from("arbitration_cases")
+      .select("id, status, category, summary, opened_at, ruled_at, closed_at, mediator_id, outcome, outcome_note")
+      .eq("trade_id", full).order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    if (!kase) {
+      const { data: d } = await supabaseAdmin.from("disputes")
+        .select("status, reason, created_at, resolved_at, resolution_note")
+        .eq("trade_id", full).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!d) return send(`No dispute on trade <code>${full.slice(0,8)}</code> (status: ${tr.status}).`);
+      return send(
+        `🧾 <b>Dispute on <code>${full.slice(0,8)}</code></b>\n` +
+        `Stage:    <code>${d.status}</code>\n` +
+        `Opened:   ${new Date(d.created_at).toLocaleString()}\n` +
+        `Reason:   ${escapeHtmlSafe(d.reason || "—").slice(0, 200)}\n` +
+        (d.resolved_at ? `Resolved: ${new Date(d.resolved_at).toLocaleString()}\nNote:     ${escapeHtmlSafe(d.resolution_note || "—").slice(0,300)}` : ""),
+      );
+    }
+    // Evidence window: 72h from opened_at unless ruled
+    const openedMs = new Date(kase.opened_at).getTime();
+    const deadlineMs = openedMs + 72 * 60 * 60_000;
+    const remH = Math.max(0, Math.round((deadlineMs - Date.now()) / 36e5));
+    const evidenceLine = kase.ruled_at
+      ? `Evidence: ⛔ closed`
+      : `Evidence: open · deadline ${new Date(deadlineMs).toLocaleString()} (${remH}h left)`;
+    // Public timeline (no private notes)
+    const { data: tl } = await supabaseAdmin.from("arbitration_timeline")
+      .select("kind, body, created_at").eq("case_id", kase.id)
+      .order("created_at", { ascending: true }).limit(8);
+    const tlLines = (tl ?? []).map((e) =>
+      `• <i>${new Date(e.created_at).toLocaleString()}</i> · <code>${e.kind}</code>${e.body ? ` — ${escapeHtmlSafe(e.body).slice(0,140)}` : ""}`,
+    );
+    return send(
+      `🧾 <b>Dispute on <code>${full.slice(0,8)}</code></b>\n` +
+      `Case:     <code>${kase.id.slice(0,8)}</code> · ${escapeHtmlSafe(kase.category || "general")}\n` +
+      `Stage:    <code>${kase.status}</code>\n` +
+      `Opened:   ${new Date(kase.opened_at).toLocaleString()}\n` +
+      `${evidenceLine}\n` +
+      `Mediator: ${kase.mediator_id ? "👤 assigned" : "— not yet assigned"}\n` +
+      (kase.summary ? `Summary:  ${escapeHtmlSafe(kase.summary).slice(0,200)}\n` : "") +
+      (kase.ruled_at
+        ? `\n<b>Ruling</b> (${new Date(kase.ruled_at).toLocaleString()})\n` +
+          `Outcome: <code>${kase.outcome ?? "—"}</code>\n` +
+          (kase.outcome_note ? `Note: ${escapeHtmlSafe(kase.outcome_note).slice(0,400)}\n` : "")
+        : "") +
+      (tlLines.length ? `\n<b>Timeline</b>\n${tlLines.join("\n")}` : "") +
+      `\n\n<i>Private judge notes are not shown.</i>`,
+    );
+  }
+
     return tgCall("sendMessage", {
       chat_id: chat.id,
       text: helpMenuText(visibleTopics, roles),
