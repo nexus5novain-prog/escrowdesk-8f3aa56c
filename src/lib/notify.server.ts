@@ -3,6 +3,7 @@
 
 import { tgSendMessage } from "@/lib/telegram.server";
 import { tradeActionKeyboard } from "@/lib/telegram/keyboards";
+import { APP_URL } from "@/lib/app-config";
 
 export type NotificationKind =
   | "escrow_invoice_created"
@@ -22,8 +23,6 @@ export type NotificationKind =
   | "admin_warning"
   | "admin_ban"
   | "system";
-
-const APP_URL = "https://escrowdesk.nexorian.shop";
 
 export async function notifyUser(args: {
   userId: string;

@@ -69,9 +69,21 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+import { APP_URL, APP_HOST, LEGACY_HOSTS } from "./lib/app-config";
+
+function redirectLegacyHost(request: Request): Response | null {
+  const url = new URL(request.url);
+  if (url.host === APP_HOST) return null;
+  if (!LEGACY_HOSTS.includes(url.host)) return null;
+  const target = new URL(url.pathname + url.search + url.hash, APP_URL);
+  return Response.redirect(target.toString(), 301);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const redirect = redirectLegacyHost(request);
+      if (redirect) return redirect;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
