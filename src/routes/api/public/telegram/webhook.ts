@@ -372,6 +372,77 @@ const HELP_TOPICS: HelpTopic[] = [
       "<code>/warn 9f1c0a3b major slow response on dispute</code>",
     ].join("\n"),
   },
+  {
+    key: "whoami",
+    label: "🪪 /whoami",
+    title: "🪪 <b>/whoami</b> — Show your linked account",
+    body: [
+      "Shows the EscrowDesk account this Telegram is linked to,",
+      "your assigned roles, and whether 2FA (TOTP) is set up.",
+      "",
+      "<b>Usage</b>",
+      "<code>/whoami</code>",
+      "",
+      "<b>Example output</b>",
+      "<code>Account: Alice (9f1c0a3b…)</code>",
+      "<code>Roles:   user, judge</code>",
+      "<code>2FA:     ✅ enabled</code>",
+    ].join("\n"),
+  },
+  {
+    key: "dispute-status",
+    label: "🧾 /dispute-status",
+    title: "🧾 <b>/dispute-status TRADE_ID</b> — View your dispute",
+    body: [
+      "Shows the current arbitration stage for a trade you are a party to:",
+      "case status, evidence-window deadline, mediator (if assigned),",
+      "and the public timeline + ruling note.",
+      "Private judge notes are NEVER shown — only what you're entitled to see.",
+      "",
+      "<b>Usage</b>",
+      "<code>/dispute-status TRADE_ID</code>",
+      "",
+      "<b>Example</b>",
+      "<code>/dispute-status 1a2b3c4d</code>",
+    ].join("\n"),
+  },
+  {
+    key: "buttons",
+    label: "🔘 Inline buttons & 2FA",
+    title: "🔘 <b>Inline buttons &amp; when the 2FA prompt appears</b>",
+    body: [
+      "Trade notifications come with inline buttons. Buttons are signed,",
+      "bound to your Telegram ID, and <b>expire 24h</b> after being sent.",
+      "If a button is too old or forwarded, you'll see an error — just",
+      "run the equivalent typed command instead.",
+      "",
+      "<b>Buttons that act immediately (no 2FA)</b>",
+      "• ✅ <b>I've paid</b> — marks fiat-sent on a trade you bought.",
+      "• 💬 <b>Reply</b> — replies with your next message as a chat post.",
+      "• 🔗 <b>Open on web</b> — deep-links to the trade page.",
+      "",
+      "<b>Buttons that trigger a 2FA prompt</b>",
+      "Pressing any of these sends a follow-up message with",
+      "<i>force-reply</i> asking for your 6-digit code (or recovery code).",
+      "The action only runs after that reply verifies. The prompt expires",
+      "in 5 minutes; if you reply too late, press the button again.",
+      "",
+      "• ✅ <b>Confirm deposit</b> → prompts for 2FA → runs /confirm.",
+      "• 🎉 <b>Release</b> → prompts for 2FA → runs /release.",
+      "• 🚩 <b>Dispute</b> → prompts for 2FA → opens dispute.",
+      "",
+      "<b>Typed sensitive commands</b>",
+      "/sign, /confirm, /release, /dispute, /terms, /withdraw,",
+      "/cancelwithdraw, /resolve, /approve, /reject, /fee, /ban, /unban,",
+      "/warn all require the 2FA code as the <b>last argument</b>:",
+      "",
+      "<code>/release TRADE_ID 123456</code>",
+      "<code>/release TRADE_ID XXXX-XXXX</code>   ← recovery code",
+      "",
+      "After 5 failed codes in 15 min, Telegram fund actions are paused.",
+      "Enable 2FA at <i>Settings → Security</i> on the web app first.",
+    ].join("\n"),
+  },
 ];
 
 function topicsForRoles(roles: string[]): HelpTopic[] {
@@ -611,7 +682,83 @@ async function handle(update: Record<string, unknown>) {
         });
       }
       return send(`Unknown help topic <code>${arg}</code>. Try /help`);
+  }
+
+  if ((text === "/whoami" || text.startsWith("/whoami ")) && profile) {
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name, totp_enabled_at, telegram_username")
+      .eq("user_id", profile.user_id).maybeSingle();
+    const name = prof?.display_name || prof?.telegram_username || "(no display name)";
+    const totp = prof?.totp_enabled_at ? "✅ enabled" : "❌ not set up";
+    const rolesText = roles.length ? roles.join(", ") : "user";
+    return send(
+      `🪪 <b>Who am I</b>\n` +
+      `Account: <b>${escapeHtmlSafe(name)}</b> (<code>${profile.user_id.slice(0,8)}</code>)\n` +
+      `Roles:   <code>${rolesText}</code>\n` +
+      `2FA:     ${totp}\n` +
+      (prof?.totp_enabled_at ? "" : "\nEnable 2FA at <i>Settings → Security</i> on the web app to use sensitive commands."),
+    );
+  }
+
+  if ((text.startsWith("/dispute-status") || text.startsWith("/dispute_status")) && profile) {
+    const idArg = text.split(/\s+/)[1];
+    if (!idArg) return send("Usage: <code>/dispute-status TRADE_ID</code>");
+    const full = await resolveTradeId(idArg, profile.user_id);
+    if (!full) return send("Trade not found (or you're not a party).");
+    const { data: tr } = await supabaseAdmin.from("trades")
+      .select("id, status, buyer_id, seller_id").eq("id", full).maybeSingle();
+    if (!tr || (tr.buyer_id !== profile.user_id && tr.seller_id !== profile.user_id)) {
+      return send("You're not a party to this trade.");
     }
+    const { data: kase } = await supabaseAdmin.from("arbitration_cases")
+      .select("id, status, category, summary, opened_at, ruled_at, closed_at, mediator_id, outcome, outcome_note")
+      .eq("trade_id", full).order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    if (!kase) {
+      const { data: d } = await supabaseAdmin.from("disputes")
+        .select("status, reason, created_at, resolved_at, resolution_note")
+        .eq("trade_id", full).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!d) return send(`No dispute on trade <code>${full.slice(0,8)}</code> (status: ${tr.status}).`);
+      return send(
+        `🧾 <b>Dispute on <code>${full.slice(0,8)}</code></b>\n` +
+        `Stage:    <code>${d.status}</code>\n` +
+        `Opened:   ${new Date(d.created_at).toLocaleString()}\n` +
+        `Reason:   ${escapeHtmlSafe(d.reason || "—").slice(0, 200)}\n` +
+        (d.resolved_at ? `Resolved: ${new Date(d.resolved_at).toLocaleString()}\nNote:     ${escapeHtmlSafe(d.resolution_note || "—").slice(0,300)}` : ""),
+      );
+    }
+    // Evidence window: 72h from opened_at unless ruled
+    const openedMs = new Date(kase.opened_at).getTime();
+    const deadlineMs = openedMs + 72 * 60 * 60_000;
+    const remH = Math.max(0, Math.round((deadlineMs - Date.now()) / 36e5));
+    const evidenceLine = kase.ruled_at
+      ? `Evidence: ⛔ closed`
+      : `Evidence: open · deadline ${new Date(deadlineMs).toLocaleString()} (${remH}h left)`;
+    // Public timeline (no private notes)
+    const { data: tl } = await supabaseAdmin.from("arbitration_timeline")
+      .select("kind, body, created_at").eq("case_id", kase.id)
+      .order("created_at", { ascending: true }).limit(8);
+    const tlLines = (tl ?? []).map((e) =>
+      `• <i>${new Date(e.created_at).toLocaleString()}</i> · <code>${e.kind}</code>${e.body ? ` — ${escapeHtmlSafe(e.body).slice(0,140)}` : ""}`,
+    );
+    return send(
+      `🧾 <b>Dispute on <code>${full.slice(0,8)}</code></b>\n` +
+      `Case:     <code>${kase.id.slice(0,8)}</code> · ${escapeHtmlSafe(kase.category || "general")}\n` +
+      `Stage:    <code>${kase.status}</code>\n` +
+      `Opened:   ${new Date(kase.opened_at).toLocaleString()}\n` +
+      `${evidenceLine}\n` +
+      `Mediator: ${kase.mediator_id ? "👤 assigned" : "— not yet assigned"}\n` +
+      (kase.summary ? `Summary:  ${escapeHtmlSafe(kase.summary).slice(0,200)}\n` : "") +
+      (kase.ruled_at
+        ? `\n<b>Ruling</b> (${new Date(kase.ruled_at).toLocaleString()})\n` +
+          `Outcome: <code>${kase.outcome ?? "—"}</code>\n` +
+          (kase.outcome_note ? `Note: ${escapeHtmlSafe(kase.outcome_note).slice(0,400)}\n` : "")
+        : "") +
+      (tlLines.length ? `\n<b>Timeline</b>\n${tlLines.join("\n")}` : "") +
+      `\n\n<i>Private judge notes are not shown.</i>`,
+    );
+  }
+
     return tgCall("sendMessage", {
       chat_id: chat.id,
       text: helpMenuText(visibleTopics, roles),
