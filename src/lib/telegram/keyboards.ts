@@ -12,9 +12,9 @@
 // caps callback_data at 64 bytes — this format fits comfortably under that.
 
 import { createHmac } from "crypto";
+import { APP_URL } from "@/lib/app-config";
 
 const SIG_LEN = 8;
-const APP_URL = "https://escrowdesk.nexorian.shop";
 // Buttons expire 24h after being minted.
 const MAX_AGE_SEC = 24 * 60 * 60;
 
