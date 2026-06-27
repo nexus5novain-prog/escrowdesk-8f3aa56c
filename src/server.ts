@@ -79,6 +79,29 @@ function redirectLegacyHost(request: Request): Response | null {
   return Response.redirect(target.toString(), 301);
 }
 
+const ICON_ASSET_PATHS = new Set([
+  "/favicon.ico",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/manifest.webmanifest",
+]);
+
+function applyIconCacheHeaders(request: Request, response: Response): Response {
+  const url = new URL(request.url);
+  if (!ICON_ASSET_PATHS.has(url.pathname)) return response;
+  if (response.status >= 400) return response;
+  const headers = new Headers(response.headers);
+  // Short max-age + must-revalidate so clients pick up the new icon quickly
+  // after a domain/branding change, but still benefit from CDN edge caching.
+  headers.set("Cache-Control", "public, max-age=300, must-revalidate");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -86,7 +109,8 @@ export default {
       if (redirect) return redirect;
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      return applyIconCacheHeaders(request, normalized);
     } catch (error) {
       console.error(error);
       return brandedErrorResponse();
