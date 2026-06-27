@@ -18,7 +18,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "escrowdesk"
+const SITE_NAME = "EscrowDesk"
 const ROOT_DOMAIN = "escrowdesk.nexorian.shop"
 
 // Sample data for preview mode ONLY (not used in actual email sending).
