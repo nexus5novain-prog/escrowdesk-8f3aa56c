@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as TrustRouteImport } from './routes/trust'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as TradesRouteImport } from './routes/trades'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -37,6 +38,11 @@ import { Route as ApiPublicHooksBtcConfirmPollRouteImport } from './routes/api/p
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrustRoute = TrustRouteImport.update({
+  id: '/trust',
+  path: '/trust',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TransactionsRoute = TransactionsRouteImport.update({
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
+  '/trust': typeof TrustRoute
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
+  '/trust': typeof TrustRoute
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/trades': typeof TradesRoute
   '/transactions': typeof TransactionsRoute
+  '/trust': typeof TrustRoute
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/trades'
     | '/transactions'
+    | '/trust'
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/trades'
     | '/transactions'
+    | '/trust'
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/trades'
     | '/transactions'
+    | '/trust'
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TradesRoute: typeof TradesRoute
   TransactionsRoute: typeof TransactionsRoute
+  TrustRoute: typeof TrustRoute
   WalletRoute: typeof WalletRoute
   ApiPaymentMetadataRoute: typeof ApiPaymentMetadataRoute
   OfferIdRoute: typeof OfferIdRoute
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trust': {
+      id: '/trust'
+      path: '/trust'
+      fullPath: '/trust'
+      preLoaderRoute: typeof TrustRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/transactions': {
@@ -542,6 +562,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TradesRoute: TradesRoute,
   TransactionsRoute: TransactionsRoute,
+  TrustRoute: TrustRoute,
   WalletRoute: WalletRoute,
   ApiPaymentMetadataRoute: ApiPaymentMetadataRoute,
   OfferIdRoute: OfferIdRoute,

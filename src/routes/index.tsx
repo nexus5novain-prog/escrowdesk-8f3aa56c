@@ -25,6 +25,8 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AnnouncementBanner as AdminAnnouncements } from "@/components/AnnouncementBanner";
 import { FreeBinLookup } from "@/components/FreeBinLookup";
+import { EscrowWorkflow } from "@/components/EscrowWorkflow";
+import { SecurityCompliance } from "@/components/SecurityCompliance";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,6 +44,8 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
+      <EscrowWorkflow />
+      <SecurityCompliance />
       <FreeBinLookup />
       <AdBanner placement="under_hero" variant="card" className="block" />
       <AdminAnnouncements />
