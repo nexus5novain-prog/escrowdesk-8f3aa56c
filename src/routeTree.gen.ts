@@ -31,6 +31,8 @@ import { Route as OfferIdRouteImport } from './routes/offer.$id'
 import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
 import { Route as ApiPaymentMetadataRouteImport } from './routes/api/payment-metadata'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicHooksReconcileRouteImport } from './routes/api/public/hooks/reconcile'
 import { Route as ApiPublicHooksBtcpayRouteImport } from './routes/api/public/hooks/btcpay'
@@ -147,6 +149,16 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
+  id: '/lovable/email/auth/preview',
+  path: '/lovable/email/auth/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTelegramWebhookRoute =
   ApiPublicTelegramWebhookRouteImport.update({
     id: '/api/public/telegram/webhook',
@@ -196,6 +208,8 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -224,6 +238,8 @@ export interface FileRoutesByTo {
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -253,6 +269,8 @@ export interface FileRoutesById {
   '/api/public/hooks/btcpay': typeof ApiPublicHooksBtcpayRoute
   '/api/public/hooks/reconcile': typeof ApiPublicHooksReconcileRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -283,6 +301,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -311,6 +331,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -339,6 +361,8 @@ export interface FileRouteTypes {
     | '/api/public/hooks/btcpay'
     | '/api/public/hooks/reconcile'
     | '/api/public/telegram/webhook'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -367,6 +391,8 @@ export interface RootRouteChildren {
   ApiPublicHooksBtcpayRoute: typeof ApiPublicHooksBtcpayRoute
   ApiPublicHooksReconcileRoute: typeof ApiPublicHooksReconcileRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
+  LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -526,6 +552,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/auth/webhook': {
+      id: '/lovable/email/auth/webhook'
+      path: '/lovable/email/auth/webhook'
+      fullPath: '/lovable/email/auth/webhook'
+      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/telegram/webhook': {
       id: '/api/public/telegram/webhook'
       path: '/api/public/telegram/webhook'
@@ -594,6 +634,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksBtcpayRoute: ApiPublicHooksBtcpayRoute,
   ApiPublicHooksReconcileRoute: ApiPublicHooksReconcileRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
+  LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
