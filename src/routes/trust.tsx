@@ -189,9 +189,9 @@ function TrustCenter() {
                 </a>
               </Button>
               <Button asChild variant="secondary" className="w-full">
-                <Link to="/support">
+                <a href="mailto:support@nexorian.shop?subject=EscrowDesk%20Support">
                   <LifeBuoy className="mr-2 h-4 w-4" /> Open a Ticket
-                </Link>
+                </a>
               </Button>
             </div>
           </div>
