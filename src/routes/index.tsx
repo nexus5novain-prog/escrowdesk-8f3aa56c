@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, useInView, useMotionValue, useSpring, useTransform, animate } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -77,16 +77,74 @@ function LandingPage() {
 }
 
 /* ───────────────────────── Hero ───────────────────────── */
+type Stat = {
+  label: string;
+  to: number;
+  prefix?: string;
+  suffix?: string;
+  decimals?: number;
+  display?: string; // overrides numeric formatting
+};
+
+function AnimatedNumber({
+  to, prefix = "", suffix = "", decimals = 0, display, duration = 2.2,
+}: { to: number; prefix?: string; suffix?: string; decimals?: number; display?: string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const mv = useMotionValue(0);
+  const [text, setText] = useState(display ?? `${prefix}0${suffix}`);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(mv, to, {
+      duration,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (latest) => {
+        if (display) {
+          // Animate just for effect, then snap to display label
+          setText(`${prefix}${latest.toFixed(decimals)}${suffix}`);
+        } else {
+          const formatted = decimals
+            ? latest.toFixed(decimals)
+            : Math.floor(latest).toLocaleString();
+          setText(`${prefix}${formatted}${suffix}`);
+        }
+      },
+      onComplete: () => {
+        if (display) setText(display);
+      },
+    });
+    return () => controls.stop();
+  }, [inView, to, duration, prefix, suffix, decimals, display, mv]);
+
+  return <span ref={ref}>{text}</span>;
+}
+
 function Hero() {
-  const stats = [
-    { value: "$2M+",   label: "Protected volume" },
-    { value: "1,200+", label: "Successful escrows" },
-    { value: "24/7",   label: "Support & mediation" },
-    { value: "2FA",    label: "Release protection" },
+  const stats: Stat[] = [
+    { label: "Protected volume",     to: 2,    prefix: "$",  suffix: "M+" },
+    { label: "Successful escrows",   to: 1200, suffix: "+" },
+    { label: "Support & mediation",  to: 24,   suffix: "/7", display: "24/7" },
+    { label: "Release protection",   to: 2,    suffix: "FA", display: "2FA" },
   ];
+
   return (
     <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 px-6 py-10 sm:px-10 sm:py-14 md:px-12 md:py-16">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+
+      {/* Animated ambient glows */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl"
+        animate={{ x: [0, 40, 0], y: [0, 20, 0], opacity: [0.35, 0.6, 0.35] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-accent/20 blur-3xl"
+        animate={{ x: [0, -30, 0], y: [0, -25, 0], opacity: [0.3, 0.55, 0.3] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -95,59 +153,115 @@ function Hero() {
             "radial-gradient(circle at 15% 20%, hsl(var(--primary)) 0, transparent 45%), radial-gradient(circle at 85% 70%, hsl(var(--accent)) 0, transparent 45%)",
         }}
       />
+
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative max-w-3xl"
       >
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          Headline
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-[3.25rem] md:leading-[1.05]">
-          Trade with Confidence.{" "}
-          <span className="text-primary">Settle with Escrow.</span>
+        <motion.p
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+          className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground inline-flex items-center gap-2"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+          </span>
+          Live · Institutional Escrow
+        </motion.p>
+
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-[3.25rem] md:leading-[1.05]">
+          {"Trade with Confidence.".split(" ").map((w, i) => (
+            <motion.span
+              key={i}
+              initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ delay: 0.15 + i * 0.08, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              className="inline-block mr-2"
+            >
+              {w}
+            </motion.span>
+          ))}
+          <motion.span
+            initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="inline-block bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] bg-clip-text text-transparent animate-[gradientShift_6s_ease_infinite]"
+            style={{ backgroundPositionX: "0%" }}
+          >
+            Settle with Escrow.
+          </motion.span>
         </h1>
-        <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+          className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base"
+        >
           Secure Bitcoin transactions protected by mediated escrow, multi-signature
           custody, and TOTP-verified releases. Whether you're settling a domain,
           service, vehicle, or digital asset — EscrowDesk keeps both parties
           protected until the deal is complete.
-        </p>
+        </motion.p>
 
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <Button asChild size="lg" className="gap-2 rounded-full px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85, duration: 0.5 }}
+          className="mt-7 flex flex-wrap items-center gap-3"
+        >
+          <Button asChild size="lg" className="group gap-2 rounded-full px-6 shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:shadow-primary/40">
             <Link to="/escrow">
-              <ShieldCheck className="h-4 w-4" /> Start a Secure Trade
+              <ShieldCheck className="h-4 w-4 transition-transform group-hover:rotate-6" /> Start a Secure Trade
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline" className="gap-2 rounded-full px-6">
+          <Button asChild size="lg" variant="outline" className="group gap-2 rounded-full px-6 transition-all hover:-translate-y-0.5">
             <Link to="/marketplace">
-              <Search className="h-4 w-4" /> Explore Marketplace
+              <Search className="h-4 w-4 transition-transform group-hover:scale-110" /> Explore Marketplace
             </Link>
           </Button>
-          <Button asChild size="lg" variant="ghost" className="gap-2 rounded-full px-5">
-            <Link to="/auth">Create Account <ArrowRight className="h-4 w-4" /></Link>
+          <Button asChild size="lg" variant="ghost" className="group gap-2 rounded-full px-5">
+            <Link to="/auth">
+              Create Account
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
           </Button>
-        </div>
+        </motion.div>
       </motion.div>
 
       <div className="relative mt-10 border-t border-border/70 pt-6">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="min-w-0">
+          {stats.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ delay: 0.2 + i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -2 }}
+              className="min-w-0 group"
+            >
               <dt className="sr-only">{s.label}</dt>
-              <dd className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">
-                {s.value}
+              <dd className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text">
+                <AnimatedNumber
+                  to={s.to}
+                  prefix={s.prefix}
+                  suffix={s.suffix}
+                  decimals={s.decimals ?? 0}
+                  display={s.display}
+                />
               </dd>
-              <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
-            </div>
+              <p className="mt-1 text-xs text-muted-foreground transition-colors group-hover:text-foreground/80">{s.label}</p>
+            </motion.div>
           ))}
         </dl>
       </div>
     </section>
   );
 }
+
 
 /* ─────────── Announcement banner (from ad_banners) ─────────── */
 function AnnouncementBanner() {
