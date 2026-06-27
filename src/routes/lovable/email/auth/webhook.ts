@@ -31,7 +31,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "escrowdesk"
+const SITE_NAME = "EscrowDesk"
 const SENDER_DOMAIN = "notify.escrowdesk.nexorian.shop"
 const ROOT_DOMAIN = "escrowdesk.nexorian.shop"
 const FROM_DOMAIN = "escrowdesk.nexorian.shop"
