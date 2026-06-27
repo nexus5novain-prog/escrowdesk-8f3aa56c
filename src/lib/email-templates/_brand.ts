@@ -1,0 +1,117 @@
+// Shared brand tokens for EscrowDesk auth emails.
+// Body background MUST stay #ffffff per email rules; brand colors are accents.
+
+export const brand = {
+  navy: '#0B1F3A',
+  navyDeep: '#06132A',
+  gold: '#D4A537',
+  goldDark: '#B5891E',
+  ink: '#0F172A',
+  muted: '#5B6477',
+  border: '#E6E9F0',
+  panel: '#F7F8FB',
+};
+
+export const styles = {
+  main: {
+    backgroundColor: '#ffffff',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    margin: 0,
+    padding: '32px 0',
+  },
+  container: {
+    maxWidth: '560px',
+    margin: '0 auto',
+    border: `1px solid ${brand.border}`,
+    borderRadius: '14px',
+    overflow: 'hidden' as const,
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    background: `linear-gradient(135deg, ${brand.navy} 0%, ${brand.navyDeep} 100%)`,
+    padding: '26px 32px',
+    borderBottom: `3px solid ${brand.gold}`,
+  },
+  brandRow: {
+    color: '#ffffff',
+    fontSize: '20px',
+    fontWeight: 700 as const,
+    letterSpacing: '0.3px',
+    margin: 0,
+  },
+  brandTag: {
+    color: brand.gold,
+    fontSize: '11px',
+    fontWeight: 600 as const,
+    letterSpacing: '2px',
+    textTransform: 'uppercase' as const,
+    margin: '6px 0 0',
+  },
+  body: { padding: '32px' },
+  h1: {
+    fontSize: '22px',
+    fontWeight: 700 as const,
+    color: brand.ink,
+    margin: '0 0 16px',
+    lineHeight: '1.3',
+  },
+  text: {
+    fontSize: '15px',
+    color: brand.muted,
+    lineHeight: '1.6',
+    margin: '0 0 20px',
+  },
+  link: { color: brand.navy, textDecoration: 'underline' },
+  button: {
+    backgroundColor: brand.navy,
+    color: '#ffffff',
+    fontSize: '15px',
+    fontWeight: 600 as const,
+    borderRadius: '10px',
+    padding: '14px 28px',
+    textDecoration: 'none',
+    display: 'inline-block',
+    border: `1px solid ${brand.navyDeep}`,
+  },
+  buttonWrap: { margin: '8px 0 28px' },
+  panel: {
+    backgroundColor: brand.panel,
+    border: `1px solid ${brand.border}`,
+    borderLeft: `3px solid ${brand.gold}`,
+    borderRadius: '8px',
+    padding: '14px 18px',
+    margin: '0 0 24px',
+  },
+  codeStyle: {
+    fontFamily: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+    fontSize: '28px',
+    fontWeight: 700 as const,
+    color: brand.navy,
+    letterSpacing: '6px',
+    textAlign: 'center' as const,
+    backgroundColor: brand.panel,
+    border: `1px solid ${brand.border}`,
+    borderRadius: '10px',
+    padding: '18px',
+    margin: '0 0 28px',
+  },
+  divider: {
+    borderTop: `1px solid ${brand.border}`,
+    margin: '24px 0',
+  },
+  footer: {
+    fontSize: '12px',
+    color: '#8A92A3',
+    margin: '8px 0 0',
+    lineHeight: '1.5',
+  },
+  footerBar: {
+    backgroundColor: brand.panel,
+    padding: '18px 32px',
+    borderTop: `1px solid ${brand.border}`,
+    fontSize: '12px',
+    color: '#8A92A3',
+    textAlign: 'center' as const,
+  },
+};
