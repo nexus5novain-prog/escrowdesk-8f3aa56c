@@ -44,8 +44,6 @@ function LandingPage() {
   return (
     <div className="space-y-6">
       <Hero />
-      <EscrowWorkflow />
-      <SecurityCompliance />
       <FreeBinLookup />
       <AdBanner placement="under_hero" variant="card" className="block" />
       <AdminAnnouncements />
@@ -70,6 +68,8 @@ function LandingPage() {
           <AdBanner placement="sidebar_bottom" variant="sidebar" className="block" />
         </aside>
       </div>
+      <EscrowWorkflow />
+      <SecurityCompliance />
       <AdBanner placement="center" variant="card" className="block" />
       <AdBanner placement="floating_corner" className="fixed bottom-4 right-4 z-40 w-64 hidden md:block" dismissable />
     </div>
