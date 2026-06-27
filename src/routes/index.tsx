@@ -88,23 +88,23 @@ function Hero() {
       <div className="relative mx-auto max-w-3xl text-center">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <Badge variant="outline" className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-primary/80">
-            <ShieldCheck className="mr-1.5 h-3 w-3" /> Mediated Peer-to-Peer Escrow
+            <ShieldCheck className="mr-1.5 h-3 w-3" /> Secure Institutional Escrow
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-            EscrowDesk <span className="text-primary">Community</span>
+            Bitcoin Escrow, <span className="text-primary">Done Right</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-balance text-sm leading-relaxed text-muted-foreground sm:text-base">
-            From BIN trades, scanners, enroll kits and combo packs — every deal is mediated, signed and settled on-platform.
+            Mediated two-party escrow with multi-signature custody, TOTP-protected releases, and on-chain settlement. Your funds, your control, our oversight.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="gap-2">
-              <Link to="/marketplace">Enter Marketplace <ArrowRight className="h-4 w-4" /></Link>
+              <Link to="/escrow">Open Escrow <ArrowRight className="h-4 w-4" /></Link>
             </Button>
             <Button asChild size="lg" variant="secondary" className="gap-2">
-              <a href="#bin-lookup">Free BIN Lookup <Search className="h-4 w-4" /></a>
+              <Link to="/trades">My Trades <Wallet className="h-4 w-4" /></Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="gap-2">
-              <Link to="/auth">Create account</Link>
+              <Link to="/auth">Create Account</Link>
             </Button>
           </div>
         </motion.div>
