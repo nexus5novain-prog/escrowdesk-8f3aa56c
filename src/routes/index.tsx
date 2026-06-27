@@ -29,10 +29,10 @@ import { FreeBinLookup } from "@/components/FreeBinLookup";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "EscrowDesk — P2P Crypto Escrow Community" },
-      { name: "description", content: "EscrowDesk is a mediated peer-to-peer escrow community. Browse listings, chat with traders in real time, track your wallet — all from one professional dashboard." },
-      { property: "og:title", content: "EscrowDesk — P2P Crypto Escrow Community" },
-      { property: "og:description", content: "Mediated peer-to-peer crypto escrow with a live community shoutbox, market threads and a personal trading dashboard." },
+      { title: "EscrowDesk — Institutional Bitcoin Escrow Platform" },
+      { name: "description", content: "EscrowDesk is a secure, mediated escrow platform for Bitcoin transactions between two parties. Multi-sig custody, TOTP-protected releases, and on-chain settlement — built for professionals." },
+      { property: "og:title", content: "EscrowDesk — Institutional Bitcoin Escrow Platform" },
+      { property: "og:description", content: "Secure, mediated Bitcoin escrow between two parties. Multi-sig custody, TOTP-protected releases, and on-chain settlement — built for professionals." },
     ],
   }),
   component: LandingPage,
