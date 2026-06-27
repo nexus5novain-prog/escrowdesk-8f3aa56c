@@ -78,40 +78,72 @@ function LandingPage() {
 
 /* ───────────────────────── Hero ───────────────────────── */
 function Hero() {
+  const stats = [
+    { value: "$2M+",   label: "Protected volume" },
+    { value: "1,200+", label: "Successful escrows" },
+    { value: "24/7",   label: "Support & mediation" },
+    { value: "2FA",    label: "Release protection" },
+  ];
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 px-5 py-10 sm:py-14 md:py-16">
+    <section className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 px-6 py-10 sm:px-10 sm:py-14 md:px-12 md:py-16">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 20% 20%, hsl(var(--primary)) 0, transparent 40%), radial-gradient(circle at 80% 60%, hsl(var(--accent)) 0, transparent 40%)",
+            "radial-gradient(circle at 15% 20%, hsl(var(--primary)) 0, transparent 45%), radial-gradient(circle at 85% 70%, hsl(var(--accent)) 0, transparent 45%)",
         }}
       />
-      <div className="relative mx-auto max-w-3xl text-center">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <Badge variant="outline" className="mb-4 font-mono text-[10px] uppercase tracking-[0.25em] text-primary/80">
-            <ShieldCheck className="mr-1.5 h-3 w-3" /> Secure Institutional Escrow
-          </Badge>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-            Bitcoin Escrow, <span className="text-primary">Done Right</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-balance text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Mediated two-party escrow with multi-signature custody, TOTP-protected releases, and on-chain settlement. Your funds, your control, our oversight.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg" className="gap-2">
-              <Link to="/escrow">Open Escrow <ArrowRight className="h-4 w-4" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="secondary" className="gap-2">
-              <Link to="/trades">My Trades <Wallet className="h-4 w-4" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="gap-2">
-              <Link to="/auth">Create Account</Link>
-            </Button>
-          </div>
-        </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative max-w-3xl"
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+          Headline
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-[3.25rem] md:leading-[1.05]">
+          Trade with Confidence.{" "}
+          <span className="text-primary">Settle with Escrow.</span>
+        </h1>
+        <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Secure Bitcoin transactions protected by mediated escrow, multi-signature
+          custody, and TOTP-verified releases. Whether you're settling a domain,
+          service, vehicle, or digital asset — EscrowDesk keeps both parties
+          protected until the deal is complete.
+        </p>
+
+        <div className="mt-7 flex flex-wrap items-center gap-3">
+          <Button asChild size="lg" className="gap-2 rounded-full px-6">
+            <Link to="/escrow">
+              <ShieldCheck className="h-4 w-4" /> Start a Secure Trade
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="gap-2 rounded-full px-6">
+            <Link to="/marketplace">
+              <Search className="h-4 w-4" /> Explore Marketplace
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="ghost" className="gap-2 rounded-full px-5">
+            <Link to="/auth">Create Account <ArrowRight className="h-4 w-4" /></Link>
+          </Button>
+        </div>
+      </motion.div>
+
+      <div className="relative mt-10 border-t border-border/70 pt-6">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+          {stats.map((s) => (
+            <div key={s.label} className="min-w-0">
+              <dt className="sr-only">{s.label}</dt>
+              <dd className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">
+                {s.value}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );
