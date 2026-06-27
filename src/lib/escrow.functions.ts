@@ -341,10 +341,12 @@ export const adminMakeMeAdmin = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // Allow self-promotion ONLY when no admins exist yet (bootstrap).
     const { data: existing } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin").limit(1);
-    if (existing && existing.length > 0) throw new Error("Admin already exists. Ask an admin to promote you.");
+    if (existing && existing.length > 0) {
+      return { ok: false as const, reason: "Admin already exists. Ask an admin to promote you." };
+    }
     const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: context.userId, role: "admin" });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    if (error) return { ok: false as const, reason: error.message };
+    return { ok: true as const };
   });
 
 export const adminListDisputes = createServerFn({ method: "GET" })
