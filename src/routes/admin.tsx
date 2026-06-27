@@ -55,7 +55,7 @@ function Admin() {
       <div className="surface mx-auto max-w-md p-6 text-center">
         <h1 className="text-xl font-semibold">Admin</h1>
         <p className="mt-2 text-sm text-muted-foreground">You're not a staff member. If no admin exists, you can claim the first admin role.</p>
-        <Button className="mt-4" onClick={async () => { try { await promote(); toast.success("You're admin"); refetchMe(); } catch (e) { toast.error((e as Error).message); } }}>Claim admin</Button>
+        <Button className="mt-4" onClick={async () => { try { const r = await promote(); if (r.ok) { toast.success("You're admin"); refetchMe(); } else { toast.error(r.reason); } } catch (e) { toast.error((e as Error).message); } }}>Claim admin</Button>
       </div>
     );
   }
