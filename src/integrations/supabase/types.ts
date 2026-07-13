@@ -486,6 +486,35 @@ export type Database = {
           },
         ]
       }
+      areas: {
+        Row: {
+          city_id: string
+          id: string
+          name: string
+          postal_code: string | null
+        }
+        Insert: {
+          city_id: string
+          id?: string
+          name: string
+          postal_code?: string | null
+        }
+        Update: {
+          city_id?: string
+          id?: string
+          name?: string
+          postal_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "areas_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bin_import_runs: {
         Row: {
           created_at: string
@@ -611,6 +640,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      cities: {
+        Row: {
+          id: string
+          name: string
+          state_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          state_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          state_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_state_id_fkey"
+            columns: ["state_id"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      countries: {
+        Row: {
+          code: string
+          currency: string | null
+          name: string
+          phone_prefix: string | null
+          region_code: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          currency?: string | null
+          name: string
+          phone_prefix?: string | null
+          region_code: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          currency?: string | null
+          name?: string
+          phone_prefix?: string | null
+          region_code?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "countries_region_code_fkey"
+            columns: ["region_code"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       deposit_requests: {
         Row: {
@@ -821,6 +911,78 @@ export type Database = {
           id?: string
           token?: string
           used_at?: string | null
+        }
+        Relationships: []
+      }
+      escrow_deals: {
+        Row: {
+          amount: number
+          buyer_email: string | null
+          buyer_id: string | null
+          created_at: string
+          creator_id: string
+          currency: string
+          deal_type: Database["public"]["Enums"]["escrow_deal_type"]
+          description: string | null
+          expected_delivery_at: string | null
+          id: string
+          location_city: string | null
+          location_country: string | null
+          location_state: string | null
+          metadata: Json
+          reference: string
+          seller_email: string | null
+          seller_id: string | null
+          status: Database["public"]["Enums"]["escrow_deal_status"]
+          terms: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          buyer_email?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          creator_id: string
+          currency?: string
+          deal_type: Database["public"]["Enums"]["escrow_deal_type"]
+          description?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          location_city?: string | null
+          location_country?: string | null
+          location_state?: string | null
+          metadata?: Json
+          reference?: string
+          seller_email?: string | null
+          seller_id?: string | null
+          status?: Database["public"]["Enums"]["escrow_deal_status"]
+          terms?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_email?: string | null
+          buyer_id?: string | null
+          created_at?: string
+          creator_id?: string
+          currency?: string
+          deal_type?: Database["public"]["Enums"]["escrow_deal_type"]
+          description?: string | null
+          expected_delivery_at?: string | null
+          id?: string
+          location_city?: string | null
+          location_country?: string | null
+          location_state?: string | null
+          metadata?: Json
+          reference?: string
+          seller_email?: string | null
+          seller_id?: string | null
+          status?: Database["public"]["Enums"]["escrow_deal_status"]
+          terms?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1037,6 +1199,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      escrow_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          deal_id: string
+          expires_at: string
+          id: string
+          invited_by: string
+          invited_email: string | null
+          role: Database["public"]["Enums"]["escrow_party_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          deal_id: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          invited_email?: string | null
+          role: Database["public"]["Enums"]["escrow_party_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          deal_id?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          invited_email?: string | null
+          role?: Database["public"]["Enums"]["escrow_party_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_invitations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       escrow_invoices: {
         Row: {
@@ -1790,6 +1999,24 @@ export type Database = {
         }
         Relationships: []
       }
+      regions: {
+        Row: {
+          code: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       shoutbox_messages: {
         Row: {
           body: string
@@ -1873,6 +2100,35 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shoutbox_messages"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      states: {
+        Row: {
+          code: string | null
+          country_code: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code?: string | null
+          country_code: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string | null
+          country_code?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "states_country_code_fkey"
+            columns: ["country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
           },
         ]
       }
@@ -3119,6 +3375,41 @@ export type Database = {
         | "expired"
         | "invalid"
       dispute_status: "open" | "resolved_buyer" | "resolved_seller"
+      escrow_deal_status:
+        | "draft"
+        | "invited"
+        | "accepted"
+        | "terms_pending"
+        | "funded"
+        | "in_progress"
+        | "delivered"
+        | "inspecting"
+        | "released"
+        | "disputed"
+        | "cancelled"
+        | "refunded"
+        | "settled"
+      escrow_deal_type:
+        | "marketplace"
+        | "product"
+        | "service"
+        | "vehicle"
+        | "property"
+        | "freelance"
+        | "invoice"
+        | "business"
+        | "import_export"
+        | "construction"
+        | "milestone"
+        | "digital_product"
+        | "domain"
+        | "website"
+        | "software"
+        | "crypto"
+        | "equipment"
+        | "trade"
+        | "investment"
+        | "custom"
       escrow_group_status:
         | "awaiting_counterparty"
         | "active"
@@ -3127,6 +3418,7 @@ export type Database = {
         | "cancelled"
         | "disputed"
       escrow_member_role: "buyer" | "seller" | "moderator"
+      escrow_party_role: "buyer" | "seller" | "mediator" | "observer"
       ledger_bucket:
         | "available"
         | "locked_escrow"
@@ -3344,6 +3636,43 @@ export const Constants = {
         "invalid",
       ],
       dispute_status: ["open", "resolved_buyer", "resolved_seller"],
+      escrow_deal_status: [
+        "draft",
+        "invited",
+        "accepted",
+        "terms_pending",
+        "funded",
+        "in_progress",
+        "delivered",
+        "inspecting",
+        "released",
+        "disputed",
+        "cancelled",
+        "refunded",
+        "settled",
+      ],
+      escrow_deal_type: [
+        "marketplace",
+        "product",
+        "service",
+        "vehicle",
+        "property",
+        "freelance",
+        "invoice",
+        "business",
+        "import_export",
+        "construction",
+        "milestone",
+        "digital_product",
+        "domain",
+        "website",
+        "software",
+        "crypto",
+        "equipment",
+        "trade",
+        "investment",
+        "custom",
+      ],
       escrow_group_status: [
         "awaiting_counterparty",
         "active",
@@ -3353,6 +3682,7 @@ export const Constants = {
         "disputed",
       ],
       escrow_member_role: ["buyer", "seller", "moderator"],
+      escrow_party_role: ["buyer", "seller", "mediator", "observer"],
       ledger_bucket: [
         "available",
         "locked_escrow",
