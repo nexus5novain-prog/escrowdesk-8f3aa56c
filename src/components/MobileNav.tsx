@@ -17,7 +17,8 @@ export function MobileNav({ user, isStaff, onSignOut }: MobileNavProps) {
 
   const navItems = [
     { label: "Home", to: "/", icon: "🏠" },
-    { label: "Marketplace", to: "/marketplace", icon: "🛍️" },
+    { label: "Marketplace (Declutter)", to: "/marketplace", icon: "🛍️" },
+    { label: "Escrow Portal", to: "/escrow-portal", icon: "🛡️" },
     { label: "P2P Order-book", to: "/order-book", icon: "📊" },
     ...(user ? [
       { label: "My Threads", to: "/my-threads", icon: "📝" },
