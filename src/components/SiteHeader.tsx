@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MobileNav } from "@/components/MobileNav";
 import { NotificationBell } from "@/components/NotificationBell";
 import logoAsset from "@/assets/escrowdesk-logo.png.asset.json";
+import { BRAND } from "@/lib/brand";
 
 export function SiteHeader() {
   const { user, signOut } = useAuth();
@@ -30,37 +31,34 @@ export function SiteHeader() {
     return () => { supabase.removeChannel(channel); };
   }, [user, qc]);
   const isStaff = (rolesData?.roles ?? []).some((r) => r === "admin" || r === "moderator");
+
+  const linkCls = "px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
+  const activeCls = "px-3 py-2 text-sm font-medium text-foreground";
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:h-14 sm:px-4 sm:py-0">
         {/* Logo */}
         <Link to="/" className="flex flex-shrink-0 items-center gap-2">
-          <img
-            src={logoAsset.url}
-            alt="EscrowDesk"
-            className="h-8 w-auto"
-          />
-          <span className="ml-2 hidden rounded-full border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground md:inline">
-            P2P · Telegram
+          <img src={logoAsset.url} alt={BRAND.core} className="h-8 w-auto" />
+          <span className="hidden flex-col leading-tight md:flex">
+            <span className="text-[13px] font-semibold tracking-tight">{BRAND.core}</span>
+            <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-primary/80">Secure every transaction</span>
           </span>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden flex-1 items-center justify-center gap-1 sm:flex md:gap-2">
-          <Link to="/" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Home</Link>
-          <Link to="/marketplace" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Marketplace</Link>
-          <Link to="/order-book" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>P2P Order-book</Link>
+        <nav className="hidden flex-1 items-center justify-center gap-0.5 sm:flex lg:gap-1">
+          <Link to="/marketplace" className={linkCls} activeProps={{ className: activeCls }}>Marketplace</Link>
+          <Link to="/escrow-portal" className={linkCls} activeProps={{ className: activeCls }}>Escrow Portal</Link>
+          <Link to="/order-book" className={linkCls} activeProps={{ className: activeCls }}>P2P</Link>
           {user && (
             <>
-              <Link to="/my-threads" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>My Threads</Link>
-              <Link to="/trades" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Trades</Link>
-              <Link to="/escrow" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Escrow</Link>
-              
-              <Link to="/wallet" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Wallet</Link>
-              <Link to="/transactions" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Transactions</Link>
-              <Link to="/settings" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Settings</Link>
+              <Link to="/trades" className={linkCls} activeProps={{ className: activeCls }}>Trades</Link>
+              <Link to="/wallet" className={linkCls} activeProps={{ className: activeCls }}>Wallet</Link>
+              <Link to="/settings" className={linkCls} activeProps={{ className: activeCls }}>Settings</Link>
               {isStaff && (
-                <Link to="/admin" className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-medium text-foreground" }}>Admin</Link>
+                <Link to="/admin" className={linkCls} activeProps={{ className: activeCls }}>Admin</Link>
               )}
             </>
           )}
