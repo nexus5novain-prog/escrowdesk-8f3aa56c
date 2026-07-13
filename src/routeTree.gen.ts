@@ -19,6 +19,7 @@ import { Route as PostListingRouteImport } from './routes/post-listing'
 import { Route as OrderBookRouteImport } from './routes/order-book'
 import { Route as MyThreadsRouteImport } from './routes/my-threads'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as EscrowPortalRouteImport } from './routes/escrow-portal'
 import { Route as EscrowRouteImport } from './routes/escrow'
 import { Route as DisputesRouteImport } from './routes/disputes'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -28,6 +29,9 @@ import { Route as UUserIdRouteImport } from './routes/u.$userId'
 import { Route as TradeIdRouteImport } from './routes/trade.$id'
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as OfferIdRouteImport } from './routes/offer.$id'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as EscrowPortalNewRouteImport } from './routes/escrow-portal.new'
+import { Route as EscrowPortalDealIdRouteImport } from './routes/escrow-portal.$dealId'
 import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
 import { Route as ApiPaymentMetadataRouteImport } from './routes/api/payment-metadata'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -88,6 +92,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
   path: '/marketplace',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EscrowPortalRoute = EscrowPortalRouteImport.update({
+  id: '/escrow-portal',
+  path: '/escrow-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EscrowRoute = EscrowRouteImport.update({
   id: '/escrow',
   path: '/escrow',
@@ -132,6 +141,21 @@ const OfferIdRoute = OfferIdRouteImport.update({
   id: '/offer/$id',
   path: '/offer/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EscrowPortalNewRoute = EscrowPortalNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => EscrowPortalRoute,
+} as any)
+const EscrowPortalDealIdRoute = EscrowPortalDealIdRouteImport.update({
+  id: '/$dealId',
+  path: '/$dealId',
+  getParentRoute: () => EscrowPortalRoute,
 } as any)
 const DisputesIdRoute = DisputesIdRouteImport.update({
   id: '/$id',
@@ -188,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
+  '/escrow-portal': typeof EscrowPortalRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
@@ -200,6 +225,9 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
+  '/escrow-portal/$dealId': typeof EscrowPortalDealIdRoute
+  '/escrow-portal/new': typeof EscrowPortalNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
@@ -218,6 +246,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
+  '/escrow-portal': typeof EscrowPortalRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
@@ -230,6 +259,9 @@ export interface FileRoutesByTo {
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
+  '/escrow-portal/$dealId': typeof EscrowPortalDealIdRoute
+  '/escrow-portal/new': typeof EscrowPortalNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
@@ -249,6 +281,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/disputes': typeof DisputesRouteWithChildren
   '/escrow': typeof EscrowRoute
+  '/escrow-portal': typeof EscrowPortalRouteWithChildren
   '/marketplace': typeof MarketplaceRoute
   '/my-threads': typeof MyThreadsRoute
   '/order-book': typeof OrderBookRoute
@@ -261,6 +294,9 @@ export interface FileRoutesById {
   '/wallet': typeof WalletRoute
   '/api/payment-metadata': typeof ApiPaymentMetadataRoute
   '/disputes/$id': typeof DisputesIdRoute
+  '/escrow-portal/$dealId': typeof EscrowPortalDealIdRoute
+  '/escrow-portal/new': typeof EscrowPortalNewRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/offer/$id': typeof OfferIdRoute
   '/product/$id': typeof ProductIdRoute
   '/trade/$id': typeof TradeIdRoute
@@ -281,6 +317,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/disputes'
     | '/escrow'
+    | '/escrow-portal'
     | '/marketplace'
     | '/my-threads'
     | '/order-book'
@@ -293,6 +330,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
+    | '/escrow-portal/$dealId'
+    | '/escrow-portal/new'
+    | '/invite/$token'
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
@@ -311,6 +351,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/disputes'
     | '/escrow'
+    | '/escrow-portal'
     | '/marketplace'
     | '/my-threads'
     | '/order-book'
@@ -323,6 +364,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
+    | '/escrow-portal/$dealId'
+    | '/escrow-portal/new'
+    | '/invite/$token'
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
@@ -341,6 +385,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/disputes'
     | '/escrow'
+    | '/escrow-portal'
     | '/marketplace'
     | '/my-threads'
     | '/order-book'
@@ -353,6 +398,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/api/payment-metadata'
     | '/disputes/$id'
+    | '/escrow-portal/$dealId'
+    | '/escrow-portal/new'
+    | '/invite/$token'
     | '/offer/$id'
     | '/product/$id'
     | '/trade/$id'
@@ -372,6 +420,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DisputesRoute: typeof DisputesRouteWithChildren
   EscrowRoute: typeof EscrowRoute
+  EscrowPortalRoute: typeof EscrowPortalRouteWithChildren
   MarketplaceRoute: typeof MarketplaceRoute
   MyThreadsRoute: typeof MyThreadsRoute
   OrderBookRoute: typeof OrderBookRoute
@@ -383,6 +432,7 @@ export interface RootRouteChildren {
   TrustRoute: typeof TrustRoute
   WalletRoute: typeof WalletRoute
   ApiPaymentMetadataRoute: typeof ApiPaymentMetadataRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   OfferIdRoute: typeof OfferIdRoute
   ProductIdRoute: typeof ProductIdRoute
   TradeIdRoute: typeof TradeIdRoute
@@ -468,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketplaceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/escrow-portal': {
+      id: '/escrow-portal'
+      path: '/escrow-portal'
+      fullPath: '/escrow-portal'
+      preLoaderRoute: typeof EscrowPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/escrow': {
       id: '/escrow'
       path: '/escrow'
@@ -530,6 +587,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/offer/$id'
       preLoaderRoute: typeof OfferIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/escrow-portal/new': {
+      id: '/escrow-portal/new'
+      path: '/new'
+      fullPath: '/escrow-portal/new'
+      preLoaderRoute: typeof EscrowPortalNewRouteImport
+      parentRoute: typeof EscrowPortalRoute
+    }
+    '/escrow-portal/$dealId': {
+      id: '/escrow-portal/$dealId'
+      path: '/$dealId'
+      fullPath: '/escrow-portal/$dealId'
+      preLoaderRoute: typeof EscrowPortalDealIdRouteImport
+      parentRoute: typeof EscrowPortalRoute
     }
     '/disputes/$id': {
       id: '/disputes/$id'
@@ -609,12 +687,27 @@ const DisputesRouteWithChildren = DisputesRoute._addFileChildren(
   DisputesRouteChildren,
 )
 
+interface EscrowPortalRouteChildren {
+  EscrowPortalDealIdRoute: typeof EscrowPortalDealIdRoute
+  EscrowPortalNewRoute: typeof EscrowPortalNewRoute
+}
+
+const EscrowPortalRouteChildren: EscrowPortalRouteChildren = {
+  EscrowPortalDealIdRoute: EscrowPortalDealIdRoute,
+  EscrowPortalNewRoute: EscrowPortalNewRoute,
+}
+
+const EscrowPortalRouteWithChildren = EscrowPortalRoute._addFileChildren(
+  EscrowPortalRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   DisputesRoute: DisputesRouteWithChildren,
   EscrowRoute: EscrowRoute,
+  EscrowPortalRoute: EscrowPortalRouteWithChildren,
   MarketplaceRoute: MarketplaceRoute,
   MyThreadsRoute: MyThreadsRoute,
   OrderBookRoute: OrderBookRoute,
@@ -626,6 +719,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrustRoute: TrustRoute,
   WalletRoute: WalletRoute,
   ApiPaymentMetadataRoute: ApiPaymentMetadataRoute,
+  InviteTokenRoute: InviteTokenRoute,
   OfferIdRoute: OfferIdRoute,
   ProductIdRoute: ProductIdRoute,
   TradeIdRoute: TradeIdRoute,

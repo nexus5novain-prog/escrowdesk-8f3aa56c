@@ -172,7 +172,7 @@ export const acceptEscrowInvite = createServerFn({ method: "POST" })
     if (uErr) throw new Error(uErr.message);
 
     // Attach the accepter to the deal in the chosen role
-    const patch: Record<string, string | null> = { status: "accepted" };
+    const patch: { status: string; buyer_id?: string; seller_id?: string } = { status: "accepted" };
     if (invite.role === "buyer") patch.buyer_id = userId;
     if (invite.role === "seller") patch.seller_id = userId;
     await supabase.from("escrow_deals").update(patch).eq("id", invite.deal_id);
