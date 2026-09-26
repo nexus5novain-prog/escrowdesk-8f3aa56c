@@ -1,0 +1,13 @@
+{
+  "name": "novain-escrowdesk-telegram-bot",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Standalone Telegram escrow infrastructure bot for Novain Escrowdesk.",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs",
+    "register-webhook": "node src/register-webhook.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
