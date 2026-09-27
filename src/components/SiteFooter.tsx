@@ -47,7 +47,7 @@ export function SiteFooter() {
             <a href="mailto:support@escrowdesk.app" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
               <Mail className="h-3.5 w-3.5" /> support@escrowdesk.app
             </a>
-            <a href="https://t.me/" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            <a href="https://t.me/EscrowDeskBot" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
               <MessageCircle className="h-3.5 w-3.5" /> Telegram bot
             </a>
             <a href="https://github.com/" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">

@@ -1,4 +1,5 @@
 .env
-*.log
-data/store.json
-node_modules
+*.session
+*.session-journal
+data/*.db
+__pycache__/
