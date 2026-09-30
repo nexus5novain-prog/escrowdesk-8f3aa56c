@@ -73,7 +73,7 @@ function Row({ t }: { t: CategoryThread }) {
         <span className="truncate">{t.name}</span>
       </div>
       <Link
-        to="/u/$userId" search={{}}
+        to="/u/$userId" search={{ sort: "pinned", kind: "all", page: 1 }}
         params={{ userId: t.user_id }}
         className="col-span-3 hidden items-center gap-1.5 truncate text-muted-foreground md:flex hover:text-foreground"
       >
