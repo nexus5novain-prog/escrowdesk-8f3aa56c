@@ -1,3 +1,4 @@
+import time
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -168,6 +169,10 @@ async def set_role_cmd(message: Message):
 
 
 # ---------- NETWORK + DEPOSIT ----------
+def _is_admin(user_id: int) -> bool:
+    return user_id in settings.ADMIN_IDS
+
+
 @router.callback_query(F.data.startswith("net_"))
 async def set_network(cb: CallbackQuery):
     await cb.answer()
@@ -175,46 +180,91 @@ async def set_network(cb: CallbackQuery):
     deal = await db.get_deal_by_group(cb.message.chat.id)
     if not deal:
         return
-    escrow = f"SIM_{network}_{deal['deal_id'].upper()}" if settings.SIMULATION_MODE else f"REAL_{network}_PENDING"
+    escrow = settings.escrow_address(network)
+    if not escrow:
+        await cb.message.answer(
+            f"⛔ <b>{network}</b> deposits are not enabled yet. Choose another network or contact {settings.SUPPORT_CONTACT}.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
     await db.update_deal(deal["deal_id"], network=network, escrow_address=escrow, status=DealStatus.WAITING_DEPOSIT)
     text = (
         f"🌐 Network: <b>{network}</b>\n\n"
-        f"🏦 <b>Send funds to Escrow Address:</b>\n"
+        f"🏦 <b>Send funds to the EscrowDesk address:</b>\n"
         f"<code>{escrow}</code>\n\n"
-        f"{'🟢 SIMULATION — use /simulate_deposit' if settings.SIMULATION_MODE else 'Send exact amount and wait for auto-detect.'}"
+        f"Reference: <b>#{deal['deal_id']}</b>\n"
+        f"An admin verifies the payment on-chain and confirms it here."
     )
     await cb.message.answer(text, reply_markup=deal_actions_kb(), parse_mode=ParseMode.HTML)
 
 
-@router.message(Command("simulate_deposit"))
-async def sim_deposit(message: Message):
-    if not settings.SIMULATION_MODE:
+@router.message(Command("confirm_deposit"))
+async def confirm_deposit(message: Message, bot: Bot):
+    """Admin only: /confirm_deposit AMOUNT TXID — after verifying on-chain."""
+    if not _is_admin(message.from_user.id):
+        await message.reply("⛔ Admins only.")
         return
     deal = await db.get_deal_by_group(message.chat.id)
-    if not deal:
-        await message.reply("No active deal.")
+    if not deal or deal["status"] != DealStatus.WAITING_DEPOSIT:
+        await message.reply("No deal waiting for a deposit in this group.")
         return
-    await db.update_deal(deal["deal_id"], status=DealStatus.FUNDED, deposited_amount=100)
+    parts = message.text.split()
+    try:
+        amount = float(parts[1])
+        txid = parts[2]
+    except (IndexError, ValueError):
+        await message.reply("Usage: <code>/confirm_deposit AMOUNT TXID</code>", parse_mode=ParseMode.HTML)
+        return
+    await db.update_deal(deal["deal_id"], status=DealStatus.FUNDED, deposited_amount=amount, funded_at=int(time.time()))
     await message.answer(
-        "✅ <b>Deposit confirmed (simulated)</b>\nDeal is <b>FUNDED</b>.\n\n"
-        "Seller delivers → then /pay_seller or /refund_buyer",
+        f"✅ <b>Deposit confirmed</b>\nAmount: <b>{amount}</b> {deal['network']}\nTX: <code>{txid}</code>\n\n"
+        "Buyer confirms delivery with /pay_seller.",
         reply_markup=deal_actions_kb(), parse_mode=ParseMode.HTML
     )
+    if settings.DEALS_CHANNEL_ID:
+        try:
+            await bot.send_message(
+                settings.DEALS_CHANNEL_ID,
+                f"🔒 <b>New Funded Escrow #{deal['deal_id']}</b>\n"
+                f"Network: {deal['network']}\nAmount: {amount}\n"
+                f"Wallet: <code>{deal['escrow_address']}</code>\nTX: <code>{txid}</code>",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            pass
 
 
 # ---------- RELEASE ----------
-async def _do_release(message: Message, action: str):
+async def _do_release(message: Message, action: str, user_id: int):
     deal = await db.get_deal_by_group(message.chat.id)
     if not deal or deal["status"] != DealStatus.FUNDED:
         await message.answer("Deal is not funded yet.")
         return
+    # Only the buyer can release to seller; only the seller (or admin) can refund buyer.
+    if action == "pay" and user_id != deal["buyer_id"] and not _is_admin(user_id):
+        await message.answer("⛔ Only the buyer can release funds to the seller.")
+        return
+    if action == "refund" and user_id != deal["seller_id"] and not _is_admin(user_id):
+        await message.answer("⛔ Only the seller or an admin can refund the buyer.")
+        return
     if action == "pay":
-        await db.update_deal(deal["deal_id"], status=DealStatus.COMPLETED)
+        await db.update_deal(deal["deal_id"], status=DealStatus.COMPLETED, completed_at=int(time.time()))
         await db.increment_stat("deals_completed")
-        await message.answer("✅ <b>Funds released to Seller!</b>\nDeal completed.", parse_mode=ParseMode.HTML)
+        await message.answer(
+            f"✅ <b>Release approved.</b> Payout to seller wallet <code>{deal['seller_address'] or 'not set'}</code> is being sent by EscrowDesk.",
+            parse_mode=ParseMode.HTML)
     else:
-        await db.update_deal(deal["deal_id"], status=DealStatus.REFUNDED)
-        await message.answer("↩️ <b>Funds refunded to Buyer!</b>", parse_mode=ParseMode.HTML)
+        await db.update_deal(deal["deal_id"], status=DealStatus.REFUNDED, completed_at=int(time.time()))
+        await message.answer(
+            f"↩️ <b>Refund approved.</b> Payout to buyer wallet <code>{deal['buyer_address'] or 'not set'}</code> is being sent by EscrowDesk.",
+            parse_mode=ParseMode.HTML)
+    for admin in settings.ADMIN_IDS:
+        try:
+            await message.bot.send_message(
+                admin,
+                f"💸 Payout needed for #{deal['deal_id']} ({action}) — {deal['deposited_amount']} {deal['network']}")
+        except Exception:
+            pass
 
 
 @router.message(Command("pay_seller"))
@@ -223,7 +273,7 @@ async def pay_seller(event):
     msg = event if isinstance(event, Message) else event.message
     if isinstance(event, CallbackQuery):
         await event.answer()
-    await _do_release(msg, "pay")
+    await _do_release(msg, "pay", event.from_user.id)
 
 
 @router.message(Command("refund_buyer"))
@@ -232,7 +282,7 @@ async def refund_buyer(event):
     msg = event if isinstance(event, Message) else event.message
     if isinstance(event, CallbackQuery):
         await event.answer()
-    await _do_release(msg, "refund")
+    await _do_release(msg, "refund", event.from_user.id)
 
 
 # ---------- UTILS ----------

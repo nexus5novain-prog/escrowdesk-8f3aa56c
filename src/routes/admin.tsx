@@ -504,7 +504,7 @@ function UsersPanel() {
                 <Checkbox className="mt-1" checked={selected.has(u.user_id)} onCheckedChange={() => toggleOne(u.user_id)} />
                 <div>
                   <div className="font-medium">
-                    <Link to="/u/$userId" params={{ userId: u.user_id }} className="hover:underline">{u.display_name}</Link>
+                    <Link to="/u/$userId" search={{ sort: "pinned", kind: "all", page: 1 }} params={{ userId: u.user_id }} className="hover:underline">{u.display_name}</Link>
                     {u.is_banned && <Badge variant="destructive" className="ml-1">Banned</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground font-mono">{u.user_id.slice(0,8)} · trades: {u.trades_completed} · TG: {u.telegram_username ? `@${u.telegram_username}` : "—"}</div>
@@ -1611,7 +1611,7 @@ function ThreadsPanel() {
                   {t.is_pinned && <span className="mr-1 text-primary">📌</span>}{t.name}
                 </td>
                 <td className="px-2 py-2">
-                  <Link to="/u/$userId" params={{ userId: t.user_id }} className="flex items-center gap-1.5 hover:text-foreground">
+                  <Link to="/u/$userId" search={{ sort: "pinned", kind: "all", page: 1 }} params={{ userId: t.user_id }} className="flex items-center gap-1.5 hover:text-foreground">
                     {t.avatar_url
                       ? <img src={t.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
                       : <span className="grid h-5 w-5 place-items-center rounded-full bg-secondary text-[9px] font-semibold">{(t.author || "A").slice(0, 1).toUpperCase()}</span>}
