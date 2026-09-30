@@ -23,8 +23,7 @@ async def on_startup(bot: Bot):
     me = await bot.get_me()
     logger.info(f"Bot started as @{me.username} (ID: {me.id})")
     logger.info(f"Brand: {settings.BRAND_NAME}")
-    if settings.SIMULATION_MODE:
-        logger.warning("SIMULATION MODE active")
+    logger.info(f"Admins: {settings.ADMIN_IDS}")
     if settings.userbot_enabled:
         logger.info("Userbot credentials present — automatic group creation enabled")
     else:

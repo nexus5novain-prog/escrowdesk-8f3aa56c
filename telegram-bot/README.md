@@ -64,9 +64,7 @@ python bot.py
 
 ## Simulation mode
 
-With `SIMULATION_MODE=True`:
-- Use `/simulate_deposit` in the group to fake a deposit
-- No real crypto is moved
+Deposits: set WALLET_* in .env. Admin verifies on-chain, then runs `/confirm_deposit AMOUNT TXID` in the group.
 
 Set to `False` only when real wallets and chain watchers are connected.
 
