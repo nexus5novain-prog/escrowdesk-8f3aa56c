@@ -51,7 +51,7 @@ function AuthorCard({ a, rank }: { a: TopAuthor; rank: number }) {
       layout
       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
     >
-      <Link to="/u/$userId" params={{ userId: a.user_id }} className="surface flex items-start gap-3 p-3 hover:bg-secondary/20 transition-colors">
+      <Link to="/u/$userId" search={{}} params={{ userId: a.user_id }} className="surface flex items-start gap-3 p-3 hover:bg-secondary/20 transition-colors">
 
       <div className="relative shrink-0">
         {a.avatar_url ? (

@@ -272,7 +272,7 @@ function ListingCard({ row }: { row: ListingRow }) {
       <div className="flex items-start gap-3">
         {/* Author avatar + link */}
         <Link
-          to="/u/$userId"
+          to="/u/$userId" search={{}}
           params={{ userId: row.user_id }}
           className="flex-shrink-0"
         >
@@ -294,7 +294,7 @@ function ListingCard({ row }: { row: ListingRow }) {
             {row.amount != null && (
               <span className="font-mono text-xs text-primary">{fmtFiat(Number(row.amount), row.currency || "USD")}</span>
             )}
-            <Link to="/u/$userId" params={{ userId: row.user_id }} className="text-[11px] text-primary hover:underline">
+            <Link to="/u/$userId" search={{}} params={{ userId: row.user_id }} className="text-[11px] text-primary hover:underline">
               @{row.profile?.display_name ?? "anon"}
             </Link>
             {rating && (
