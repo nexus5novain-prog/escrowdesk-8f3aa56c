@@ -26,7 +26,7 @@ const profileQuery = (userId: string, sort: Sort, kind: Kind, page: number) =>
   });
 
 export const Route = createFileRoute("/u/$userId")({
-  validateSearch: (raw: Record<string, unknown>): ProfileSearch => ({
+  validateSearch: (raw: Record<string, unknown>): Partial<ProfileSearch> & ProfileSearch => ({
     sort: SORTS.includes(raw.sort as Sort) ? (raw.sort as Sort) : "pinned",
     kind: KINDS.includes(raw.kind as Kind) ? (raw.kind as Kind) : "all",
     page: Math.max(1, Number(raw.page) || 1),
