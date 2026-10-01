@@ -27,7 +27,7 @@ export const Route = createFileRoute("/product/$id")({
     return (
       <div className="surface mx-auto max-w-md p-6 text-center">
         <h1 className="text-lg font-semibold">Product unavailable</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{(error as Error).message}</p>
         <div className="mt-4 flex justify-center gap-2">
           <Button variant="outline" onClick={() => { reset(); router.invalidate(); }}>Retry</Button>
           <Button asChild><Link to="/marketplace">Back to marketplace</Link></Button>

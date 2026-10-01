@@ -43,7 +43,7 @@ export const Route = createFileRoute("/u/$userId")({
   errorComponent: ({ error }) => (
     <div className="container mx-auto max-w-3xl p-6">
       <p className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-        {error.message}
+        {(error as Error).message}
       </p>
       <Link to="/order-book" className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-3 w-3" /> Back
