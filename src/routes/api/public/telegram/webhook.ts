@@ -7,6 +7,7 @@ import {
 } from "@/lib/totp.server";
 import { signCb, verifyCb, tradeActionKeyboard, forceReply } from "@/lib/telegram/keyboards";
 import { APP_URL } from "@/lib/app-config";
+import { handleGroupEscrow } from "@/lib/telegram/group-escrow.server";
 
 type PendingPrompt =
   | { kind: "totp"; action: "release" | "confirm" | "dispute"; trade_id: string; expires: number }
@@ -630,11 +631,15 @@ async function runTradeAction(
 
 
 async function handle(update: Record<string, unknown>) {
+  if (await handleGroupEscrow(update)) return;
   if (update.callback_query) {
     return handleCallback(update.callback_query as Record<string, unknown>);
   }
   const message = (update.message ?? update.edited_message) as Record<string, unknown> | undefined;
   if (!message) return;
+  const ct = (message.chat as { type?: string })?.type;
+  // In groups, stay silent for non-command chatter.
+  if ((ct === "group" || ct === "supergroup") && !String(message.text ?? "").startsWith("/")) return;
   const chat = message.chat as { id: number };
   const from = message.from as { id: number; username?: string; first_name?: string };
   let text = (message.text as string | undefined) ?? "";
