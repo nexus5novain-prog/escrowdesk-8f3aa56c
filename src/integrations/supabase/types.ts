@@ -2222,6 +2222,75 @@ export type Database = {
         }
         Relationships: []
       }
+      tg_escrow_deals: {
+        Row: {
+          buyer_address: string | null
+          buyer_tg_id: number | null
+          buyer_username: string | null
+          completed_at: string | null
+          created_at: string
+          creator_tg_id: number
+          creator_username: string | null
+          deal_id: string
+          deposited_amount: number
+          escrow_address: string | null
+          funded_at: string | null
+          group_id: number | null
+          group_link: string | null
+          network: string | null
+          seller_address: string | null
+          seller_tg_id: number | null
+          seller_username: string | null
+          status: string
+          txid: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_address?: string | null
+          buyer_tg_id?: number | null
+          buyer_username?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_tg_id: number
+          creator_username?: string | null
+          deal_id: string
+          deposited_amount?: number
+          escrow_address?: string | null
+          funded_at?: string | null
+          group_id?: number | null
+          group_link?: string | null
+          network?: string | null
+          seller_address?: string | null
+          seller_tg_id?: number | null
+          seller_username?: string | null
+          status?: string
+          txid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_address?: string | null
+          buyer_tg_id?: number | null
+          buyer_username?: string | null
+          completed_at?: string | null
+          created_at?: string
+          creator_tg_id?: number
+          creator_username?: string | null
+          deal_id?: string
+          deposited_amount?: number
+          escrow_address?: string | null
+          funded_at?: string | null
+          group_id?: number | null
+          group_link?: string | null
+          network?: string | null
+          seller_address?: string | null
+          seller_tg_id?: number | null
+          seller_username?: string | null
+          status?: string
+          txid?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       totp_recovery_codes: {
         Row: {
           code_hash: string
