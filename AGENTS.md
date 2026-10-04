@@ -1,6 +1,7 @@
 # Project Architecture Decisions
 
-- The Telegram escrow bot is isolated under `telegram-bot/` and does not import or call the web app; this prevents bot release logic from being coupled to browser routes.
+- The Telegram escrow bot is hosted inside the web app: `src/routes/api/public/telegram/webhook.ts` handles all updates, with group-escrow logic in `src/lib/telegram/group-escrow.server.ts`; this avoids any external server or VPS.
+- Group escrow deals are stored in `public.tg_escrow_deals` (Supabase), not in the bot's local files; the standalone `telegram-bot/` Python app is deprecated and must not run on the same bot token.
 - Telegram group escrow records are created only from an existing group because Telegram Bot API bots cannot create new groups; the bot can export an invite link after it has group-admin permission.
-- The bot runs in uses real configured wallets; deposits are admin-confirmed on-chain (no simulation mode).
-- The Telegram bot is a standalone Python (aiogram + Telethon userbot) app using SQLite; it runs on its own server, never inside the web app, and needs a durable database before real funds.
+- Deposits use real configured wallets from env (`ESCROW_WALLET_BTC/LTC/TRC20`); deposits are admin-confirmed on-chain via `/confirm_deposit AMOUNT TXID` (no simulation mode). Payouts are manual: the bot notifies admins after release/refund approval.
+- Admin chat IDs come from `TELEGRAM_ADMIN_IDS` (default 7371453715); the webhook secret is derived from `TELEGRAM_API_KEY` via SHA-256 base64url.
