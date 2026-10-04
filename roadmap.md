@@ -7,3 +7,4 @@
 - [ ] Add real escrow wallet addresses (ESCROW_WALLET_BTC/LTC/TRC20) and set DEALS_CHANNEL_ID.
 - [ ] Provision the two official Telegram channels (deals feed + updates).
 - [ ] Automatic wallet generation, on-chain monitoring and automatic payouts (needs a custody/wallet service).
+- [ ] Audit and fix web app pages/functions that are not working.
