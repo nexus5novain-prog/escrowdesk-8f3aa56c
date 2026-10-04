@@ -1,8 +1,9 @@
 # Roadmap
 
-- [x] Keep the existing web app unchanged while adding a standalone Telegram bot package.
-- [x] Add private-user linking, group escrow identity, role selection, and inline controls.
-- [x] Add provider-neutral multi-asset wallet adapter and funding webhook boundary.
-- [x] Add permanent welcome/help/about/instructions content and channel placeholders.
-- [ ] Connect a production wallet provider and provision the two real Telegram channels.
-- [ ] Replace the starter JSON store with a durable database before handling real funds.
+- [x] Host the Telegram escrow bot inside the web app webhook (no VPS/external server).
+- [x] Store group escrow deals in Lovable Cloud (`tg_escrow_deals`) instead of bot-local storage.
+- [x] Port group commands: /create, /start_deal, /buyer, /seller, network choice, /confirm_deposit, /pay_seller, /refund_buyer, /balance, /qr, /contact.
+- [ ] Reconnect the Telegram connector with the new bot token, then register the webhook + command menu.
+- [ ] Add real escrow wallet addresses (ESCROW_WALLET_BTC/LTC/TRC20) and set DEALS_CHANNEL_ID.
+- [ ] Provision the two official Telegram channels (deals feed + updates).
+- [ ] Automatic wallet generation, on-chain monitoring and automatic payouts (needs a custody/wallet service).
