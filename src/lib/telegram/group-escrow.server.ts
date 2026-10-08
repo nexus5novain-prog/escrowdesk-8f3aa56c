@@ -231,3 +231,33 @@ async function onCallback(cb: { id: string; data?: string; from: Msg["from"]; me
   if (a === "qr") return tgSendMessage(chatId, deal.escrow_address ? `📱 <code>${deal.escrow_address}</code>` : "No address yet.");
   if (a === "contact") return tgSendMessage(chatId, `⚠️ Message ${support()} — response within 24h.`);
 }
+
+/** Called by the BTCPay webhook: auto-funds a Telegram deal once its on-chain payment settles. */
+export async function onTgDealPayment(invoiceId: string, status: string | null, paidBtc: number, confirmations: number): Promise<boolean> {
+  const { data } = await T().select("*").eq("btcpay_invoice_id", invoiceId).maybeSingle();
+  const deal = data as (Deal & { btcpay_invoice_id: string }) | null;
+  if (!deal) return false;
+  if (!deal.group_id || deal.status !== "waiting_deposit") return true;
+  if (status === "processing" && paidBtc > 0) {
+    await tgSendMessage(deal.group_id, `⏳ Payment detected: <b>${paidBtc.toFixed(8)} BTC</b> (${confirmations} confirmation(s)). Waiting for network settlement…`);
+    return true;
+  }
+  if (status !== "settled" || !(paidBtc > 0)) return true;
+  const txid = `btcpay:${invoiceId}`;
+  await upd(deal.deal_id, { status: "funded", deposited_amount: paidBtc, txid, funded_at: new Date().toISOString() });
+  const funded = { ...deal, deposited_amount: paidBtc, txid };
+  await tgSendMessage(deal.group_id,
+    `✅ <b>Deposit confirmed on-chain</b>\nAmount: <b>${paidBtc.toFixed(8)} BTC</b>\n\nBuyer: release with /pay_seller once you receive what you paid for.`,
+    { reply_markup: actionsKb });
+  const ch = process.env.DEALS_CHANNEL_ID;
+  if (ch) {
+    await tgSendMessage(ch,
+      `🔒 <b>New Funded Escrow #${funded.deal_id}</b>\n\n` +
+      `🛒 Buyer: ${funded.buyer_username ? "@" + esc(funded.buyer_username) : "—"}\n` +
+      `💼 Seller: ${funded.seller_username ? "@" + esc(funded.seller_username) : "—"}\n` +
+      `🌐 Network: BTC\n💰 Amount: <b>${paidBtc.toFixed(8)} BTC</b>\n` +
+      `🏦 EscrowDesk wallet: <code>${funded.escrow_address}</code>\n🔗 ${NETWORKS.BTC.explorer(funded.escrow_address!)}\n\nStatus: <b>FUNDED</b> ✅`);
+  }
+  for (const a of adminIds()) await tgSendMessage(a, `💰 Deal #${funded.deal_id} auto-funded: ${paidBtc.toFixed(8)} BTC.`);
+  return true;
+}

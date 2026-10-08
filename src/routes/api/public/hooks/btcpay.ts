@@ -77,6 +77,14 @@ export const Route = createFileRoute("/api/public/hooks/btcpay")({
         }
         const paidSats = Math.round(paidBtc * 100_000_000);
 
+        // ---- Branch 0: Telegram group escrow deal ----
+        {
+          const { onTgDealPayment } = await import("@/lib/telegram/group-escrow.server");
+          if (await onTgDealPayment(evt.invoiceId, nextStatus, paidBtc, confirmations)) {
+            return Response.json({ ok: true, tg: true });
+          }
+        }
+
         // ---- Branch 1: trade-bound escrow invoice ----
         const { data: row } = await supabaseAdmin
           .from("escrow_invoices")
