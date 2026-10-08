@@ -9,107 +9,42 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WalletRouteImport } from './routes/wallet'
-import { Route as TrustRouteImport } from './routes/trust'
-import { Route as TransactionsRouteImport } from './routes/transactions'
-import { Route as TradesRouteImport } from './routes/trades'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as PostOfferRouteImport } from './routes/post-offer'
-import { Route as PostListingRouteImport } from './routes/post-listing'
-import { Route as OrderBookRouteImport } from './routes/order-book'
-import { Route as MyThreadsRouteImport } from './routes/my-threads'
-import { Route as MarketplaceRouteImport } from './routes/marketplace'
-import { Route as EscrowPortalRouteImport } from './routes/escrow-portal'
-import { Route as EscrowRouteImport } from './routes/escrow'
-import { Route as DisputesRouteImport } from './routes/disputes'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as UUserIdRouteImport } from './routes/u.$userId'
-import { Route as TradeIdRouteImport } from './routes/trade.$id'
-import { Route as ProductIdRouteImport } from './routes/product.$id'
-import { Route as OfferIdRouteImport } from './routes/offer.$id'
-import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as EscrowPortalNewRouteImport } from './routes/escrow-portal.new'
-import { Route as EscrowPortalDealIdRouteImport } from './routes/escrow-portal.$dealId'
-import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DisputesRouteImport } from './routes/disputes'
+import { Route as EscrowRouteImport } from './routes/escrow'
+import { Route as EscrowPortalRouteImport } from './routes/escrow-portal'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as MyThreadsRouteImport } from './routes/my-threads'
+import { Route as OrderBookRouteImport } from './routes/order-book'
+import { Route as PostListingRouteImport } from './routes/post-listing'
+import { Route as PostOfferRouteImport } from './routes/post-offer'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TradesRouteImport } from './routes/trades'
+import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as TrustRouteImport } from './routes/trust'
+import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as ApiPaymentMetadataRouteImport } from './routes/api/payment-metadata'
-import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
-import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
-import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
-import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
-import { Route as ApiPublicHooksReconcileRouteImport } from './routes/api/public/hooks/reconcile'
-import { Route as ApiPublicHooksBtcpayRouteImport } from './routes/api/public/hooks/btcpay'
+import { Route as DisputesIdRouteImport } from './routes/disputes.$id'
+import { Route as EscrowPortalDealIdRouteImport } from './routes/escrow-portal.$dealId'
+import { Route as EscrowPortalNewRouteImport } from './routes/escrow-portal.new'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as OfferIdRouteImport } from './routes/offer.$id'
+import { Route as ProductIdRouteImport } from './routes/product.$id'
+import { Route as TradeIdRouteImport } from './routes/trade.$id'
+import { Route as UUserIdRouteImport } from './routes/u.$userId'
 import { Route as ApiPublicHooksBtcConfirmPollRouteImport } from './routes/api/public/hooks/btc-confirm-poll'
+import { Route as ApiPublicHooksBtcpayRouteImport } from './routes/api/public/hooks/btcpay'
+import { Route as ApiPublicHooksReconcileRouteImport } from './routes/api/public/hooks/reconcile'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
-const WalletRoute = WalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TrustRoute = TrustRouteImport.update({
-  id: '/trust',
-  path: '/trust',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TransactionsRoute = TransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TradesRoute = TradesRouteImport.update({
-  id: '/trades',
-  path: '/trades',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PostOfferRoute = PostOfferRouteImport.update({
-  id: '/post-offer',
-  path: '/post-offer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PostListingRoute = PostListingRouteImport.update({
-  id: '/post-listing',
-  path: '/post-listing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrderBookRoute = OrderBookRouteImport.update({
-  id: '/order-book',
-  path: '/order-book',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MyThreadsRoute = MyThreadsRouteImport.update({
-  id: '/my-threads',
-  path: '/my-threads',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MarketplaceRoute = MarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EscrowPortalRoute = EscrowPortalRouteImport.update({
-  id: '/escrow-portal',
-  path: '/escrow-portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EscrowRoute = EscrowRouteImport.update({
-  id: '/escrow',
-  path: '/escrow',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DisputesRoute = DisputesRouteImport.update({
-  id: '/disputes',
-  path: '/disputes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -117,24 +52,99 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UUserIdRoute = UUserIdRouteImport.update({
-  id: '/u/$userId',
-  path: '/u/$userId',
+const DisputesRoute = DisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TradeIdRoute = TradeIdRouteImport.update({
-  id: '/trade/$id',
-  path: '/trade/$id',
+const EscrowRoute = EscrowRouteImport.update({
+  id: '/escrow',
+  path: '/escrow',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductIdRoute = ProductIdRouteImport.update({
-  id: '/product/$id',
-  path: '/product/$id',
+const EscrowPortalRoute = EscrowPortalRouteImport.update({
+  id: '/escrow-portal',
+  path: '/escrow-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyThreadsRoute = MyThreadsRouteImport.update({
+  id: '/my-threads',
+  path: '/my-threads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrderBookRoute = OrderBookRouteImport.update({
+  id: '/order-book',
+  path: '/order-book',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PostListingRoute = PostListingRouteImport.update({
+  id: '/post-listing',
+  path: '/post-listing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PostOfferRoute = PostOfferRouteImport.update({
+  id: '/post-offer',
+  path: '/post-offer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TradesRoute = TradesRouteImport.update({
+  id: '/trades',
+  path: '/trades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TransactionsRoute = TransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrustRoute = TrustRouteImport.update({
+  id: '/trust',
+  path: '/trust',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaymentMetadataRoute = ApiPaymentMetadataRouteImport.update({
+  id: '/api/payment-metadata',
+  path: '/api/payment-metadata',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DisputesIdRoute = DisputesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => DisputesRoute,
+} as any)
+const EscrowPortalDealIdRoute = EscrowPortalDealIdRouteImport.update({
+  id: '/$dealId',
+  path: '/$dealId',
+  getParentRoute: () => EscrowPortalRoute,
+} as any)
+const EscrowPortalNewRoute = EscrowPortalNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => EscrowPortalRoute,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OfferIdRoute = OfferIdRouteImport.update({
@@ -142,45 +152,35 @@ const OfferIdRoute = OfferIdRouteImport.update({
   path: '/offer/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InviteTokenRoute = InviteTokenRouteImport.update({
-  id: '/invite/$token',
-  path: '/invite/$token',
+const ProductIdRoute = ProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EscrowPortalNewRoute = EscrowPortalNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => EscrowPortalRoute,
-} as any)
-const EscrowPortalDealIdRoute = EscrowPortalDealIdRouteImport.update({
-  id: '/$dealId',
-  path: '/$dealId',
-  getParentRoute: () => EscrowPortalRoute,
-} as any)
-const DisputesIdRoute = DisputesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => DisputesRoute,
-} as any)
-const ApiPaymentMetadataRoute = ApiPaymentMetadataRouteImport.update({
-  id: '/api/payment-metadata',
-  path: '/api/payment-metadata',
+const TradeIdRoute = TradeIdRouteImport.update({
+  id: '/trade/$id',
+  path: '/trade/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LovableEmailQueueProcessRoute =
-  LovableEmailQueueProcessRouteImport.update({
-    id: '/lovable/email/queue/process',
-    path: '/lovable/email/queue/process',
+const UUserIdRoute = UUserIdRouteImport.update({
+  id: '/u/$userId',
+  path: '/u/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksBtcConfirmPollRoute =
+  ApiPublicHooksBtcConfirmPollRouteImport.update({
+    id: '/api/public/hooks/btc-confirm-poll',
+    path: '/api/public/hooks/btc-confirm-poll',
     getParentRoute: () => rootRouteImport,
   } as any)
-const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
-  id: '/lovable/email/auth/webhook',
-  path: '/lovable/email/auth/webhook',
+const ApiPublicHooksBtcpayRoute = ApiPublicHooksBtcpayRouteImport.update({
+  id: '/api/public/hooks/btcpay',
+  path: '/api/public/hooks/btcpay',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
-  id: '/lovable/email/auth/preview',
-  path: '/lovable/email/auth/preview',
+const ApiPublicHooksReconcileRoute = ApiPublicHooksReconcileRouteImport.update({
+  id: '/api/public/hooks/reconcile',
+  path: '/api/public/hooks/reconcile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTelegramWebhookRoute =
@@ -189,20 +189,20 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksReconcileRoute = ApiPublicHooksReconcileRouteImport.update({
-  id: '/api/public/hooks/reconcile',
-  path: '/api/public/hooks/reconcile',
+const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
+  id: '/lovable/email/auth/preview',
+  path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksBtcpayRoute = ApiPublicHooksBtcpayRouteImport.update({
-  id: '/api/public/hooks/btcpay',
-  path: '/api/public/hooks/btcpay',
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksBtcConfirmPollRoute =
-  ApiPublicHooksBtcConfirmPollRouteImport.update({
-    id: '/api/public/hooks/btc-confirm-poll',
-    path: '/api/public/hooks/btc-confirm-poll',
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -448,102 +448,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/wallet': {
-      id: '/wallet'
-      path: '/wallet'
-      fullPath: '/wallet'
-      preLoaderRoute: typeof WalletRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/trust': {
-      id: '/trust'
-      path: '/trust'
-      fullPath: '/trust'
-      preLoaderRoute: typeof TrustRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/transactions': {
-      id: '/transactions'
-      path: '/transactions'
-      fullPath: '/transactions'
-      preLoaderRoute: typeof TransactionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/trades': {
-      id: '/trades'
-      path: '/trades'
-      fullPath: '/trades'
-      preLoaderRoute: typeof TradesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/post-offer': {
-      id: '/post-offer'
-      path: '/post-offer'
-      fullPath: '/post-offer'
-      preLoaderRoute: typeof PostOfferRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/post-listing': {
-      id: '/post-listing'
-      path: '/post-listing'
-      fullPath: '/post-listing'
-      preLoaderRoute: typeof PostListingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/order-book': {
-      id: '/order-book'
-      path: '/order-book'
-      fullPath: '/order-book'
-      preLoaderRoute: typeof OrderBookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/my-threads': {
-      id: '/my-threads'
-      path: '/my-threads'
-      fullPath: '/my-threads'
-      preLoaderRoute: typeof MyThreadsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/marketplace': {
-      id: '/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof MarketplaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/escrow-portal': {
-      id: '/escrow-portal'
-      path: '/escrow-portal'
-      fullPath: '/escrow-portal'
-      preLoaderRoute: typeof EscrowPortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/escrow': {
-      id: '/escrow'
-      path: '/escrow'
-      fullPath: '/escrow'
-      preLoaderRoute: typeof EscrowRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/disputes': {
-      id: '/disputes'
-      path: '/disputes'
-      fullPath: '/disputes'
-      preLoaderRoute: typeof DisputesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -553,32 +462,137 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/u/$userId': {
-      id: '/u/$userId'
-      path: '/u/$userId'
-      fullPath: '/u/$userId'
-      preLoaderRoute: typeof UUserIdRouteImport
+    '/disputes': {
+      id: '/disputes'
+      path: '/disputes'
+      fullPath: '/disputes'
+      preLoaderRoute: typeof DisputesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/trade/$id': {
-      id: '/trade/$id'
-      path: '/trade/$id'
-      fullPath: '/trade/$id'
-      preLoaderRoute: typeof TradeIdRouteImport
+    '/escrow': {
+      id: '/escrow'
+      path: '/escrow'
+      fullPath: '/escrow'
+      preLoaderRoute: typeof EscrowRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/product/$id': {
-      id: '/product/$id'
-      path: '/product/$id'
-      fullPath: '/product/$id'
-      preLoaderRoute: typeof ProductIdRouteImport
+    '/escrow-portal': {
+      id: '/escrow-portal'
+      path: '/escrow-portal'
+      fullPath: '/escrow-portal'
+      preLoaderRoute: typeof EscrowPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-threads': {
+      id: '/my-threads'
+      path: '/my-threads'
+      fullPath: '/my-threads'
+      preLoaderRoute: typeof MyThreadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/order-book': {
+      id: '/order-book'
+      path: '/order-book'
+      fullPath: '/order-book'
+      preLoaderRoute: typeof OrderBookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/post-listing': {
+      id: '/post-listing'
+      path: '/post-listing'
+      fullPath: '/post-listing'
+      preLoaderRoute: typeof PostListingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/post-offer': {
+      id: '/post-offer'
+      path: '/post-offer'
+      fullPath: '/post-offer'
+      preLoaderRoute: typeof PostOfferRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trades': {
+      id: '/trades'
+      path: '/trades'
+      fullPath: '/trades'
+      preLoaderRoute: typeof TradesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transactions': {
+      id: '/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trust': {
+      id: '/trust'
+      path: '/trust'
+      fullPath: '/trust'
+      preLoaderRoute: typeof TrustRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/payment-metadata': {
+      id: '/api/payment-metadata'
+      path: '/api/payment-metadata'
+      fullPath: '/api/payment-metadata'
+      preLoaderRoute: typeof ApiPaymentMetadataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/disputes/$id': {
+      id: '/disputes/$id'
+      path: '/$id'
+      fullPath: '/disputes/$id'
+      preLoaderRoute: typeof DisputesIdRouteImport
+      parentRoute: typeof DisputesRoute
+    }
+    '/escrow-portal/$dealId': {
+      id: '/escrow-portal/$dealId'
+      path: '/$dealId'
+      fullPath: '/escrow-portal/$dealId'
+      preLoaderRoute: typeof EscrowPortalDealIdRouteImport
+      parentRoute: typeof EscrowPortalRoute
+    }
+    '/escrow-portal/new': {
+      id: '/escrow-portal/new'
+      path: '/new'
+      fullPath: '/escrow-portal/new'
+      preLoaderRoute: typeof EscrowPortalNewRouteImport
+      parentRoute: typeof EscrowPortalRoute
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/offer/$id': {
@@ -588,74 +602,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfferIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/invite/$token': {
-      id: '/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/invite/$token'
-      preLoaderRoute: typeof InviteTokenRouteImport
+    '/product/$id': {
+      id: '/product/$id'
+      path: '/product/$id'
+      fullPath: '/product/$id'
+      preLoaderRoute: typeof ProductIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/escrow-portal/new': {
-      id: '/escrow-portal/new'
-      path: '/new'
-      fullPath: '/escrow-portal/new'
-      preLoaderRoute: typeof EscrowPortalNewRouteImport
-      parentRoute: typeof EscrowPortalRoute
-    }
-    '/escrow-portal/$dealId': {
-      id: '/escrow-portal/$dealId'
-      path: '/$dealId'
-      fullPath: '/escrow-portal/$dealId'
-      preLoaderRoute: typeof EscrowPortalDealIdRouteImport
-      parentRoute: typeof EscrowPortalRoute
-    }
-    '/disputes/$id': {
-      id: '/disputes/$id'
-      path: '/$id'
-      fullPath: '/disputes/$id'
-      preLoaderRoute: typeof DisputesIdRouteImport
-      parentRoute: typeof DisputesRoute
-    }
-    '/api/payment-metadata': {
-      id: '/api/payment-metadata'
-      path: '/api/payment-metadata'
-      fullPath: '/api/payment-metadata'
-      preLoaderRoute: typeof ApiPaymentMetadataRouteImport
+    '/trade/$id': {
+      id: '/trade/$id'
+      path: '/trade/$id'
+      fullPath: '/trade/$id'
+      preLoaderRoute: typeof TradeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/queue/process': {
-      id: '/lovable/email/queue/process'
-      path: '/lovable/email/queue/process'
-      fullPath: '/lovable/email/queue/process'
-      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+    '/u/$userId': {
+      id: '/u/$userId'
+      path: '/u/$userId'
+      fullPath: '/u/$userId'
+      preLoaderRoute: typeof UUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/auth/webhook': {
-      id: '/lovable/email/auth/webhook'
-      path: '/lovable/email/auth/webhook'
-      fullPath: '/lovable/email/auth/webhook'
-      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lovable/email/auth/preview': {
-      id: '/lovable/email/auth/preview'
-      path: '/lovable/email/auth/preview'
-      fullPath: '/lovable/email/auth/preview'
-      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/telegram/webhook': {
-      id: '/api/public/telegram/webhook'
-      path: '/api/public/telegram/webhook'
-      fullPath: '/api/public/telegram/webhook'
-      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/reconcile': {
-      id: '/api/public/hooks/reconcile'
-      path: '/api/public/hooks/reconcile'
-      fullPath: '/api/public/hooks/reconcile'
-      preLoaderRoute: typeof ApiPublicHooksReconcileRouteImport
+    '/api/public/hooks/btc-confirm-poll': {
+      id: '/api/public/hooks/btc-confirm-poll'
+      path: '/api/public/hooks/btc-confirm-poll'
+      fullPath: '/api/public/hooks/btc-confirm-poll'
+      preLoaderRoute: typeof ApiPublicHooksBtcConfirmPollRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/btcpay': {
@@ -665,11 +637,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksBtcpayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/btc-confirm-poll': {
-      id: '/api/public/hooks/btc-confirm-poll'
-      path: '/api/public/hooks/btc-confirm-poll'
-      fullPath: '/api/public/hooks/btc-confirm-poll'
-      preLoaderRoute: typeof ApiPublicHooksBtcConfirmPollRouteImport
+    '/api/public/hooks/reconcile': {
+      id: '/api/public/hooks/reconcile'
+      path: '/api/public/hooks/reconcile'
+      fullPath: '/api/public/hooks/reconcile'
+      preLoaderRoute: typeof ApiPublicHooksReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/webhook': {
+      id: '/lovable/email/auth/webhook'
+      path: '/lovable/email/auth/webhook'
+      fullPath: '/lovable/email/auth/webhook'
+      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
