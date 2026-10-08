@@ -2224,6 +2224,7 @@ export type Database = {
       }
       tg_escrow_deals: {
         Row: {
+          btcpay_invoice_id: string | null
           buyer_address: string | null
           buyer_tg_id: number | null
           buyer_username: string | null
@@ -2246,6 +2247,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          btcpay_invoice_id?: string | null
           buyer_address?: string | null
           buyer_tg_id?: number | null
           buyer_username?: string | null
@@ -2268,6 +2270,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          btcpay_invoice_id?: string | null
           buyer_address?: string | null
           buyer_tg_id?: number | null
           buyer_username?: string | null

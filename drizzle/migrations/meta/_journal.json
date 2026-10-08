@@ -8,6 +8,13 @@
       "when": 1791026902742,
       "tag": "0000_tg_escrow_deals",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791451938394,
+      "tag": "0001_tg_deals_btcpay",
+      "breakpoints": true
     }
   ]
 }
