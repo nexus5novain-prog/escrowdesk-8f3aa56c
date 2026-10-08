@@ -1,0 +1,1 @@
+ALTER TABLE public.tg_escrow_deals ADD COLUMN IF NOT EXISTS btcpay_invoice_id text UNIQUE;

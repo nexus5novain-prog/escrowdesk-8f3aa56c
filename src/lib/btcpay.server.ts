@@ -105,6 +105,19 @@ export async function createDepositInvoice(args: {
   });
 }
 
+/** Amount-less (top-up) invoice: gives a fresh on-chain address for one Telegram escrow deal. */
+export async function createTgDealInvoice(dealId: string): Promise<BTCPayInvoice> {
+  const { store } = env();
+  return btcpay<BTCPayInvoice>(`/api/v1/stores/${store}/invoices`, {
+    method: "POST",
+    body: JSON.stringify({
+      currency: "BTC",
+      metadata: { tgDealId: dealId, orderId: `TG-${dealId.toUpperCase()}` },
+      checkout: { expirationMinutes: 60 * 24 * 7, speedPolicy: "MediumSpeed", paymentMethods: ["BTC-CHAIN"] },
+    }),
+  });
+}
+
 export async function getInvoice(invoiceId: string): Promise<BTCPayInvoice> {
   const { store } = env();
   return btcpay<BTCPayInvoice>(`/api/v1/stores/${store}/invoices/${invoiceId}`);
